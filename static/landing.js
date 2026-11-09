@@ -158,6 +158,7 @@
   document.addEventListener('click', function (e) {
     var t = e.target && e.target.closest ? e.target.closest('a, button, summary, .btn, .demo-tab') : null;
     if (!t || reduceSound) return;
+    if (t.matches('a[href="/app"]')) return;  // ese clic lo gestiona el sonido de portal
     var a = new Audio('/assets/sounds/click.ogg');
     a.volume = 0.6;
     a.play().catch(function () { /* el navegador puede bloquear audio sin gesto previo */ });
@@ -188,4 +189,17 @@
       d.addEventListener('click', function () { show(Number(d.getAttribute('data-go'))); });
     });
   });
+})();
+
+// Entrar al panel: sonido de entrar al portal del Nether y paso al panel tras el sonido.
+(function () {
+  document.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest ? e.target.closest('a[href="/app"]') : null;
+    if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    var s = new Audio('/assets/sounds/portal-enter.ogg');
+    s.volume = 0.7;
+    s.play().catch(function () { /* sin audio: se entra igual */ });
+    setTimeout(function () { location.href = '/app'; }, 650);
+  }, true);
 })();
