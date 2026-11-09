@@ -140,7 +140,7 @@
     if (hero && 'IntersectionObserver' in window) {
       new IntersectionObserver(function (es) {
         steve.classList.toggle('on', es[0].isIntersecting);
-      }, { threshold: 0.3 }).observe(hero);
+      }, { threshold: 0.6 }).observe(hero);  // solo con el hero casi entero a la vista
     } else {
       steve.classList.add('on');
     }

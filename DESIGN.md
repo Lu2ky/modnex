@@ -16,6 +16,9 @@ colors:
   error: "#f16b72"
   offline: "#87909d"
   log-bg: "#0c0f14"
+  brand-mint: "#59f8b8"
+  brand-violet: "#9a80f3"
+  brand-deep: "#0da673"
 typography:
   body:
     fontFamily: "Inter, system-ui, -apple-system, sans-serif"
@@ -143,6 +146,10 @@ Paleta oscura como tema principal, con un tema claro para quien la prefiera. Los
 ### Error
 - **Rojo de error** (#f16b72): errores, acciones destructivas, servidor en fallo.
 
+### Marca
+- **Degradado de marca** (`linear-gradient(120deg, #59f8b8, #9a80f3)`, menta a violeta): tomado del logo MODNEX. Solo en acentos: titular de la landing, barras de las etiquetas, progreso del demo, indicador del servidor activo, borde superior del login y del cierre de la landing. Nunca como fondo de texto de cuerpo ni de botones.
+- **Menta de marca** (#59f8b8) y **violeta de marca** (#9a80f3): los colores exactos del logo. El verde de acción de la especificación (#55d68b) queda como primario de interfaz.
+
 ### Named Rules
 **The One Action Rule.** El verde de acción aparece en una sola acción principal por pantalla. Su rareza es lo que la hace clara.
 
@@ -251,3 +258,4 @@ El estado siempre va acompañado de texto ("En marcha", "Parado").
 - **Don't** mezclar más de tres radios distintos en una misma pantalla.
 - **Don't** usar Silkscreen ni otra fuente pixel en la interfaz: la declaración existe en el CSS pero está anulada y no se usa.
 - **Don't** adornar la marca MODNEX: el logo se usa tal cual, sobre fondo oscuro.
+- **Don't** usar el degradado de marca en botones, en texto de cuerpo ni sobre fondos claros.
