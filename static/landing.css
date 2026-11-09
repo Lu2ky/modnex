@@ -1,9 +1,11 @@
 /* Landing pública. Paleta de la especificación; Inter; duraciones 120–450 ms. */
+@font-face { font-family: "MCPixel"; src: url(/assets/fonts/minecraft.woff) format("woff"); font-weight: 400; font-display: block; }
 @font-face { font-family: "Inter"; src: url(/assets/fonts/Inter.ttf) format("truetype"); font-weight: 100 900; font-display: swap; }
 
 :root {
   --bg: #111318; --surface: #1b2029; --elevated: #272e3a; --border: #3b4655;
   --primary: #55d68b; --primary-ink: #04160d; --primary-hover: #6ce09b;
+  --font-pixel: "MCPixel", "Inter", sans-serif;
   --brand-mint: #59f8b8; --brand-violet: #9a80f3; --brand-deep: #0da673;
   --brand-grad: linear-gradient(120deg, #59f8b8 0%, #9a80f3 100%);
   --violet: #a78bfa; --accent: #42c6d9; --warn: #f0b85a; --error: #f16b72;
@@ -18,8 +20,8 @@
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 h1, h2, h3 { margin: 0; line-height: 1.15; letter-spacing: -0.02em; font-weight: 650; }
-h1 { font-size: clamp(2.4rem, 5.2vw, 4rem); }
-h2 { font-size: clamp(1.8rem, 3.4vw, 2.6rem); text-wrap: balance; }
+h1 { font-family: var(--font-pixel); font-weight: 400; letter-spacing: 0; line-height: 1.15; font-size: clamp(40px, 6vw, 64px); }
+h2 { font-family: var(--font-pixel); font-weight: 400; letter-spacing: 0; line-height: 1.2; font-size: clamp(32px, 4vw, 40px); text-wrap: balance; }
 h3 { font-size: 1.15rem; letter-spacing: -0.01em; }
 p { margin: 0; }
 a { color: inherit; }
@@ -191,7 +193,7 @@ a { color: inherit; }
 
 /* logo Modnex (PNG con fondo transparente, pensado para fondo oscuro) */
 .brand-img { height: 28px; width: auto; display: block; }
-.brand { font-family: "Inter", system-ui, sans-serif; font-weight: 800; font-size: 1.05rem; letter-spacing: 0.12em; }
+.brand { font-family: var(--font-pixel); font-weight: 400; font-size: 16px; letter-spacing: 0; }
 .top .brand-img { filter: drop-shadow(0 0 10px rgb(85 214 139 / 0.25)); }
 
 .demo-pause { font: inherit; font-size: 0.85rem; font-weight: 600; color: var(--muted); background: transparent; border: 1px solid var(--line, var(--border)); border-radius: 8px; padding: 6px 12px; margin-left: auto; cursor: pointer; }

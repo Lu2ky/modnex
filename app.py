@@ -1846,7 +1846,7 @@ def create_modpack_server(user, b):
 
 ASSETS = {"style.css": "text/css; charset=utf-8", "app.js": "text/javascript; charset=utf-8",
           "icons.js": "text/javascript; charset=utf-8", "theme.js": "text/javascript; charset=utf-8",
-          "fonts/IBMPlexSans.ttf": "font/ttf", "fonts/Silkscreen-Regular.ttf": "font/ttf",
+          "fonts/IBMPlexSans.ttf": "font/ttf", "fonts/minecraft.woff": "font/woff",
           "fonts/Inter.ttf": "font/ttf",
           "brand/modnex-mark.png": "image/png", "brand/modnex-logo.png": "image/png",
           **{f"brand/servers/{n}.png": "image/png" for n in db.ICONS},
