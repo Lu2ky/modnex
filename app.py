@@ -148,8 +148,10 @@ def start(name):
         log = open(p / "manager-console.log", "ab")
     except OSError as e:
         raise RuntimeError(f"no se puede escribir el log de consola: {e.strerror}")
+    # El Java del gestor manda aunque el start.sh se escribiera con otro (p. ej. si el runtime no existía entonces).
+    env = dict(os.environ, JAVA_BIN=templates._java())
     proc = subprocess.Popen(
-        ["bash", str(script)], cwd=p, stdin=subprocess.PIPE,
+        ["bash", str(script)], cwd=p, env=env, stdin=subprocess.PIPE,
         stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
     )
     log.close()
