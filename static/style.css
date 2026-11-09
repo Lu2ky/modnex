@@ -16,6 +16,7 @@
   --accent: #55d68b; --accent-ink: #04160d; --accent-soft: rgb(85 214 139 / 0.12);
   --violet: #a78bfa; --info: #42c6d9; --ok: #55d68b; --bad: #f16b72; --warn: #f0b85a; --offline: #87909d; --starting: #42c6d9;
   --tile: #272e3a; --log: #0c0f14;
+  --control: #6b7a8d; /* borde de campos y controles: 3.7:1 sobre #1b2029 (WCAG 1.4.11) */
 }
 [data-theme="light"] {
   color-scheme: light;
@@ -24,6 +25,7 @@
   --accent: #1e8a55; --accent-ink: #ffffff; --accent-soft: rgb(30 138 85 / 0.10);
   --violet: #6d4fd6; --info: #0b7f93; --ok: #1e8a55; --bad: #c13d46; --warn: #a86b12; --offline: #6b7584; --starting: #0b7f93;
   --tile: #e6ecf3; --log: #f7f9fb;
+  --control: #7a8696; /* 3.2:1 sobre blanco */
 }
 
 * { box-sizing: border-box; }
@@ -61,10 +63,10 @@ a { color: var(--accent); }
 .btn.sm { padding: 4px 10px; font-size: 13px; }
 
 input, select, textarea {
-  font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line);
+  font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--control);
   border-radius: var(--r); padding: 8px 10px; min-width: 0;
 }
-input:hover, select:hover { border-color: var(--muted); }
+input:hover, select:hover { border-color: var(--text-muted, var(--muted)); }
 input[readonly] { background: var(--surface2); }
 label { display: grid; gap: 4px; font-size: 13px; font-weight: 550; color: var(--muted); }
 label input, label select { font-weight: 400; color: var(--text); }
