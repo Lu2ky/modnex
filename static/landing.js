@@ -28,28 +28,31 @@
     c.setAttribute('in', 'disp'); c.setAttribute('in2', 'mask'); c.setAttribute('operator', 'in');
     f.appendChild(t); f.appendChild(m); f.appendChild(d); f.appendChild(c);
     defs.appendChild(f);
-    return { m: m, d: d };
+    return { t: t, m: m, d: d };
   }
 
   function clamp01(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
 
   function paint(el, p) {
     // p = 1: visible y nítido; p = 0: deshecho y oculto.
+    // Fuera de pantalla no queda nada: p = 0 es invisible y deshecho del todo.
+    if (p <= 0.001) { el.style.opacity = '0'; el.style.filter = 'none'; return; }
+    if (p >= 0.999) { el.style.opacity = '1'; el.style.filter = 'none'; return; }
     var e = p * p * (3 - 2 * p);
-    el.style.opacity = String(e);
-    if (p >= 0.999) { el.style.filter = 'none'; return; }
-    if (p <= 0.001) { el.style.filter = 'none'; return; }
+    el.style.opacity = String(Math.min(1, e * 1.4));
     var fi = el.__fx || (el.__fx = makeFilter(el.__idx));
-    var t = 0.1 + 0.8 * (1 - e);             // umbral del ruido: sube al desintegrarse
+    var t = 0.05 + 0.9 * (1 - e);            // umbral del ruido: casi todo se deshace cerca de p = 0
     fi.m.setAttribute('values', '0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  ' + K + ' 0 0 0 ' + (-K * t).toFixed(3));
-    fi.d.setAttribute('scale', String(((1 - e) * 64).toFixed(1)));
+    fi.d.setAttribute('scale', String(((1 - e) * 110).toFixed(1)));   // desplazamiento fuerte al deshacerse
+    fi.t.setAttribute('baseFrequency', (0.45 + 0.5 * (1 - e)).toFixed(3)); // grano más fino al desaparecer
     el.style.filter = 'url(#dz-' + el.__idx + ')';
   }
 
   function progress(el) {
     var vh = window.innerHeight, r = el.getBoundingClientRect();
-    var entry = (vh * 0.95 - r.top) / (vh * 0.45);   // se forma al entrar
-    var exit = (r.bottom - vh * 0.05) / (vh * 0.35); // se deshace al salir
+    // Zonas amplias: el bloque se deshace durante casi todo su recorrido hacia fuera.
+    var entry = (vh * 0.95 - r.top) / (vh * 0.4);    // 0 al pasar el borde inferior, 1 al llegar a 55 %
+    var exit = r.bottom / (vh * 0.45);               // 1 con 45 % visible, 0 al salir por arriba
     return clamp01(Math.min(entry, exit));
   }
 
