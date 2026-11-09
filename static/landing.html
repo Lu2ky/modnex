@@ -13,6 +13,14 @@
 
 <a class="skip" href="#contenido">Ir al contenido</a>
 
+<div class="strip">
+  <span>Corre en tu equipo</span>
+  <span class="dot" aria-hidden="true"></span>
+  <span>Sin servicios externos para funcionar</span>
+  <span class="dot" aria-hidden="true"></span>
+  <span>Modrinth y CurseForge</span>
+</div>
+
 <header class="top">
   <a class="brand" href="/" aria-label="Inicio">
     <img class="brand-img" src="/assets/brand/modnex-mark.png" alt="" width="34" height="28">
@@ -21,6 +29,7 @@
   <nav class="top-nav" aria-label="Principal">
     <a href="#como">Cómo funciona</a>
     <a href="#caracteristicas">Características</a>
+    <a href="#comparacion">Comparación</a>
     <a href="#preguntas">Preguntas</a>
   </nav>
   <a class="btn primary sm" href="/app">Entrar al panel</a>
@@ -33,32 +42,53 @@
       <p class="eyebrow rise" data-i="0">Para servidores de Minecraft con mods</p>
       <h1 class="rise" data-i="1">Tu servidor modded, <span class="accent">bajo control</span></h1>
       <p class="lead rise" data-i="2">Instala mods de Modrinth y CurseForge con todas sus dependencias, genera el cliente exacto para tus amigos y decide quién puede hacer qué en cada servidor.</p>
-      <div class="actions rise" data-i="3">
-        <a class="btn primary lg" href="/app">Entrar al panel</a>
+
+      <ul class="facts rise" data-i="3">
+        <li><span class="fact-icon violet" data-pixel="gear" data-size="24"></span>Modrinth y CurseForge en un buscador</li>
+        <li><span class="fact-icon mint" data-pixel="diamond" data-size="24"></span>Dependencias instaladas junto al mod</li>
+        <li><span class="fact-icon accent" data-pixel="pokeball" data-size="24"></span>Cliente con la versión del servidor</li>
+        <li><span class="fact-icon warn" data-pixel="crown" data-size="24"></span>Permisos por persona y por servidor</li>
+      </ul>
+
+      <div class="actions rise" data-i="4">
+        <a class="btn primary xl" href="/app">
+          <span class="btn-icon" aria-hidden="true" data-pixel="creeper" data-size="28"></span>
+          <span class="btn-text"><small>Abrir el</small>PANEL DE MODNEX</span>
+        </a>
         <a class="btn ghost lg" href="#como">Ver cómo funciona</a>
       </div>
-      <p class="hint rise" data-i="4">Se ejecuta en tu propio equipo. Tus servidores y tus datos no pasan por ningún servicio externo.</p>
+      <p class="hint rise" data-i="5">Tus servidores y tus datos no salen de tu equipo.</p>
     </div>
 
-    <figure class="mock rise" data-i="2" aria-label="Vista previa del panel">
-      <div class="mock-top">
-        <span class="mock-tile" data-pixel="creeper" data-size="34"></span>
-        <div class="grow">
-          <strong>Cobblemon Survival</strong>
-          <span class="status on"><span class="led" aria-hidden="true"></span>En marcha · 7 mods · NeoForge 21.1.265</span>
+    <div class="stage rise" data-i="2">
+      <figure class="mock tilt" aria-label="Vista previa del panel">
+        <div class="mock-top">
+          <span class="mock-tile" data-pixel="creeper" data-size="34"></span>
+          <div class="grow">
+            <strong>Cobblemon Survival</strong>
+            <span class="status on"><span class="led" aria-hidden="true"></span>En marcha · 7 mods · NeoForge 21.1.265</span>
+          </div>
+          <span class="chip violet">NeoForge</span>
         </div>
-        <span class="chip violet">NeoForge</span>
-      </div>
-      <div class="mock-stats">
-        <div><span class="muted">Jugadores</span><strong>4 / 20</strong></div>
-        <div><span class="muted">Memoria</span><strong>6 GB</strong></div>
-        <div><span class="muted">Mods</span><strong>7</strong></div>
-      </div>
-      <pre class="mock-log" aria-hidden="true"><span class="info">[INFO] Done (17.8s)! Para obtener ayuda, escribe "help"</span>
+        <div class="mock-stats">
+          <div><span class="muted">Jugadores</span><strong>4 / 20</strong></div>
+          <div><span class="muted">Memoria</span><strong>6 GB</strong></div>
+          <div><span class="muted">Mods</span><strong>7</strong></div>
+        </div>
+        <pre class="mock-log" aria-hidden="true"><span class="info">[INFO] Done (17.8s)! Para obtener ayuda, escribe "help"</span>
 <span class="info">[INFO] Steve se ha unido al juego</span>
 <span class="warn">[WARN] Can't keep up! Is the server overloaded?</span>
 <span class="info">[INFO] Alex se ha unido al juego</span></pre>
-    </figure>
+      </figure>
+      <span class="floor" aria-hidden="true"></span>
+    </div>
+  </section>
+
+  <section class="proof" aria-label="Lo que incluye Modnex">
+    <div class="proof-item rise" data-i="0"><b>5</b><span>plantillas de servidor: Vanilla, Fabric, NeoForge, Forge y Paper</span></div>
+    <div class="proof-item rise" data-i="1"><b>2</b><span>proveedores de mods: Modrinth (sin clave) y CurseForge</span></div>
+    <div class="proof-item rise" data-i="2"><b>5</b><span>permisos por persona: logs, mods, datapacks, texturas y jugadores</span></div>
+    <div class="proof-item rise" data-i="3"><b>1</b><span>proceso Python en tu equipo, sin base de datos externa</span></div>
   </section>
 
   <section id="caracteristicas" class="section">
@@ -67,27 +97,75 @@
       <h2 class="rise" data-i="1">Todo lo que un servidor con mods necesita</h2>
       <p class="lead rise" data-i="2">Pensado para quien administra un servidor entre amigos y quiere dejar de editar archivos a mano.</p>
     </header>
-    <div class="grid">
-      <article class="card rise" data-i="0">
+
+    <div class="bento">
+      <article class="card big rise" data-i="0">
         <span class="card-icon violet" data-pixel="gear" data-size="30"></span>
         <h3>Mods de Modrinth y CurseForge</h3>
         <p>Busca, compara versiones y filtra solo lo que funciona en servidor. Cada mod tiene su ficha con descripción, galería y enlaces.</p>
+        <ul class="mod-list" aria-label="Ejemplo de resultados">
+          <li><span class="mod-name">Applied Energistics 2</span><span class="chip mint">Modrinth</span><span class="muted">19.2.19</span></li>
+          <li><span class="mod-name">Create</span><span class="chip mint">Modrinth</span><span class="muted">6.0.10</span></li>
+          <li><span class="mod-name">FerriteCore</span><span class="chip warn">CurseForge</span><span class="muted">7.0.3</span></li>
+          <li><span class="mod-name">Sodium</span><span class="chip mint">Modrinth</span><span class="muted">0.6.13</span></li>
+        </ul>
       </article>
+
       <article class="card rise" data-i="1">
         <span class="card-icon mint" data-pixel="diamond" data-size="30"></span>
         <h3>Dependencias resueltas</h3>
         <p>Al instalar un mod, el gestor avisa de lo que necesita y lo instala junto. Si una dependencia no existe para tu versión, te lo dice antes.</p>
       </article>
+
       <article class="card rise" data-i="2">
+        <span class="card-icon warn" data-pixel="crown" data-size="30"></span>
+        <h3>Permisos por persona</h3>
+        <p>Cada persona ve y hace lo que le corresponde en cada servidor: logs, mods, datapacks, texturas o jugadores.</p>
+      </article>
+
+      <article class="card wide rise" data-i="3">
         <span class="card-icon accent" data-pixel="pokeball" data-size="30"></span>
         <h3>Cliente listo para tus amigos</h3>
         <p>Genera un modpack con la misma versión de Minecraft y NeoForge del servidor, en formato CurseForge, Prism o Modrinth. Se importa de un clic.</p>
       </article>
-      <article class="card rise" data-i="3">
-        <span class="card-icon warn" data-pixel="crown" data-size="30"></span>
-        <h3>Permisos por persona</h3>
-        <p>Cada persona ve y hace lo que le corresponde en cada servidor: logs, mods, datapacks, texturas o jugadores. Todo queda registrado.</p>
-      </article>
+    </div>
+  </section>
+
+  <section id="comparacion" class="section">
+    <header class="section-head">
+      <p class="eyebrow rise">Comparación</p>
+      <h2 class="rise" data-i="1">Lo que cambia en el día a día</h2>
+      <p class="lead rise" data-i="2">Las mismas tareas, hechas a mano y con el gestor.</p>
+    </header>
+    <div class="table-wrap rise" data-i="3">
+      <table class="compare">
+        <caption class="sr-only">Comparación de tareas hechas a mano y con Modnex</caption>
+        <thead>
+          <tr><th scope="col">Tarea</th><th scope="col">A mano</th><th scope="col" class="with">Con Modnex</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Instalar un mod con sus dependencias</th>
+            <td>Buscar cada dependencia, comprobar la versión y copiar cada jar</td>
+            <td><span class="ok" aria-hidden="true">✓</span> Se detectan y se instalan juntas</td>
+          </tr>
+          <tr>
+            <th scope="row">Generar el cliente para tus amigos</th>
+            <td>Exportar el modpack, revisar los mods y repartir el zip</td>
+            <td><span class="ok" aria-hidden="true">✓</span> Un clic, con las mismas versiones del servidor</td>
+          </tr>
+          <tr>
+            <th scope="row">Dar acceso a alguien</th>
+            <td>Compartir la consola o editar archivos de configuración</td>
+            <td><span class="ok" aria-hidden="true">✓</span> Permisos por persona y por servidor</td>
+          </tr>
+          <tr>
+            <th scope="row">Ver qué pasa en el servidor</th>
+            <td>Abrir el log en otra ventana y buscar la línea</td>
+            <td><span class="ok" aria-hidden="true">✓</span> Logs y consola dentro del panel</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
@@ -124,9 +202,9 @@
         </div>
       </div>
       <div class="demo-progress" role="tablist" aria-label="Pasos">
-        <button class="demo-tab on" role="tab" aria-selected="true" data-step="0">Conectar</button>
-        <button class="demo-tab" role="tab" aria-selected="false" data-step="1">Instalar</button>
-        <button class="demo-tab" role="tab" aria-selected="false" data-step="2">Invitar</button>
+        <button class="demo-tab on" role="tab" aria-selected="true" aria-controls="demo" data-step="0">Conectar</button>
+        <button class="demo-tab" role="tab" aria-selected="false" aria-controls="demo" data-step="1">Instalar</button>
+        <button class="demo-tab" role="tab" aria-selected="false" aria-controls="demo" data-step="2">Invitar</button>
         <button class="demo-pause" type="button" aria-pressed="false" aria-label="Pausar la demostración">Pausar</button>
         <span class="demo-bar" aria-hidden="true"><span class="demo-fill"></span></span>
       </div>
@@ -178,7 +256,7 @@
   <section class="cta rise" data-i="0">
     <h2>Pon orden en tu servidor hoy</h2>
     <p>Entra al panel con tu usuario. Si todavía no tienes cuenta, pide a quien administra el servidor que te la cree.</p>
-    <a class="btn primary lg" href="/app">Entrar al panel</a>
+    <a class="btn primary xl" href="/app">Entrar al panel</a>
   </section>
 
 </main>
@@ -194,6 +272,7 @@
   <nav class="foot-nav" aria-label="Pie">
     <a href="#como">Cómo funciona</a>
     <a href="#caracteristicas">Características</a>
+    <a href="#comparacion">Comparación</a>
     <a href="#preguntas">Preguntas</a>
     <a href="/app">Panel</a>
   </nav>
