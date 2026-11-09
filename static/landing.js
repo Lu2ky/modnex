@@ -163,3 +163,29 @@
     a.play().catch(function () { /* el navegador puede bloquear audio sin gesto previo */ });
   }, true);
 })();
+
+// Galerías: cada tarjeta pasa a la siguiente captura al hacer clic o con teclado (Enter, Espacio, flechas).
+(function () {
+  document.querySelectorAll('[data-gallery]').forEach(function (g) {
+    var card = g.querySelector('.gallery-card');
+    var slides = g.querySelectorAll('.gallery-slide');
+    var dots = g.querySelectorAll('.gallery-dot');
+    var count = g.querySelector('.gallery-count');
+    var total = slides.length, idx = 0;
+    function show(i) {
+      idx = (i + total) % total;
+      slides.forEach(function (s, k) { s.classList.toggle('on', k === idx); });
+      dots.forEach(function (d, k) { d.classList.toggle('on', k === idx); });
+      if (count) count.textContent = (idx + 1) + ' / ' + total;
+    }
+    card.addEventListener('click', function () { show(idx + 1); });
+    card.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(idx + 1); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); show(idx + 1); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); show(idx - 1); }
+    });
+    dots.forEach(function (d) {
+      d.addEventListener('click', function () { show(Number(d.getAttribute('data-go'))); });
+    });
+  });
+})();
