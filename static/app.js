@@ -302,7 +302,7 @@ async function loadInstalled(s) {
           <span class="chip">${m.source ? SRC[m.source] : 'Desconocido'}</span>
           <span class="ver">${esc(m.installed || '—')}${m.latest ? ` <span class="up">→ ${esc(m.latest)}</span>` : ''}</span>
           <div class="acts">
-            ${m.latest && m.source === 'modrinth' ? `<button class="btn primary sm" data-action="mod-update" data-file="${esc(m.file)}">Actualizar</button>` : ''}
+            ${m.latest && m.source === 'modrinth' ? `<button class="btn sm" data-action="mod-update" data-file="${esc(m.file)}">Actualizar</button>` : ''}
             ${m.source === 'curseforge' && m.slug ? `<a class="btn sm" target="_blank" rel="noopener" href="https://www.curseforge.com/minecraft/mc-mods/${esc(m.slug)}">Ver en CurseForge</a>` : ''}
             <button class="btn sm" data-action="mod-toggle" data-file="${esc(m.file)}">${m.enabled ? 'Desactivar' : 'Activar'}</button>
             <button class="btn danger sm" data-action="mod-delete" data-file="${esc(m.file)}">Borrar</button>
@@ -786,7 +786,7 @@ async function renderModPage() {
         <div class="versions">${d.files.length ? d.files.map((f) => `
           <div class="file">
             <span><strong>${esc(f.version)}</strong><span class="muted small block">${esc(f.date)}</span></span>
-            ${f.url ? `<button class="btn primary sm" data-action="page-install" data-kind="mod" data-source="${esc(d.source)}" data-project="${esc(d.id)}" data-vid="${esc(f.id)}" data-url="${esc(f.url)}" data-name="${esc(f.filename)}" data-sha1="${esc(f.sha1 || '')}">Instalar</button>`
+            ${f.url ? `<button class="btn sm" data-action="page-install" data-kind="mod" data-source="${esc(d.source)}" data-project="${esc(d.id)}" data-vid="${esc(f.id)}" data-url="${esc(f.url)}" data-name="${esc(f.filename)}" data-sha1="${esc(f.sha1 || '')}">Instalar</button>`
               : `<span class="muted small">Sin descarga directa</span>`}
           </div>`).join('') : '<p class="muted small">Sin versiones para esta combinación de Minecraft y loader.</p>'}</div>`
         : '<p class="muted small">No tienes permiso para instalar mods en ningún servidor.</p>'}
@@ -1168,8 +1168,8 @@ const actions = {
       box.innerHTML = files.map((f) => {
         const act = !f.url ? (f.page ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(f.page)}">Descargar a mano</a>` : '')
           : kind === 'resourcepack'
-            ? `<button class="btn primary sm" data-action="pack-use-remote" data-url="${esc(f.url)}" data-sha1="${esc(f.sha1 || '')}">Usar en el servidor</button>`
-            : `<button class="btn primary sm" data-action="finder-install" data-kind="${kind}" data-source="${esc(card.dataset.source)}" data-project="${esc(card.dataset.id)}" data-vid="${esc(f.id)}" data-url="${esc(f.url)}" data-name="${esc(f.filename)}" data-sha1="${esc(f.sha1 || '')}">Instalar</button>`;
+            ? `<button class="btn sm" data-action="pack-use-remote" data-url="${esc(f.url)}" data-sha1="${esc(f.sha1 || '')}">Usar en el servidor</button>`
+            : `<button class="btn sm" data-action="finder-install" data-kind="${kind}" data-source="${esc(card.dataset.source)}" data-project="${esc(card.dataset.id)}" data-vid="${esc(f.id)}" data-url="${esc(f.url)}" data-name="${esc(f.filename)}" data-sha1="${esc(f.sha1 || '')}">Instalar</button>`;
         return `<div class="file"><span>${esc(f.version)}</span><span class="muted small">${esc(f.date)} · ${esc(f.filename)}</span>${act}</div>`;
       }).join('') || '<span class="muted small">Sin versiones para esta combinación.</span>';
     } catch (e) { fail(e); }
