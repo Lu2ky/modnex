@@ -314,4 +314,25 @@ table.compare td:last-child { color: var(--text); }
 .cta .btn.xl { padding: 0 34px; }
 
 /* ---------- cursor de espada de diamante (punta en la esquina superior derecha) ---------- */
-html, body, a, button, summary, .btn, [role="tab"] { cursor: url(/assets/cursors/diamond-sword.png) 30 1, auto; }
+html, body, a, button, summary, .btn, [role="tab"] { cursor: url(/assets/cursors/diamond-sword.png) 0 0, auto; }
+
+/* ---------- galerías: una captura por tarjeta, clic para pasar ---------- */
+.gallery { display: grid; gap: 14px; }
+.gallery-card { display: block; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; cursor: pointer; transition: border-color 180ms ease, box-shadow 220ms var(--ease-out); }
+@media (hover: hover) and (pointer: fine) {
+  .gallery-card:hover { border-color: color-mix(in srgb, var(--primary) 50%, var(--border)); box-shadow: 0 14px 30px -18px rgb(0 0 0 / 0.7); }
+}
+.gallery-stage { display: grid; }
+.gallery-slide { grid-area: 1 / 1; margin: 0; opacity: 0; visibility: hidden; transition: opacity 320ms var(--ease-out), visibility 320ms; }
+.gallery-slide.on { opacity: 1; visibility: visible; }
+.gallery-slide img { display: block; margin: 0 auto; width: auto; max-width: 100%; max-height: 620px; height: auto; border-radius: 8px; border: 1px solid var(--border); }
+.gallery-slide figcaption { padding: 12px 4px 0; color: var(--muted); font-size: 0.95rem; }
+.gallery-hint { margin-top: 12px; font-size: 0.85rem; color: var(--muted); display: flex; gap: 10px; align-items: center; }
+.gallery-count { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
+.gallery-dots { display: flex; gap: 10px; justify-content: center; }
+.gallery-dot { width: 12px; height: 12px; border-radius: 50%; border: 0; padding: 0; background: var(--border); cursor: pointer; transition: background-color 180ms ease, transform 160ms var(--ease-out); }
+.gallery-dot:hover { background: var(--muted); }
+.gallery-dot.on { background: var(--primary); }
+.gallery-dot:active { transform: scale(0.9); }
+.gallery-dot:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .gallery-slide { transition: none; } }
