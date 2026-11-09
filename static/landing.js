@@ -51,8 +51,9 @@
   function progress(el) {
     var vh = window.innerHeight, r = el.getBoundingClientRect();
     // Zonas amplias: el bloque se deshace durante casi todo su recorrido hacia fuera.
-    var entry = (vh * 0.95 - r.top) / (vh * 0.4);    // 0 al pasar el borde inferior, 1 al llegar a 55 %
-    var exit = r.bottom / (vh * 0.45);               // 1 con 45 % visible, 0 al salir por arriba
+    var entry = (vh * 0.97 - r.top) / (vh * 0.2);    // 0 al pasar el borde inferior; 1 a 77 % de la pantalla
+    // La salida solo aplica a lo que se va por arriba; un bloque visible en la parte alta no se toca.
+    var exit = r.top >= 0 ? 1 : clamp01(r.bottom / Math.min(r.height, vh * 0.45));
     return clamp01(Math.min(entry, exit));
   }
 
