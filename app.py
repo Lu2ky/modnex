@@ -1849,6 +1849,7 @@ ASSETS = {"style.css": "text/css; charset=utf-8", "app.js": "text/javascript; ch
           "fonts/IBMPlexSans.ttf": "font/ttf", "fonts/minecraft.woff": "font/woff",
           "fonts/Inter.ttf": "font/ttf",
           "brand/modnex-mark.png": "image/png", "brand/modnex-logo.png": "image/png",
+          "shots/panel-mods.png": "image/png", "shots/panel-cliente.png": "image/png", "shots/panel-propiedades.png": "image/png",
           **{f"brand/servers/{n}.png": "image/png" for n in db.ICONS},
           "landing.css": "text/css; charset=utf-8", "landing.js": "text/javascript; charset=utf-8"}
 CSP = ("default-src 'self'; img-src 'self' data: https:; style-src 'self'; script-src 'self'; "

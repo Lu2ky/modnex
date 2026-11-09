@@ -1393,7 +1393,7 @@ document.addEventListener('submit', async (e) => {
     if (f.id === 'deleteForm') {
       const name = f.dataset.name, typed = f.confirm.value.trim();
       if (typed !== name) { err.textContent = 'El nombre no coincide.'; return; }
-      if (!(await askConfirm(`¿Borrar «${name}» de forma definitiva?`, 'Se elimina la carpeta, el mundo, los mods y la configuración. No se puede deshacer.', { confirmLabel: 'Borrar servidor', danger: true }))) return;
+      if (!(await askConfirm(`¿Borrar «${name}»?`, 'Se elimina la carpeta, el mundo, los mods y la configuración. No se puede deshacer.', { confirmLabel: 'Borrar servidor', danger: true }))) return;
       await api(sPath('delete'), { method: 'POST', body: { confirm: name } });
       toast(`Servidor «${name}» borrado`, 'ok');
       await refreshServers();
