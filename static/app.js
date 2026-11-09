@@ -231,7 +231,8 @@ function tabsFor(s) {
 
 function headHTML(s) {
   const run = s.status.running;
-  const ctl = isAdmin() ? (run
+  const canCtl = isAdmin() || !!(s.permissions && s.permissions.control);
+  const ctl = canCtl ? (run
     ? `<button class="btn danger" data-action="stop">Parar servidor</button>`
     : `<button class="btn primary" data-action="start">Arrancar servidor</button>`) : '';
   const mem = isAdmin() && s.memory && s.memory.xmx ? ` · RAM ${esc(s.memory.xms || '?')}–${esc(s.memory.xmx)}` : '';
@@ -248,9 +249,11 @@ function renderServer() {
   const s = current();
   const tabs = tabsFor(s);
   if (!tabs.length) {
-    $('#main').innerHTML = `<div class="empty"><h1>No tienes permisos en «${esc(s.display_name)}»</h1>
-      <p class="muted">Este servidor existe, pero aún no te han dado acceso a ninguna de sus secciones: logs, mods, datapacks, texturas o jugadores.</p>
-      <p class="muted">Pídele a quien administra el panel que active al menos una en tus permisos.</p></div>`;
+    const canCtl = isAdmin() || !!(s.permissions && s.permissions.control);
+    $('#main').innerHTML = `${canCtl ? `<header class="srv-head" id="srvHead">${headHTML(s)}</header>` : ''}
+      <div class="empty"><h1>${canCtl ? 'Solo puedes encender y apagar' : 'No tienes permisos'} en «${esc(s.display_name)}»</h1>
+      <p class="muted">${canCtl ? 'No tienes acceso a logs, mods, datapacks, texturas ni jugadores de este servidor.' : 'Este servidor existe, pero aún no te han dado acceso a ninguna de sus secciones: logs, mods, datapacks, texturas, jugadores o encender y apagar.'}</p>
+      <p class="muted">Pídele a quien administra el panel que active al menos un permiso.</p></div>`;
     return;
   }
   const tab = tabs.find((t) => t.id === state.view.tab) ? state.view.tab : tabs[0].id;
@@ -1037,7 +1040,7 @@ async function renderUsers() {
   } catch (e) { fail(e); }
 }
 
-const PERM_LABELS = { logs: 'Ver logs', mods: 'Instalar mods', datapacks: 'Datapacks', textures: 'Texturas', players: 'Jugadores' };
+const PERM_LABELS = { logs: 'Ver logs', mods: 'Instalar mods', datapacks: 'Datapacks', textures: 'Texturas', players: 'Jugadores', control: 'Encender y apagar' };
 const PERM_KEYS = Object.keys(PERM_LABELS);
 const clone = (o) => JSON.parse(JSON.stringify(o));
 // Forma canónica para comparar: solo servidores con algún permiso y todas las claves como booleanos.

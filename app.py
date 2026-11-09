@@ -2173,9 +2173,11 @@ class Handler(BaseHTTPRequestHandler):
                         db.audit(user, name, "subir release", fname)
                         return self._send(200, {"uploaded": fname})
                     b = self._body()
-                    if action in ("start", "stop", "command", "memory", "meta", "release_delete", "release_share", "client_build",
+                    if action in ("command", "memory", "meta", "release_delete", "release_share", "client_build",
                                   "properties", "delete"):
                         self._need_admin(user)
+                    if action in ("start", "stop"):
+                        self._need(user, name, "control")
                     if action == "start":
                         start(name)
                         db.audit(user, name, "arrancar")
