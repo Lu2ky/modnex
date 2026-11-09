@@ -183,13 +183,13 @@ def _loader_from(idx_or_manifest, kind):
     return mc, m.group(1)
 
 
-def _extract_overrides(z, dest, prefix):
+def _extract_overrides(z, dest, prefix, skip=frozenset()):
     for info in z.infolist():
         name = info.filename
         if not name.startswith(prefix) or info.is_dir():
             continue
         rel = _safe_rel(name[len(prefix):])
-        if _client_only(rel):
+        if _client_only(rel) or rel in skip:
             continue
         target = Path(dest) / rel
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -197,10 +197,74 @@ def _extract_overrides(z, dest, prefix):
             shutil.copyfileobj(src, out)
 
 
+_PID_RE = re.compile(r"/data/([A-Za-z0-9]+)/")
+
+
+def _modrinth_client_only(files, log):
+    """IDs de proyecto que Modrinth marca como solo cliente (server_side == unsupported).
+    El índice del .mrpack puede decir "required" para mods que en realidad no corren en servidor
+    (Sodium, Iris...). Modrinth es la fuente de verdad. Si la consulta falla, no se excluye nada."""
+    pids = sorted({m.group(1) for f in files for u in f.get("downloads", [])[:1]
+                   for m in [_PID_RE.search(u)] if m})
+    out = set()
+    try:
+        for i in range(0, len(pids), 100):
+            chunk = pids[i:i + 100]
+            data = _get_json("https://api.modrinth.com/v2/projects?" + urllib.parse.urlencode({"ids": json.dumps(chunk)}))
+            out |= {p["id"] for p in data if p.get("server_side") == "unsupported"}
+    except Exception as e:
+        log(f"aviso: no pude comprobar server_side en Modrinth ({e}); se instalan según el índice")
+        return set()
+    return out
+
+
+def _overrides_client_jars(z, prefixes, log):
+    """Jars de overrides/ (y server-overrides/) que Modrinth identifica como solo cliente.
+    Se buscan por SHA-1 en Modrinth (version_files) y se mira server_side del proyecto."""
+    jars = {}
+    for info in z.infolist():
+        for pre in prefixes:
+            if info.filename.startswith(pre + "mods/") and info.filename.endswith(".jar"):
+                jars[info.filename] = info
+    if not jars:
+        return set()
+    sha = {}
+    for name, info in jars.items():
+        h = hashlib.sha1()
+        with z.open(info) as src:
+            for chunk in iter(lambda: src.read(1 << 20), b""):
+                h.update(chunk)
+        sha[h.hexdigest()] = name
+    try:
+        req = urllib.request.Request("https://api.modrinth.com/v2/version_files",
+                                     data=json.dumps({"hashes": list(sha), "algorithm": "sha1"}).encode(),
+                                     headers={"User-Agent": UA, "Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            versions = json.loads(r.read())
+        pids = sorted({v["project_id"] for v in versions.values()})
+        projs = _get_json("https://api.modrinth.com/v2/projects?" + urllib.parse.urlencode({"ids": json.dumps(pids)})) if pids else []
+        client = {p["id"] for p in projs if p.get("server_side") == "unsupported"}
+    except Exception as e:
+        log(f"aviso: no pude comprobar los jars de overrides en Modrinth ({e})")
+        return set()
+    out = set()
+    for h, v in versions.items():
+        if v.get("project_id") in client and h in sha:
+            out.add(sha[h])
+    return out
+
+
 def _install_modrinth_server(dest, idx, z, log):
     n = 0
+    client_pids = _modrinth_client_only(idx["files"], log)
+    skipped = []
     for f in idx["files"]:
         if f.get("env", {}).get("server") == "unsupported":
+            continue
+        url0 = (f.get("downloads") or [""])[0]
+        m = _PID_RE.search(url0)
+        if m and m.group(1) in client_pids:
+            skipped.append(f["path"])
             continue
         rel = _safe_rel(f["path"])
         if _client_only(rel):
@@ -211,8 +275,13 @@ def _install_modrinth_server(dest, idx, z, log):
         _download(url, target, sha1=f["hashes"].get("sha1"), sha512=None if f["hashes"].get("sha1") else f["hashes"].get("sha512"))
         n += 1
         log(f"mods del servidor: {n}")
-    _extract_overrides(z, dest, "overrides/")
-    _extract_overrides(z, dest, "server-overrides/")
+    if skipped:
+        log(f"omitidos por ser solo de cliente (Modrinth): {len(skipped)}")
+    ov_client = _overrides_client_jars(z, ("overrides/", "server-overrides/"), log)
+    if ov_client:
+        log(f"omitidos de overrides por ser solo de cliente (Modrinth): {len(ov_client)}")
+    _extract_overrides(z, dest, "overrides/", skip=frozenset(p[len("overrides/"):] for p in ov_client if p.startswith("overrides/")))
+    _extract_overrides(z, dest, "server-overrides/", skip=frozenset(p[len("server-overrides/"):] for p in ov_client if p.startswith("server-overrides/")))
     return n
 
 
