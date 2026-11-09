@@ -22,7 +22,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 "Int
 h1, h2, h3 { margin: 0; line-height: 1.15; letter-spacing: -0.02em; font-weight: 650; }
 h1 { font-family: var(--font-pixel); font-weight: 400; letter-spacing: 0; line-height: 1.15; font-size: clamp(40px, 6vw, 64px); }
 h2 { font-family: var(--font-pixel); font-weight: 400; letter-spacing: 0; line-height: 1.2; font-size: clamp(32px, 4vw, 40px); text-wrap: balance; }
-h3 { font-size: 1.15rem; letter-spacing: -0.01em; }
+h3 { font-size: 1.3rem; letter-spacing: -0.01em; line-height: 1.25; }
 p { margin: 0; }
 a { color: inherit; }
 .muted { color: var(--muted); }
