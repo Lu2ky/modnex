@@ -1,0 +1,26 @@
+# Secretos y estado local: nunca se versionan
+config.json
+config.local.json
+manager.db
+manager.db-*
+manager.log
+manager.pid
+.tunnel.pid
+*.part
+*.log
+
+# Datos generados por el gestor
+releases/
+packs/
+__pycache__/
+*.pyc
+
+# Binarios descargados (cloudflared) y datos de runtime
+bin/
+
+# Trabajo de impeccable que cambia con cada ejecución
+.impeccable/critique/
+.impeccable/live/
+.impeccable/questions/
+.impeccable/mocks/
+.impeccable/review/

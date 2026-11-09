@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Gestiona tu servidor de Minecraft con mods: instala desde Modrinth y CurseForge con sus dependencias, genera el cliente exacto para tus amigos y decide quién puede hacer qué.">
+<title>Modnex · Gestor de servidores modded</title>
+<link rel="icon" href="/assets/brand/modnex-mark.png" type="image/png">
+<link rel="stylesheet" href="/assets/landing.css">
+</head>
+<body>
+
+<a class="skip" href="#contenido">Ir al contenido</a>
+
+<header class="top">
+  <a class="brand" href="/" aria-label="Inicio">
+    <img class="brand-img" src="/assets/brand/modnex-mark.png" alt="" width="34" height="28">
+    <span>MODNEX</span>
+  </a>
+  <nav class="top-nav" aria-label="Principal">
+    <a href="#como">Cómo funciona</a>
+    <a href="#caracteristicas">Características</a>
+    <a href="#preguntas">Preguntas</a>
+  </nav>
+  <a class="btn primary sm" href="/app">Entrar al panel</a>
+</header>
+
+<main id="contenido">
+
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow rise" data-i="0">Para servidores de Minecraft con mods</p>
+      <h1 class="rise" data-i="1">Tu servidor modded, <span class="accent">bajo control</span></h1>
+      <p class="lead rise" data-i="2">Instala mods de Modrinth y CurseForge con todas sus dependencias, genera el cliente exacto para tus amigos y decide quién puede hacer qué en cada servidor.</p>
+      <div class="actions rise" data-i="3">
+        <a class="btn primary lg" href="/app">Entrar al panel</a>
+        <a class="btn ghost lg" href="#como">Ver cómo funciona</a>
+      </div>
+      <p class="hint rise" data-i="4">Se ejecuta en tu propio equipo. Tus servidores y tus datos no pasan por ningún servicio externo.</p>
+    </div>
+
+    <figure class="mock rise" data-i="2" aria-label="Vista previa del panel">
+      <div class="mock-top">
+        <span class="mock-tile" data-pixel="creeper" data-size="34"></span>
+        <div class="grow">
+          <strong>Cobblemon Survival</strong>
+          <span class="status on"><span class="led" aria-hidden="true"></span>En marcha · 7 mods · NeoForge 21.1.265</span>
+        </div>
+        <span class="chip violet">NeoForge</span>
+      </div>
+      <div class="mock-stats">
+        <div><span class="muted">Jugadores</span><strong>4 / 20</strong></div>
+        <div><span class="muted">Memoria</span><strong>6 GB</strong></div>
+        <div><span class="muted">Mods</span><strong>7</strong></div>
+      </div>
+      <pre class="mock-log" aria-hidden="true"><span class="info">[INFO] Done (17.8s)! Para obtener ayuda, escribe "help"</span>
+<span class="info">[INFO] Steve se ha unido al juego</span>
+<span class="warn">[WARN] Can't keep up! Is the server overloaded?</span>
+<span class="info">[INFO] Alex se ha unido al juego</span></pre>
+    </figure>
+  </section>
+
+  <section id="caracteristicas" class="section">
+    <header class="section-head">
+      <p class="eyebrow rise">Características</p>
+      <h2 class="rise" data-i="1">Todo lo que un servidor con mods necesita</h2>
+      <p class="lead rise" data-i="2">Pensado para quien administra un servidor entre amigos y quiere dejar de editar archivos a mano.</p>
+    </header>
+    <div class="grid">
+      <article class="card rise" data-i="0">
+        <span class="card-icon violet" data-pixel="gear" data-size="30"></span>
+        <h3>Mods de Modrinth y CurseForge</h3>
+        <p>Busca, compara versiones y filtra solo lo que funciona en servidor. Cada mod tiene su ficha con descripción, galería y enlaces.</p>
+      </article>
+      <article class="card rise" data-i="1">
+        <span class="card-icon mint" data-pixel="diamond" data-size="30"></span>
+        <h3>Dependencias resueltas</h3>
+        <p>Al instalar un mod, el gestor avisa de lo que necesita y lo instala junto. Si una dependencia no existe para tu versión, te lo dice antes.</p>
+      </article>
+      <article class="card rise" data-i="2">
+        <span class="card-icon accent" data-pixel="pokeball" data-size="30"></span>
+        <h3>Cliente listo para tus amigos</h3>
+        <p>Genera un modpack con la misma versión de Minecraft y NeoForge del servidor, en formato CurseForge, Prism o Modrinth. Se importa de un clic.</p>
+      </article>
+      <article class="card rise" data-i="3">
+        <span class="card-icon warn" data-pixel="crown" data-size="30"></span>
+        <h3>Permisos por persona</h3>
+        <p>Cada persona ve y hace lo que le corresponde en cada servidor: logs, mods, datapacks, texturas o jugadores. Todo queda registrado.</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="como" class="section">
+    <header class="section-head">
+      <p class="eyebrow rise">Cómo funciona</p>
+      <h2 class="rise" data-i="1">De tu servidor a la partida, en tres pasos</h2>
+    </header>
+    <div class="demo rise" data-i="2" id="demo" aria-label="Demostración del procedimiento">
+      <div class="demo-stage">
+        <div class="scene" data-scene="0">
+          <p class="scene-title">Conectar</p>
+          <ul class="scene-lines">
+            <li data-i="0"><span class="ok">✓</span> Carpeta del servidor encontrada</li>
+            <li data-i="1"><span class="ok">✓</span> Minecraft 1.21.1 · NeoForge 21.1.265</li>
+            <li data-i="2"><span class="ok">✓</span> 7 mods leídos, sin cambiar nada</li>
+          </ul>
+        </div>
+        <div class="scene" data-scene="1">
+          <p class="scene-title">Instalar con dependencias</p>
+          <div class="scene-card">
+            <div class="scene-row" data-i="0"><span class="scene-dot"></span><span>Applied Energistics 2</span><span class="muted">elegido</span></div>
+            <div class="scene-row add" data-i="1"><span class="scene-dot ok"></span><span>GuideME</span><span class="muted">necesario · se instala junto</span></div>
+            <div class="scene-btn" data-i="2">Instalar 2 mods</div>
+          </div>
+        </div>
+        <div class="scene" data-scene="2">
+          <p class="scene-title">Invitar a tus amigos</p>
+          <ul class="scene-lines">
+            <li data-i="0"><span class="ok">✓</span> Cliente generado · 7 mods · NeoForge 21.1.265</li>
+            <li data-i="1"><span class="ok">✓</span> Formato CurseForge y Prism, importable de un clic</li>
+            <li data-i="2"><span class="link">Enlace temporal · 1 hora</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="demo-progress" role="tablist" aria-label="Pasos">
+        <button class="demo-tab on" role="tab" aria-selected="true" data-step="0">Conectar</button>
+        <button class="demo-tab" role="tab" aria-selected="false" data-step="1">Instalar</button>
+        <button class="demo-tab" role="tab" aria-selected="false" data-step="2">Invitar</button>
+        <span class="demo-bar" aria-hidden="true"><span class="demo-fill"></span></span>
+      </div>
+    </div>
+    <ol class="steps">
+      <li class="step rise" data-i="0">
+        <span class="step-num">1</span>
+        <h3>Conecta tu servidor</h3>
+        <p>Apunta el gestor a la carpeta de tu servidor NeoForge. Lee la versión de Minecraft y los mods sin tocar nada.</p>
+      </li>
+      <li class="step rise" data-i="1">
+        <span class="step-num">2</span>
+        <h3>Instala y ajusta</h3>
+        <p>Añade mods, datapacks y texturas desde los proveedores, configura la memoria y arranca o para el servidor desde el panel.</p>
+      </li>
+      <li class="step rise" data-i="2">
+        <span class="step-num">3</span>
+        <h3>Invita a tus amigos</h3>
+        <p>Genera el cliente, compártelo con un enlace temporal y da a cada persona solo los permisos que necesita.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section id="preguntas" class="section narrow">
+    <header class="section-head">
+      <p class="eyebrow rise">Preguntas frecuentes</p>
+      <h2 class="rise" data-i="1">Antes de empezar</h2>
+    </header>
+    <div class="faq rise" data-i="2">
+      <details>
+        <summary>¿Necesito instalar algo en el servidor?</summary>
+        <p>No. El gestor trabaja sobre la carpeta que ya tienes. Solo necesita que el servidor esté en NeoForge y que Java 21 esté disponible.</p>
+      </details>
+      <details>
+        <summary>¿Mis amigos pueden importar el cliente en CurseForge o Prism?</summary>
+        <p>Sí. El zip sigue el mismo formato que los modpacks de CurseForge (manifest.json y overrides), así que la app de CurseForge y Prism Launcher lo importan directamente.</p>
+      </details>
+      <details>
+        <summary>¿Qué versiones de Minecraft y loaders soporta?</summary>
+        <p>Hoy NeoForge para Minecraft 1.21.1. Fabric y Forge están previstos, pero todavía no se pueden usar.</p>
+      </details>
+      <details>
+        <summary>¿Qué pasa si un mod no está en Modrinth ni en CurseForge?</summary>
+        <p>Se puede instalar igual subiendo el jar a mano. Aparece como «desconocido» y, al generar el cliente, se incluye dentro del paquete para que nadie tenga que buscarlo.</p>
+      </details>
+    </div>
+  </section>
+
+  <section class="cta rise" data-i="0">
+    <h2>Pon orden en tu servidor hoy</h2>
+    <p>Entra al panel con tu usuario. Si todavía no tienes cuenta, pide a quien administra el servidor que te la cree.</p>
+    <a class="btn primary lg" href="/app">Entrar al panel</a>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="foot-brand">
+    <span class="brand">
+      <img class="brand-img" src="/assets/brand/modnex-mark.png" alt="" width="34" height="28">
+      <span>MODNEX</span>
+    </span>
+    <p class="muted">Gestión de servidores de Minecraft con mods, en tu propio equipo.</p>
+  </div>
+  <nav class="foot-nav" aria-label="Pie">
+    <a href="#como">Cómo funciona</a>
+    <a href="#caracteristicas">Características</a>
+    <a href="#preguntas">Preguntas</a>
+    <a href="/app">Panel</a>
+  </nav>
+</footer>
+
+<script src="/assets/icons.js"></script>
+<div class="steve" id="steve" aria-hidden="true"></div>
+<script src="/assets/landing.js"></script>
+</body>
+</html>
