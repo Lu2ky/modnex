@@ -2,74 +2,22 @@
 (function () {
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // 1) Desintegración ligada al scroll. Cada bloque .rise se deshace (ruido + desplazamiento + opacidad)
-  //    al salir de pantalla y se reconstruye al entrar. Solo se animan los bloques en transición.
-  var items = [].slice.call(document.querySelectorAll('.rise'));
-  var NS = 'http://www.w3.org/2000/svg';
-  var defs = document.getElementById('dissolve-defs');
-  var fx = [];
-  var K = 12;  // pendiente de la máscara de ruido (más alto, borde más nítido)
-
-  function makeFilter(i) {
-    var f = document.createElementNS(NS, 'filter');
-    f.setAttribute('id', 'dz-' + i);
-    f.setAttribute('x', '-10%'); f.setAttribute('y', '-10%');
-    f.setAttribute('width', '120%'); f.setAttribute('height', '120%');
-    f.setAttribute('color-interpolation-filters', 'sRGB');
-    var t = document.createElementNS(NS, 'feTurbulence');
-    t.setAttribute('type', 'fractalNoise'); t.setAttribute('baseFrequency', '0.6');
-    t.setAttribute('numOctaves', '2'); t.setAttribute('seed', String(i + 3)); t.setAttribute('result', 'n');
-    var m = document.createElementNS(NS, 'feColorMatrix');
-    m.setAttribute('in', 'n'); m.setAttribute('type', 'matrix'); m.setAttribute('result', 'mask');
-    var d = document.createElementNS(NS, 'feDisplacementMap');
-    d.setAttribute('in', 'SourceGraphic'); d.setAttribute('in2', 'n'); d.setAttribute('scale', '0');
-    d.setAttribute('xChannelSelector', 'R'); d.setAttribute('yChannelSelector', 'G'); d.setAttribute('result', 'disp');
-    var c = document.createElementNS(NS, 'feComposite');
-    c.setAttribute('in', 'disp'); c.setAttribute('in2', 'mask'); c.setAttribute('operator', 'in');
-    f.appendChild(t); f.appendChild(m); f.appendChild(d); f.appendChild(c);
-    defs.appendChild(f);
-    return { t: t, m: m, d: d };
-  }
-
-  function clamp01(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
-
-  function paint(el, p) {
-    // p = 1: visible y nítido; p = 0: deshecho y oculto.
-    // Fuera de pantalla no queda nada: p = 0 es invisible y deshecho del todo.
-    if (p <= 0.001) { el.style.opacity = '0'; el.style.filter = 'none'; return; }
-    if (p >= 0.999) { el.style.opacity = '1'; el.style.filter = 'none'; return; }
-    var e = p * p * (3 - 2 * p);
-    el.style.opacity = String(Math.min(1, e * 1.4));
-    var fi = el.__fx || (el.__fx = makeFilter(el.__idx));
-    var t = 0.05 + 0.9 * (1 - e);            // umbral del ruido: casi todo se deshace cerca de p = 0
-    fi.m.setAttribute('values', '0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  ' + K + ' 0 0 0 ' + (-K * t).toFixed(3));
-    fi.d.setAttribute('scale', String(((1 - e) * 110).toFixed(1)));   // desplazamiento fuerte al deshacerse
-    fi.t.setAttribute('baseFrequency', (0.45 + 0.5 * (1 - e)).toFixed(3)); // grano más fino al desaparecer
-    el.style.filter = 'url(#dz-' + el.__idx + ')';
-  }
-
-  function progress(el) {
-    var vh = window.innerHeight, r = el.getBoundingClientRect();
-    // Zonas amplias: el bloque se deshace durante casi todo su recorrido hacia fuera.
-    var entry = (vh * 0.97 - r.top) / (vh * 0.2);    // 0 al pasar el borde inferior; 1 a 77 % de la pantalla
-    // La salida solo aplica a lo que se va por arriba; un bloque visible en la parte alta no se toca.
-    var exit = r.top >= 0 ? 1 : clamp01(r.bottom / Math.min(r.height, vh * 0.45));
-    return clamp01(Math.min(entry, exit));
-  }
-
-  if (!defs || !('IntersectionObserver' in window) || reduce) {
-    items.forEach(function (el) { el.style.opacity = '1'; });
+  // 1) Aparición al hacer scroll. Cada bloque .rise entra una sola vez, cuando llega a la pantalla.
+  //    Lo que ya está visible al cargar aparece de inmediato, sin animación.
+  var items = document.querySelectorAll('.rise');
+  var vh = window.innerHeight;
+  if (!('IntersectionObserver' in window) || reduce) {
+    items.forEach(function (el) { el.classList.add('in'); });
   } else {
-    items.forEach(function (el, i) { el.__idx = i; });
-    var queued = false;
-    function frame() {
-      queued = false;
-      items.forEach(function (el) { paint(el, progress(el)); });
-    }
-    function schedule() { if (!queued) { queued = true; requestAnimationFrame(frame); } }
-    window.addEventListener('scroll', schedule, { passive: true });
-    window.addEventListener('resize', schedule);
-    frame();
+    items.forEach(function (el) {
+      if (el.getBoundingClientRect().top < vh) { el.classList.add('in', 'still'); }
+    });
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.15 });
+    items.forEach(function (el) { if (!el.classList.contains('in')) io.observe(el); });
   }
 
   // 2) Iconos de píxeles (mismos dibujos que el panel).

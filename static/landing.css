@@ -109,8 +109,9 @@ a { color: inherit; }
 
 /* LED de estado: en marcha con pulso suave, parado estático */
 .led { width: 9px; height: 9px; border-radius: 50%; background: var(--offline); display: inline-block; flex: none; }
-.status.on .led { background: var(--primary); animation: pulse 2.6s ease-in-out infinite; }
-@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 45%, transparent); } 50% { box-shadow: 0 0 0 5px transparent; } }
+.status.on .led { position: relative; background: var(--primary); }
+.status.on .led::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--primary); animation: pulse-ring 2.6s ease-in-out infinite; }
+@keyframes pulse-ring { 0%, 100% { transform: scale(1); opacity: 0.45; } 50% { transform: scale(2.6); opacity: 0; } }
 
 /* ---------- secciones ---------- */
 .section { max-width: 1240px; margin: 0 auto; padding: 96px 32px 0; }
@@ -120,7 +121,9 @@ a { color: inherit; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 24px; transition: opacity 480ms var(--ease-out), transform 620ms var(--ease-out), border-color 180ms ease, box-shadow 220ms var(--ease-out); }
-.card.rise:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--primary) 55%, var(--border)); box-shadow: 0 14px 30px -18px rgb(0 0 0 / 0.7); }
+@media (hover: hover) and (pointer: fine) {
+  .card.rise.in:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--primary) 55%, var(--border)); box-shadow: 0 14px 30px -18px rgb(0 0 0 / 0.7); }
+}
 .card h3 { margin: 16px 0 8px; }
 .card p { color: var(--muted); font-size: 0.97rem; }
 .card-icon { width: 52px; height: 52px; border-radius: 12px; display: grid; place-items: center; background: var(--elevated); }
@@ -168,7 +171,7 @@ a { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .rise, .card, .faq details[open] p { transition: none !important; animation: none !important; opacity: 1; transform: none; }
-  .status.on .led { animation: none; }
+  .status.on .led::after { animation: none; opacity: 0; }
   .btn:active { transform: none; }
 }
 
@@ -266,8 +269,6 @@ table.compare td:last-child { color: var(--text); }
 }
 @media (max-width: 560px) { .proof { grid-template-columns: 1fr; } .proof-item + .proof-item { border-left: 0; padding-left: 0; border-top: 1px solid var(--border); } .mod-list li { grid-template-columns: minmax(0, 1fr) auto; } .mod-list li .muted { display: none; } }
 
-/* contenedor oculto de los filtros de desintegración */
-.dz-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
 
 /* ---------- capturas del panel ---------- */
 .shot-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
@@ -276,3 +277,15 @@ table.compare td:last-child { color: var(--text); }
 .shot img { display: block; width: 100%; height: auto; }
 .shot figcaption { padding: 14px 18px; color: var(--muted); font-size: 0.95rem; }
 @media (max-width: 900px) { .shot-grid { grid-template-columns: 1fr; } .shot.big { grid-column: auto; } }
+
+/* ---------- aparición al hacer scroll (una sola vez, con transform y opacity) ---------- */
+.rise { opacity: 0; transform: translateY(18px) scale(0.98); transition: opacity 360ms var(--ease-out), transform 480ms var(--ease-out); }
+.rise.in { opacity: 1; transform: none; transition-delay: calc(var(--i, 0) * 70ms); }
+.rise.in:hover { transition-delay: 0ms; }
+.rise.still { transition: none; }
+.card.rise.in { transition: opacity 360ms var(--ease-out), transform 480ms var(--ease-out), border-color 180ms ease, box-shadow 220ms var(--ease-out); }
+@media (hover: hover) and (pointer: fine) {
+  .card.rise.in:hover { transition: transform 220ms var(--ease-out), border-color 180ms ease, box-shadow 220ms var(--ease-out); }
+}
+.cta.rise { transform: translateY(18px) scale(0.98); }
+.cta.rise.in { transform: none; }
