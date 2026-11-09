@@ -49,6 +49,24 @@ function upload(path, file, onProgress) {
   });
 }
 
+// Confirmación con el mismo sistema visual (sustituye a confirm() del navegador).
+// Resuelve true solo si el usuario pulsa el botón de confirmar.
+function askConfirm(title, message, { confirmLabel = 'Confirmar', danger = false } = {}) {
+  return new Promise((resolve) => {
+    const d = openDialog(`
+      <form class="dlg confirm-dlg" method="dialog" role="alertdialog" aria-labelledby="confirmTitle" aria-describedby="confirmMsg">
+        <header><h2 id="confirmTitle">${esc(title)}</h2></header>
+        <p id="confirmMsg" class="muted">${esc(message)}</p>
+        <div class="row end">
+          <button class="btn" value="cancel">Cancelar</button>
+          <button class="btn ${danger ? 'danger' : 'primary'}" value="ok">${esc(confirmLabel)}</button>
+        </div>
+      </form>`);
+    $('button[value=cancel]', d).focus();
+    d.addEventListener('close', () => resolve(d.returnValue === 'ok'));
+  });
+}
+
 function toast(message, kind = 'info') {
   const el = document.createElement('div');
   el.className = `toast ${kind}`;
@@ -229,7 +247,12 @@ function headHTML(s) {
 function renderServer() {
   const s = current();
   const tabs = tabsFor(s);
-  if (!tabs.length) { $('#main').innerHTML = '<div class="empty"><h1>Sin permisos</h1></div>'; return; }
+  if (!tabs.length) {
+    $('#main').innerHTML = `<div class="empty"><h1>No tienes permisos en «${esc(s.display_name)}»</h1>
+      <p class="muted">Este servidor existe, pero aún no te han dado acceso a ninguna de sus secciones: logs, mods, datapacks, texturas o jugadores.</p>
+      <p class="muted">Pídele a quien administra el panel que active al menos una en tus permisos.</p></div>`;
+    return;
+  }
   const tab = tabs.find((t) => t.id === state.view.tab) ? state.view.tab : tabs[0].id;
   state.view.tab = tab;
   $('#main').innerHTML = `
@@ -841,11 +864,11 @@ async function openNewServer() {
         <label class="check"><input type="checkbox" name="mp_client" checked> Guardar también el cliente original del modpack, sin cambios, para compartirlo</label>
       </section>
       <div class="row wiz-row" id="wizMcRow">
-        <label class="grow">Versión de Minecraft<select name="mc" required aria-busy="true"><option>Cargando…</option></select></label>
+        <label class="grow">Versión de Minecraft<select name="mc" required aria-busy="true" aria-describedby="mcHelp"><option>Cargando…</option></select><span id="mcHelp" class="muted small">La versión que descargará el servidor. Los mods se filtran por esta versión.</span></label>
         <label>Memoria<select name="memory">${['2G', '4G', '6G', '8G'].map((m) => `<option ${m === '4G' ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
       </div>
       <div class="row wiz-row">
-        <label class="grow">Nombre de la carpeta<input name="name" required pattern="[A-Za-z0-9._-]{1,40}" maxlength="40" placeholder="survival-2026" autocomplete="off"></label>
+        <label class="grow">Nombre interno (carpeta)<input name="name" required pattern="[A-Za-z0-9._-]{1,40}" maxlength="40" placeholder="survival-2026" autocomplete="off" aria-describedby="nameHelp"><span id="nameHelp" class="muted small">Solo letras, números, puntos y guiones. Es la carpeta en tu equipo.</span></label>
         <label class="grow">Nombre visible<input name="display_name" maxlength="40" placeholder="Opcional"></label>
         <label>Puerto<input name="port" type="number" min="1024" max="65535" placeholder="Automático"></label>
       </div>
@@ -1083,7 +1106,7 @@ async function startInstall(server, el) {
         plan = await api('/api/deps?' + new URLSearchParams({ server: server, source: el.dataset.source, project: el.dataset.project, vid: el.dataset.vid, loader: state.loader, version: state.version }));
       } catch (e) {
         if (e.status === 401) throw e;
-        if (!confirm(`No se pudieron comprobar las dependencias (${e.message}).\n¿Instalar solo este mod?`)) { busy(el, false); el.textContent = 'Instalar'; return; }
+        if (!(await askConfirm('No se pudieron comprobar las dependencias', `${e.message}. ¿Instalar solo este mod?`, { confirmLabel: 'Instalar solo este mod' }))) { busy(el, false); el.textContent = 'Instalar'; return; }
       }
       if (plan && (plan.deps.length || plan.warnings.length)) { busy(el, false); el.textContent = 'Instalar'; return depsDialog(el, plan); }
       el.textContent = 'Instalando…';
@@ -1132,7 +1155,7 @@ const actions = {
     setTimeout(refreshServers, 800);
   },
   async stop(el) {
-    if (!confirm('¿Parar el servidor? Se guardará el mundo antes de cerrarlo.')) return;
+    if (!(await askConfirm('¿Parar el servidor?', 'Se guardará el mundo antes de cerrarlo. Los jugadores conectados se desconectarán.', { confirmLabel: 'Parar servidor', danger: true }))) return;
     busy(el, true); el.textContent = 'Parando…';
     try { await api(sPath('stop'), { method: 'POST', body: {} }); toast('Servidor parado', 'ok'); } catch (e) { fail(e); }
     refreshServers();
@@ -1146,7 +1169,7 @@ const actions = {
     try { await api(sPath('mod_toggle'), { method: 'POST', body: { file: el.dataset.file } }); loadInstalled(current()); } catch (e) { fail(e); }
   },
   async 'mod-delete'(el) {
-    if (!confirm(`¿Borrar ${el.dataset.file}? No se puede deshacer.`)) return;
+    if (!(await askConfirm('¿Borrar este mod?', `${el.dataset.file} se elimina de la carpeta mods/. No se puede deshacer.`, { confirmLabel: 'Borrar mod', danger: true }))) return;
     try { await api(sPath('mod_delete'), { method: 'POST', body: { file: el.dataset.file } }); toast('Mod borrado', 'ok'); loadInstalled(current()); refreshServers(); } catch (e) { fail(e); }
   },
   async 'mod-update'(el) {
@@ -1198,14 +1221,14 @@ const actions = {
     } catch (e) { fail(e); }
   },
   async 'tex-delete-local'(el) {
-    if (!confirm(`¿Borrar el pack ${el.dataset.file}? Si el servidor lo está pidiendo, se quitará.`)) return;
+    if (!(await askConfirm('¿Borrar este pack?', `${el.dataset.file} se elimina. Si el servidor lo está pidiendo, dejará de pedirse.`, { confirmLabel: 'Borrar pack', danger: true }))) return;
     try { await api(sPath('resourcepack_delete'), { method: 'POST', body: { file: el.dataset.file } }); toast('Pack borrado', 'ok'); loadTex(current()); } catch (e) { fail(e); }
   },
   async 'tex-clear'() {
-    if (!confirm('¿Quitar el pack? El servidor dejará de pedir texturas a los jugadores.')) return;
+    if (!(await askConfirm('¿Quitar el pack del servidor?', 'Los jugadores dejarán de recibir texturas al reiniciar el servidor.', { confirmLabel: 'Quitar pack', danger: true }))) return;
     try { await api(sPath('resourcepack_set'), { method: 'POST', body: { url: '', sha1: '', required: false, prompt: '' } }); toast('Pack quitado', 'ok'); loadTex(current()); } catch (e) { fail(e); }
   },
-  'pl-act'(el) {
+  async 'pl-act'(el) {
     const { act, player } = el.dataset;
     if (['tell', 'kick', 'ban'].includes(act)) {
       const label = { tell: 'Enviar mensaje', kick: 'Expulsar', ban: 'Banear' }[act];
@@ -1217,12 +1240,12 @@ const actions = {
         </form>`);
       return $('input', d).focus();
     }
-    if (act === 'op' && !confirm(`¿Dar OP a ${player}? Podrá ejecutar comandos de administrador.`)) return;
+    if (act === 'op' && !(await askConfirm(`¿Dar OP a ${player}?`, 'Podrá ejecutar comandos de administrador en el servidor.', { confirmLabel: 'Dar OP', danger: true }))) return;
     runPlayerAction(act, player, '').catch(fail);
   },
 
   async 'dp-delete'(el) {
-    if (!confirm(`¿Borrar el datapack ${el.dataset.file}?`)) return;
+    if (!(await askConfirm('¿Borrar este datapack?', `${el.dataset.file} se elimina del mundo. No se puede deshacer.`, { confirmLabel: 'Borrar datapack', danger: true }))) return;
     try { await api(sPath('datapack_delete'), { method: 'POST', body: { file: el.dataset.file } }); toast('Datapack borrado', 'ok'); loadDatapacks(current()); } catch (e) { fail(e); }
   },
 
@@ -1276,7 +1299,7 @@ const actions = {
     try { await navigator.clipboard.writeText(input.value); toast('Enlace copiado', 'ok'); } catch { input.select(); toast('Selecciona y copia el enlace manualmente'); }
   },
   async 'rel-delete'(el) {
-    if (!confirm(`¿Borrar la release ${el.dataset.file}?`)) return;
+    if (!(await askConfirm('¿Borrar esta release?', `${el.dataset.file} se elimina del gestor. Si hay un enlace público activo, se cierra antes.`, { confirmLabel: 'Borrar release', danger: true }))) return;
     try { await api(sPath('release_delete'), { method: 'POST', body: { file: el.dataset.file } }); toast('Release borrada', 'ok'); loadReleases(current()); } catch (e) { fail(e); }
   },
 
@@ -1296,8 +1319,8 @@ const actions = {
     $('input', d).focus();
   },
   'user-edit'(el) { userDialog(state.users.find((u) => u.id === Number(el.dataset.id))); },
-  'user-close'() {
-    if (isDirty() && !confirm('Hay cambios sin guardar. ¿Descartarlos?')) return;
+  async 'user-close'() {
+    if (isDirty() && !(await askConfirm('Hay cambios sin guardar', 'Si cierras ahora, se pierden.', { confirmLabel: 'Descartar cambios', danger: true }))) return;
     actions.close();
   },
   async 'user-save'(el) {
@@ -1322,7 +1345,7 @@ const actions = {
   },
   async 'user-delete'(el) {
     const u = state.users.find((x) => x.id === Number(el.dataset.id));
-    if (!confirm(`¿Borrar al usuario ${u.username}?`)) return;
+    if (!(await askConfirm(`¿Borrar a ${u.username}?`, 'Pierde el acceso al panel y sus permisos. No se puede deshacer.', { confirmLabel: 'Borrar usuario', danger: true }))) return;
     try { await api(`/api/users/${u.id}/delete`, { method: 'POST', body: {} }); actions.close(); toast('Usuario borrado', 'ok'); renderUsers(); } catch (e) { fail(e); }
   },
 };
@@ -1354,7 +1377,7 @@ document.addEventListener('submit', async (e) => {
     }
     if (f.dataset.form === 'byname') {
       const act = e.submitter && e.submitter.value, name = f.player.value.trim();
-      if (act === 'ban' && !confirm(`¿Banear a ${name}?`)) return;
+      if (act === 'ban' && !(await askConfirm(`¿Banear a ${name}?`, 'No podrá entrar al servidor hasta que lo perdones.', { confirmLabel: 'Banear', danger: true }))) return;
       await runPlayerAction(act, name, '');
       f.player.value = '';
       return;
@@ -1370,7 +1393,7 @@ document.addEventListener('submit', async (e) => {
     if (f.id === 'deleteForm') {
       const name = f.dataset.name, typed = f.confirm.value.trim();
       if (typed !== name) { err.textContent = 'El nombre no coincide.'; return; }
-      if (!confirm(`¿Borrar «${name}» de forma definitiva?`)) return;
+      if (!(await askConfirm(`¿Borrar «${name}» de forma definitiva?`, 'Se elimina la carpeta, el mundo, los mods y la configuración. No se puede deshacer.', { confirmLabel: 'Borrar servidor', danger: true }))) return;
       await api(sPath('delete'), { method: 'POST', body: { confirm: name } });
       toast(`Servidor «${name}» borrado`, 'ok');
       await refreshServers();
@@ -1475,7 +1498,10 @@ document.addEventListener('change', (e) => {
 });
 // Esc o clic fuera: avisa si hay cambios sin guardar.
 document.addEventListener('cancel', (e) => {
-  if (isDirty() && !confirm('Hay cambios sin guardar. ¿Descartarlos?')) e.preventDefault();
+  if (!e.target.querySelector('[data-user]') || !isDirty()) return;
+  e.preventDefault();
+  askConfirm('Hay cambios sin guardar', 'Si cierras ahora, se pierden.', { confirmLabel: 'Descartar cambios', danger: true })
+    .then((ok) => { if (ok) { state.draft = null; e.target.close(); } });
 }, true);
 
 /* ---------- arranque ---------- */

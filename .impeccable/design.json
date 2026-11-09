@@ -155,6 +155,21 @@
         "role": "neutral",
         "displayName": "Fondo de consola",
         "canonical": "#0c0f14"
+      },
+      "brand-mint": {
+        "role": "brand",
+        "displayName": "Menta de marca",
+        "canonical": "#59f8b8"
+      },
+      "brand-violet": {
+        "role": "brand",
+        "displayName": "Violeta de marca",
+        "canonical": "#9a80f3"
+      },
+      "brand-deep": {
+        "role": "brand",
+        "displayName": "Verde profundo de marca",
+        "canonical": "#0da673"
       }
     },
     "typographyMeta": {
@@ -217,6 +232,13 @@
       {
         "name": "mobile-tab",
         "value": "760px"
+      }
+    ],
+    "gradients": [
+      {
+        "name": "brand",
+        "value": "linear-gradient(120deg, #59f8b8 0%, #9a80f3 100%)",
+        "purpose": "Acentos de marca: solo decoración y títulos clave, nunca cuerpo de texto ni botones."
       }
     ]
   },
