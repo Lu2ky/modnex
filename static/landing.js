@@ -2,17 +2,70 @@
 (function () {
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // 1) Entradas: cada bloque con .rise entra la primera vez que aparece en pantalla.
-  var items = document.querySelectorAll('.rise');
-  if (!('IntersectionObserver' in window) || reduce) {
-    items.forEach(function (el) { el.classList.add('in'); });
+  // 1) Desintegración ligada al scroll. Cada bloque .rise se deshace (ruido + desplazamiento + opacidad)
+  //    al salir de pantalla y se reconstruye al entrar. Solo se animan los bloques en transición.
+  var items = [].slice.call(document.querySelectorAll('.rise'));
+  var NS = 'http://www.w3.org/2000/svg';
+  var defs = document.getElementById('dissolve-defs');
+  var fx = [];
+  var K = 12;  // pendiente de la máscara de ruido (más alto, borde más nítido)
+
+  function makeFilter(i) {
+    var f = document.createElementNS(NS, 'filter');
+    f.setAttribute('id', 'dz-' + i);
+    f.setAttribute('x', '-10%'); f.setAttribute('y', '-10%');
+    f.setAttribute('width', '120%'); f.setAttribute('height', '120%');
+    f.setAttribute('color-interpolation-filters', 'sRGB');
+    var t = document.createElementNS(NS, 'feTurbulence');
+    t.setAttribute('type', 'fractalNoise'); t.setAttribute('baseFrequency', '0.6');
+    t.setAttribute('numOctaves', '2'); t.setAttribute('seed', String(i + 3)); t.setAttribute('result', 'n');
+    var m = document.createElementNS(NS, 'feColorMatrix');
+    m.setAttribute('in', 'n'); m.setAttribute('type', 'matrix'); m.setAttribute('result', 'mask');
+    var d = document.createElementNS(NS, 'feDisplacementMap');
+    d.setAttribute('in', 'SourceGraphic'); d.setAttribute('in2', 'n'); d.setAttribute('scale', '0');
+    d.setAttribute('xChannelSelector', 'R'); d.setAttribute('yChannelSelector', 'G'); d.setAttribute('result', 'disp');
+    var c = document.createElementNS(NS, 'feComposite');
+    c.setAttribute('in', 'disp'); c.setAttribute('in2', 'mask'); c.setAttribute('operator', 'in');
+    f.appendChild(t); f.appendChild(m); f.appendChild(d); f.appendChild(c);
+    defs.appendChild(f);
+    return { m: m, d: d };
+  }
+
+  function clamp01(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+
+  function paint(el, p) {
+    // p = 1: visible y nítido; p = 0: deshecho y oculto.
+    var e = p * p * (3 - 2 * p);
+    el.style.opacity = String(e);
+    if (p >= 0.999) { el.style.filter = 'none'; return; }
+    if (p <= 0.001) { el.style.filter = 'none'; return; }
+    var fi = el.__fx || (el.__fx = makeFilter(el.__idx));
+    var t = 0.1 + 0.8 * (1 - e);             // umbral del ruido: sube al desintegrarse
+    fi.m.setAttribute('values', '0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  ' + K + ' 0 0 0 ' + (-K * t).toFixed(3));
+    fi.d.setAttribute('scale', String(((1 - e) * 64).toFixed(1)));
+    el.style.filter = 'url(#dz-' + el.__idx + ')';
+  }
+
+  function progress(el) {
+    var vh = window.innerHeight, r = el.getBoundingClientRect();
+    var entry = (vh * 0.95 - r.top) / (vh * 0.45);   // se forma al entrar
+    var exit = (r.bottom - vh * 0.05) / (vh * 0.35); // se deshace al salir
+    return clamp01(Math.min(entry, exit));
+  }
+
+  if (!defs || !('IntersectionObserver' in window) || reduce) {
+    items.forEach(function (el) { el.style.opacity = '1'; });
   } else {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) {
-        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
-      });
-    }, { threshold: 0.2 });
-    items.forEach(function (el) { io.observe(el); });
+    items.forEach(function (el, i) { el.__idx = i; });
+    var queued = false;
+    function frame() {
+      queued = false;
+      items.forEach(function (el) { paint(el, progress(el)); });
+    }
+    function schedule() { if (!queued) { queued = true; requestAnimationFrame(frame); } }
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    frame();
   }
 
   // 2) Iconos de píxeles (mismos dibujos que el panel).
