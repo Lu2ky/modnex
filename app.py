@@ -26,6 +26,7 @@ from html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import autofilter
 import db
 import release
 import templates
@@ -137,9 +138,17 @@ def list_servers():
     return out
 
 
-def start(name):
+ATTEMPTS = {}   # servidor -> mods puestos en cuarentena en la sesión de arranque actual
+STOPPING = set()  # servidores que el usuario está parando (no se reintenta su arranque)
+MAX_QUARANTINE = 5
+
+
+def start(name, _auto=False):
     if status(name)["running"]:
         raise RuntimeError("el servidor ya está en marcha")
+    if not _auto:
+        ATTEMPTS.pop(name, None)
+        STOPPING.discard(name)
     p = server_path(name)
     script = p / "start.sh" if (p / "start.sh").exists() else p / "run.sh"
     if not script.exists():
@@ -150,6 +159,7 @@ def start(name):
         raise RuntimeError(f"no se puede escribir el log de consola: {e.strerror}")
     # El Java del gestor manda aunque el start.sh se escribiera con otro (p. ej. si el runtime no existía entonces).
     env = dict(os.environ, JAVA_BIN=templates._java())
+    offset = (p / "manager-console.log").stat().st_size
     proc = subprocess.Popen(
         ["bash", str(script)], cwd=p, env=env, stdin=subprocess.PIPE,
         stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
@@ -158,10 +168,52 @@ def start(name):
     with LOCK:
         PROCS[name] = proc
     (p / ".manager.pid").write_text(str(proc.pid))
+    threading.Thread(target=_supervise, args=(name, proc, offset), daemon=True).start()
+
+
+def _supervise(name, proc, offset):
+    """Si el arranque falla por un mod de cliente identificado en la traza, lo pone en cuarentena y reintenta."""
+    rc = proc.wait()
+    with LOCK:
+        if PROCS.get(name) is proc:
+            PROCS.pop(name, None)
+    if name in STOPPING:
+        STOPPING.discard(name)
+        return
+    p = server_path(name)
+    try:
+        with open(p / "manager-console.log", "rb") as f:
+            f.seek(offset)
+            text = f.read().decode("utf-8", "ignore")
+    except OSError:
+        return
+    if rc == 0 or "Done (" in autofilter.clean(text):
+        return  # arrancó (o se paró bien): nada que filtrar
+    cands, ambiguous = autofilter.diagnose(text, p / "mods")
+    if not cands:
+        db.audit("sistema", name, "arranque fallido", "sin mod de cliente identificado en la traza")
+        return
+    if ambiguous:
+        db.audit("sistema", name, "arranque fallido", "varios candidatos, revisar a mano: " + ", ".join(j for j, _ in cands))
+        return
+    if ATTEMPTS.get(name, 0) >= MAX_QUARANTINE:
+        db.audit("sistema", name, "arranque fallido", f"límite de {MAX_QUARANTINE} mods en cuarentena alcanzado")
+        return
+    jar, why = cands[0]
+    if autofilter.quarantine(p, jar) is None:
+        return
+    ATTEMPTS[name] = ATTEMPTS.get(name, 0) + 1
+    db.audit("sistema", name, "mod de cliente en cuarentena", f"{jar}: {why}")
+    time.sleep(2)
+    try:
+        start(name, _auto=True)
+    except RuntimeError as e:
+        db.audit("sistema", name, "reintento no iniciado", str(e))
 
 
 def stop(name):
     p = server_path(name)
+    STOPPING.add(name)
     with LOCK:
         proc = PROCS.get(name)
     if proc and proc.poll() is None:
