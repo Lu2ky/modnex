@@ -151,3 +151,15 @@
     }
   }
 })();
+
+// Clic de Minecraft: el sonido random/click del juego al pulsar botones y controles.
+(function () {
+  var reduceSound = false;
+  document.addEventListener('click', function (e) {
+    var t = e.target && e.target.closest ? e.target.closest('a, button, summary, .btn, .demo-tab') : null;
+    if (!t || reduceSound) return;
+    var a = new Audio('/assets/sounds/click.ogg');
+    a.volume = 0.6;
+    a.play().catch(function () { /* el navegador puede bloquear audio sin gesto previo */ });
+  }, true);
+})();
