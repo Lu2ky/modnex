@@ -303,3 +303,15 @@ table.compare td:last-child { color: var(--text); }
   table.compare td:last-child::before { color: var(--primary); }
   .table-wrap { overflow: visible; }
 }
+
+/* ---------- capturas en tarjetas separadas ---------- */
+.shot-grid { gap: 28px; }
+.shot { padding: 12px; border-radius: 14px; }
+.shot img { border-radius: 8px; border: 1px solid var(--border); }
+.shot figcaption { padding: 14px 6px 4px; }
+
+/* ---------- botón del cierre centrado (sin icono, el padding es simétrico) ---------- */
+.cta .btn.xl { padding: 0 34px; }
+
+/* ---------- cursor de espada de diamante (punta en la esquina superior derecha) ---------- */
+html, body, a, button, summary, .btn, [role="tab"] { cursor: url(/assets/cursors/diamond-sword.png) 30 1, auto; }
