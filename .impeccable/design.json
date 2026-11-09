@@ -1,0 +1,322 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-09T21:45:17.670997+00:00",
+  "title": "Design System: Modnex",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "action",
+        "displayName": "Verde de acción",
+        "canonical": "#55d68b",
+        "light": "#1e8a55",
+        "tonalRamp": [
+          "#111318",
+          "#244b39",
+          "#38825a",
+          "#4bba7b",
+          "#6ddc9c",
+          "#9ee8bd",
+          "#cef3de",
+          "#ffffff"
+        ]
+      },
+      "primary-ink": {
+        "role": "on-primary",
+        "displayName": "Tinta sobre verde",
+        "canonical": "#04160d"
+      },
+      "neutral-bg": {
+        "role": "neutral",
+        "displayName": "Fondo de cabina",
+        "canonical": "#111318",
+        "light": "#f4f6f9"
+      },
+      "neutral-surface": {
+        "role": "neutral",
+        "displayName": "Panel de trabajo",
+        "canonical": "#1b2029",
+        "light": "#ffffff",
+        "tonalRamp": [
+          "#111318",
+          "#14171d",
+          "#171a22",
+          "#1a1e27",
+          "#3c4048",
+          "#7d8085",
+          "#bebfc2",
+          "#ffffff"
+        ]
+      },
+      "neutral-elevated": {
+        "role": "neutral",
+        "displayName": "Superficie elevada",
+        "canonical": "#272e3a",
+        "light": "#eef2f6",
+        "tonalRamp": [
+          "#111318",
+          "#171b22",
+          "#1e222b",
+          "#242a35",
+          "#464c56",
+          "#84888e",
+          "#c1c3c7",
+          "#ffffff"
+        ]
+      },
+      "neutral-border": {
+        "role": "neutral",
+        "displayName": "Borde de consola",
+        "canonical": "#3b4655",
+        "light": "#d6dde6"
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Texto principal",
+        "canonical": "#eef2f6",
+        "light": "#151b24"
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Texto secundario",
+        "canonical": "#98a3b3",
+        "light": "#5b6676"
+      },
+      "violet": {
+        "role": "secondary",
+        "displayName": "Violeta de mods",
+        "canonical": "#a78bfa",
+        "light": "#6d4fd6",
+        "tonalRamp": [
+          "#111318",
+          "#3c3559",
+          "#675899",
+          "#927ada",
+          "#b49cfb",
+          "#cdbdfc",
+          "#e6defe",
+          "#ffffff"
+        ]
+      },
+      "cyan": {
+        "role": "tertiary",
+        "displayName": "Cian de estado",
+        "canonical": "#42c6d9",
+        "light": "#0b7f93",
+        "tonalRamp": [
+          "#111318",
+          "#1f464f",
+          "#2d7986",
+          "#3bacbd",
+          "#5dcede",
+          "#93dee9",
+          "#c9eff4",
+          "#ffffff"
+        ]
+      },
+      "warning": {
+        "role": "tertiary",
+        "displayName": "Ámbar de aviso",
+        "canonical": "#f0b85a",
+        "light": "#a86b12",
+        "tonalRamp": [
+          "#111318",
+          "#51422b",
+          "#90713e",
+          "#d0a051",
+          "#f2c272",
+          "#f6d6a1",
+          "#fbebd0",
+          "#ffffff"
+        ]
+      },
+      "error": {
+        "role": "error",
+        "displayName": "Rojo de error",
+        "canonical": "#f16b72",
+        "light": "#c13d46",
+        "tonalRamp": [
+          "#111318",
+          "#512c32",
+          "#91454b",
+          "#d15e65",
+          "#f38086",
+          "#f7aaae",
+          "#fbd5d7",
+          "#ffffff"
+        ]
+      },
+      "offline": {
+        "role": "neutral",
+        "displayName": "Gris desconectado",
+        "canonical": "#87909d",
+        "light": "#6b7584"
+      },
+      "log-bg": {
+        "role": "neutral",
+        "displayName": "Fondo de consola",
+        "canonical": "#0c0f14"
+      }
+    },
+    "typographyMeta": {
+      "body": {
+        "displayName": "Texto",
+        "purpose": "Interfaz y descripciones: Inter 15px en paneles, 16px en la landing."
+      },
+      "headline": {
+        "displayName": "Título de página",
+        "purpose": "Encabezados de pantalla (24px en paneles)."
+      },
+      "label": {
+        "displayName": "Etiqueta",
+        "purpose": "Chips, estados y metadatos (12–13px)."
+      }
+    },
+    "shadows": [
+      {
+        "name": "dialog",
+        "value": "0 24px 60px -30px rgb(0 0 0 / 0.6)",
+        "purpose": "Solo para diálogos y la vista previa de la landing; reposo plano en el panel."
+      },
+      {
+        "name": "card-hover",
+        "value": "0 14px 30px -18px rgb(0 0 0 / 0.7)",
+        "purpose": "Tarjetas de la landing al pasar el cursor."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "Entradas y transiciones de estado."
+      },
+      {
+        "name": "ease-in-out",
+        "value": "cubic-bezier(0.77, 0, 0.175, 1)",
+        "purpose": "Transiciones de movimiento ida y vuelta."
+      },
+      {
+        "name": "duration-micro",
+        "value": "120–180ms",
+        "purpose": "Pulsaciones y estados de hover."
+      },
+      {
+        "name": "duration-panel",
+        "value": "200–300ms",
+        "purpose": "Diálogos y paneles."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "tablet",
+        "value": "820px"
+      },
+      {
+        "name": "landing",
+        "value": "900px"
+      },
+      {
+        "name": "mobile-tab",
+        "value": "760px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botón primario",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Acción principal del panel: arrancar, guardar, crear.",
+      "html": "<button class=\"ds-btn-primary\">Crear servidor</button>",
+      "css": ".ds-btn-primary{background:#55d68b;color:#04160d;border:1px solid #55d68b;border-radius:8px;padding:7px 14px;font:600 14px/1.2 Inter,system-ui,sans-serif;cursor:pointer;transition:background-color 120ms,transform 120ms cubic-bezier(0.23,1,0.32,1)}.ds-btn-primary:hover{background:#6ce09b;border-color:#6ce09b}.ds-btn-primary:active{transform:scale(0.98)}.ds-btn-primary:focus-visible{outline:2px solid #55d68b;outline-offset:2px}"
+    },
+    {
+      "name": "Botón secundario",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Acciones neutras y cancelar.",
+      "html": "<button class=\"ds-btn\">Cancelar</button>",
+      "css": ".ds-btn{background:#272e3a;color:#eef2f6;border:1px solid #3b4655;border-radius:8px;padding:7px 14px;font:600 14px/1.2 Inter,system-ui,sans-serif;cursor:pointer;transition:border-color 120ms}.ds-btn:hover{border-color:#55d68b}.ds-btn:focus-visible{outline:2px solid #55d68b;outline-offset:2px}"
+    },
+    {
+      "name": "Botón peligroso",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Borrar: texto rojo y borde rojo; se desactiva hasta cumplir la confirmación.",
+      "html": "<button class=\"ds-btn-danger\">Borrar servidor</button>",
+      "css": ".ds-btn-danger{background:#272e3a;color:#f16b72;border:1px solid #f16b72;border-radius:8px;padding:7px 14px;font:600 14px/1.2 Inter,system-ui,sans-serif;cursor:pointer}.ds-btn-danger:disabled{opacity:.45;cursor:not-allowed}"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Etiquetas de origen, loader y estado.",
+      "html": "<span class=\"ds-chip\">Modrinth</span>",
+      "css": ".ds-chip{display:inline-block;font:600 12px/1.4 Inter,system-ui,sans-serif;padding:2px 8px;border-radius:99px;border:1px solid #3b4655;background:#272e3a;color:#98a3b3;white-space:nowrap}"
+    },
+    {
+      "name": "Campo de texto",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Formularios y búsquedas.",
+      "html": "<input class=\"ds-input\" placeholder=\"Buscar mods\">",
+      "css": ".ds-input{background:#1b2029;color:#eef2f6;border:1px solid #3b4655;border-radius:8px;padding:8px 10px;font:400 15px/1.4 Inter,system-ui,sans-serif}.ds-input:hover{border-color:#98a3b3}.ds-input:focus-visible{outline:2px solid #55d68b;outline-offset:2px}"
+    },
+    {
+      "name": "Elemento de navegación",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Servidores y secciones de administración en la barra lateral.",
+      "html": "<a class=\"ds-nav on\">Servidor</a>",
+      "css": ".ds-nav{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;color:#eef2f6;text-decoration:none;font:500 15px/1.4 Inter,system-ui,sans-serif;transition:background-color 120ms}.ds-nav:hover{background:#272e3a}.ds-nav.on{background:#1b2029;box-shadow:inset 3px 0 0 #55d68b}"
+    },
+    {
+      "name": "Tarjeta de panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Bloques de contenido: estado, permisos y listas.",
+      "html": "<section class=\"ds-panel\"><h2>Permisos</h2></section>",
+      "css": ".ds-panel{background:#1b2029;border:1px solid #3b4655;border-radius:10px;padding:14px 16px}.ds-panel h2{margin:0 0 8px;font:600 17px/1.2 Inter,system-ui,sans-serif;color:#eef2f6}"
+    },
+    {
+      "name": "Indicador de estado",
+      "kind": "custom",
+      "refersTo": "status-led",
+      "description": "Punto de estado: verde en marcha, cian al arrancar, rojo en error, gris parado.",
+      "html": "<span class=\"ds-led on\"></span>",
+      "css": ".ds-led{display:inline-block;width:9px;height:9px;border-radius:50%;background:#87909d}.ds-led.on{background:#55d68b;animation:ds-pulse 2.6s ease-in-out infinite}.ds-led.starting{background:#42c6d9;animation:ds-pulse 1.8s ease-in-out infinite}.ds-led.error{background:#f16b72}@keyframes ds-pulse{0%,100%{box-shadow:0 0 0 0 rgba(85,214,139,.45)}50%{box-shadow:0 0 0 5px transparent}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Control Room",
+    "overview": "Modnex es una sala de control para servidores de Minecraft con mods. Todo lo que el usuario necesita saber (qué está en marcha, qué mods hay, quién puede hacer qué) se lee de un vistazo, sin adornos. La interfaz es plana: la jerarquía sale de tres tonos de oscuro, y el verde se reserva para lo que se puede accionar.",
+    "keyCharacteristics": [
+      "Plano por defecto: jerarquía por capas tonales, no por sombras.",
+      "El verde de acción aparece en pocos sitios por pantalla.",
+      "Estados siempre visibles con punto, color y texto.",
+      "Voz cercana y de juego, sin renunciar a la claridad.",
+      "Radios medios y bordes visibles: firme, no blando."
+    ],
+    "rules": [
+      {
+        "name": "The One Action Rule",
+        "body": "El verde de acción aparece en una sola acción principal por pantalla. Su rareza es lo que la hace clara.",
+        "section": "colors"
+      },
+      {
+        "name": "The Flat-At-Rest Rule",
+        "body": "Las superficies no tienen sombra en reposo. Una sombra aparece solo como respuesta a un estado: hover, foco o diálogo.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Usa el verde solo para la acción principal de cada pantalla.",
+      "Muestra el estado con punto, color y texto a la vez.",
+      "Separa el peligro: los botones destructivos van en rojo y piden confirmación."
+    ],
+    "donts": [
+      "No pongas gradientes ni tarjetas idénticas de métricas decorativas.",
+      "No uses sombras en reposo en el panel de trabajo.",
+      "No mezcles el cian de estado con el verde de acción en la misma acción."
+    ]
+  }
+}
