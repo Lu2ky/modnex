@@ -13,7 +13,7 @@ from pathlib import Path
 DB_FILE = Path(__file__).resolve().parent / "manager.db"
 SESSION_TTL = 30 * 24 * 3600
 PBKDF2_ITERS = 200_000
-PERMS = ("logs", "mods", "datapacks", "textures", "players")
+PERMS = ("logs", "mods", "datapacks", "textures", "players", "control")
 # Nombres de iconos asignables a un servidor; el dibujo vive en static/icons.js.
 ICONS = ["vanilla", "forge", "neoforge", "fabric", "quilt", "paper", "bukkit", "spigot", "purpur",
          "velocity", "sponge", "mohist", "catserver", "arclight", "thermos", "modded", "liteloader", "custom",
@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS permissions (
   can_datapacks INTEGER NOT NULL DEFAULT 0,
   can_textures INTEGER NOT NULL DEFAULT 0,
   can_players INTEGER NOT NULL DEFAULT 0,
+  can_control INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, server_name));
 CREATE TABLE IF NOT EXISTS packs (
   token TEXT PRIMARY KEY,
