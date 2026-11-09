@@ -191,15 +191,27 @@
   });
 })();
 
-// Entrar al panel: sonido de entrar al portal del Nether y paso al panel tras el sonido.
+// Entrar al panel: sonido y overlay del portal del Nether durante exactamente la duración del sonido;
+// la navegación se hace al terminar.
 (function () {
+  var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var portal = new Audio('/assets/sounds/portal-enter.ogg');
+  portal.preload = 'auto';
+  portal.volume = 0.7;
+  var veil = document.createElement('div');
+  veil.className = 'portal-veil';
+  veil.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(veil);
+  var busy = false;
   document.addEventListener('click', function (e) {
     var a = e.target && e.target.closest ? e.target.closest('a[href="/app"]') : null;
-    if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (!a || busy || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
-    var s = new Audio('/assets/sounds/portal-enter.ogg');
-    s.volume = 0.7;
-    s.play().catch(function () { /* sin audio: se entra igual */ });
-    setTimeout(function () { location.href = '/app'; }, 650);
+    busy = true;
+    var secs = (isFinite(portal.duration) && portal.duration > 0) ? portal.duration : 2.85;
+    portal.currentTime = 0;
+    portal.play().catch(function () { /* sin audio: se entra igual */ });
+    if (!reduceMotion) veil.classList.add('on');
+    setTimeout(function () { location.href = '/app'; }, Math.round(secs * 1000));
   }, true);
 })();

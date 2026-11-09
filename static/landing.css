@@ -336,3 +336,11 @@ html, body, a, button, summary, .btn, [role="tab"] { cursor: url(/assets/cursors
 .gallery-dot:active { transform: scale(0.9); }
 .gallery-dot:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .gallery-slide { transition: none; } }
+
+/* ---------- overlay del portal del Nether (dura lo mismo que el sonido: 2,85 s) ---------- */
+.portal-veil { position: fixed; inset: 0; z-index: 200; pointer-events: none; overflow: hidden; opacity: 0; background: radial-gradient(ellipse at center, rgb(88 28 138 / 0.35), rgb(10 4 20 / 0.94) 72%); transition: opacity 2850ms var(--ease-in-out); }
+.portal-veil.on { opacity: 1; }
+.portal-veil::before { content: ""; position: absolute; inset: -40%; background: url(/assets/textures/nether-portal.png) repeat; background-size: 96px 96px; image-rendering: pixelated; opacity: 0.85; transform: rotate(0deg) scale(1); }
+.portal-veil.on::before { animation: portal-spin 2850ms var(--ease-in-out) forwards; }
+@keyframes portal-spin { from { transform: rotate(0deg) scale(1); } to { transform: rotate(120deg) scale(1.5); } }
+@media (prefers-reduced-motion: reduce) { .portal-veil { display: none; } }
