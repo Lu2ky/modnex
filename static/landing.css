@@ -1,6 +1,5 @@
 /* Landing pública. Paleta de la especificación; Inter; duraciones 120–450 ms. */
 @font-face { font-family: "Inter"; src: url(/assets/fonts/Inter.ttf) format("truetype"); font-weight: 100 900; font-display: swap; }
-@font-face { font-family: "Silkscreen"; src: url(/assets/fonts/Silkscreen-Regular.ttf); font-display: swap; }
 
 :root {
   --bg: #111318; --surface: #1b2029; --elevated: #272e3a; --border: #3b4655;
@@ -16,7 +15,7 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-h1, h2, h3 { margin: 0; line-height: 1.15; letter-spacing: -0.02em; font-weight: 700; }
+h1, h2, h3 { margin: 0; line-height: 1.15; letter-spacing: -0.02em; font-weight: 650; }
 h1 { font-size: clamp(2.4rem, 5.2vw, 4rem); }
 h2 { font-size: clamp(1.8rem, 3.4vw, 2.6rem); text-wrap: balance; }
 h3 { font-size: 1.15rem; letter-spacing: -0.01em; }
@@ -52,7 +51,7 @@ a { color: inherit; }
 
 /* ---------- cabecera ---------- */
 .top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 24px; padding: 14px 32px; background: rgb(17 19 24 / 0.85); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
-.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-family: "Silkscreen", "Inter", sans-serif; font-size: 1.05rem; letter-spacing: 0.05em; }
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-family: "Inter", sans-serif; font-size: 1.05rem; letter-spacing: 0.05em; }
 .brand-mark { display: inline-grid; place-items: center; }
 .top-nav { display: flex; gap: 22px; margin-left: auto; }
 .top-nav a { color: var(--muted); text-decoration: none; font-size: 0.95rem; transition: color 160ms; }
@@ -189,3 +188,6 @@ a { color: inherit; }
 .brand-img { height: 28px; width: auto; display: block; }
 .brand { font-family: "Inter", system-ui, sans-serif; font-weight: 800; font-size: 1.05rem; letter-spacing: 0.12em; }
 .top .brand-img { filter: drop-shadow(0 0 10px rgb(85 214 139 / 0.25)); }
+
+.demo-pause { font: inherit; font-size: 0.85rem; font-weight: 600; color: var(--muted); background: transparent; border: 1px solid var(--line, var(--border)); border-radius: 8px; padding: 6px 12px; margin-left: auto; cursor: pointer; }
+.demo-pause:hover { color: var(--text); border-color: var(--text-muted, var(--muted)); }
