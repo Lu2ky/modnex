@@ -434,3 +434,6 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface2);
 .mp-hit { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; cursor: pointer; transition: border-color 160ms; }
 .mp-hit:hover { border-color: var(--accent); }
 .mp-hit img { border-radius: 8px; }
+
+.srv-meta { display: grid; justify-items: end; flex: none; }
+.srv-state { font-size: 11px; color: var(--muted); }
