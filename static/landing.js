@@ -56,7 +56,15 @@
       }
     }
     function tick() { show((current + 1) % tabs.length); }
-    function play() { clearInterval(timer); if (!reduce) timer = setInterval(tick, DURATION); }
+    var paused = false, pauseBtn = demo.querySelector('.demo-pause');
+    function play() { clearInterval(timer); if (!reduce && !paused) timer = setInterval(tick, DURATION); }
+    if (pauseBtn) pauseBtn.addEventListener('click', function () {
+      paused = !paused;
+      pauseBtn.setAttribute('aria-pressed', paused ? 'true' : 'false');
+      pauseBtn.textContent = paused ? 'Reanudar' : 'Pausar';
+      pauseBtn.setAttribute('aria-label', paused ? 'Reanudar la demostración' : 'Pausar la demostración');
+      if (paused) clearInterval(timer); else play();
+    });
 
     tabs.forEach(function (t, k) {
       t.addEventListener('click', function () { show(k); play(); });
