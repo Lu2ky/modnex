@@ -163,6 +163,10 @@ def _cf_client(project, file_id, tmp):
         raise RuntimeError("el autor no permite descargar este archivo desde aquí")
     _download(f["downloadUrl"], tmp)
     z = zipfile.ZipFile(tmp)
+    if "manifest.json" not in z.namelist():
+        raise RuntimeError(
+            "este archivo no es un paquete de cliente (no trae manifest.json). "
+            "Suele pasar al usar el id de un server pack: usa el archivo de cliente del mismo modpack")
     man = json.loads(z.read("manifest.json"))
     return f["fileName"], man, z, f
 
