@@ -340,7 +340,7 @@ html, body, a, button, summary, .btn, [role="tab"] { cursor: url(/assets/cursors
 /* ---------- overlay del portal del Nether (dura lo mismo que el sonido: 2,85 s) ---------- */
 .portal-veil { position: fixed; inset: 0; z-index: 200; pointer-events: none; overflow: hidden; opacity: 0; background: radial-gradient(ellipse at center, rgb(88 28 138 / 0.35), rgb(10 4 20 / 0.94) 72%); transition: opacity 2850ms var(--ease-in-out); }
 .portal-veil.on { opacity: 1; }
-.portal-veil::before { content: ""; position: absolute; inset: -40%; background: url(/assets/textures/nether-portal.png) repeat; background-size: 96px 96px; image-rendering: pixelated; opacity: 0.85; transform: rotate(0deg) scale(1); }
+.portal-veil::before { content: ""; position: absolute; left: 50%; top: 50%; width: min(140vmax, 1400px); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: conic-gradient(from 0deg, #2b0d4a, #7c3aed, #d8b4fe, #5b21b6, #2b0d4a, #a855f7, #2b0d4a); -webkit-mask: radial-gradient(circle, #000 58%, transparent 72%); mask: radial-gradient(circle, #000 58%, transparent 72%); opacity: 0.9; transform: rotate(0deg) scale(0.3); }
 .portal-veil.on::before { animation: portal-spin 2850ms var(--ease-in-out) forwards; }
-@keyframes portal-spin { from { transform: rotate(0deg) scale(1); } to { transform: rotate(120deg) scale(1.5); } }
+@keyframes portal-spin { from { transform: rotate(0deg) scale(0.3); } to { transform: rotate(200deg) scale(1.3); } }
 @media (prefers-reduced-motion: reduce) { .portal-veil { display: none; } }
