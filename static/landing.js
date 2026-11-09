@@ -127,6 +127,14 @@
       raf = (Math.abs(target.x - now.x) > 0.01 || Math.abs(target.y - now.y) > 0.01) ? requestAnimationFrame(step) : null;
     }
     window.addEventListener('pointermove', aim, { passive: true });
-    steve.classList.add('on');
+    // Steve vive en el hero: aparece solo mientras el hero está en pantalla, para no tapar el resto.
+    var hero = document.querySelector('.hero');
+    if (hero && 'IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) {
+        steve.classList.toggle('on', es[0].isIntersecting);
+      }, { threshold: 0.3 }).observe(hero);
+    } else {
+      steve.classList.add('on');
+    }
   }
 })();
