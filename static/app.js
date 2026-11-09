@@ -146,7 +146,8 @@ function sideHTML() {
     <a class="srv-item${v.kind === 'server' && v.name === s.name ? ' on' : ''}" href="#/s/${encodeURIComponent(s.name)}">
       <span class="tile sm">${srvIcon(s.icon, 34)}</span>
       <span class="srv-name">${esc(s.display_name)}</span>
-      <span class="led ${ledClass(s)}" role="img" aria-label="${({ on: 'en marcha', starting: 'arrancando', error: 'error', '': 'parado' })[ledClass(s)]}"></span>
+      <span class="srv-meta"><span class="srv-state">${({ on: 'en marcha', starting: 'arrancando', error: 'error', '': 'parado' })[ledClass(s)]}</span></span>
+      <span class="led ${ledClass(s)}" aria-hidden="true"></span>
     </a>`).join('') || '<p class="muted pad">Sin servidores asignados.</p>';
   const admin = isAdmin() ? `
     <p class="side-title">Administración</p>
