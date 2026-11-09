@@ -289,3 +289,17 @@ table.compare td:last-child { color: var(--text); }
 }
 .cta.rise { transform: translateY(18px) scale(0.98); }
 .cta.rise.in { transform: none; }
+
+/* tabla de comparación en móvil: tarjetas apiladas, sin deslizamiento horizontal */
+@media (max-width: 640px) {
+  table.compare { min-width: 0; }
+  table.compare thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  table.compare, table.compare tbody, table.compare tr, table.compare th, table.compare td { display: block; width: 100%; }
+  table.compare tbody tr { padding: 16px 18px; border-bottom: 1px solid var(--border); }
+  table.compare tbody tr:last-child { border-bottom: 0; }
+  table.compare th, table.compare td { border: 0; padding: 4px 0; }
+  table.compare tbody th { width: 100%; margin-bottom: 8px; }
+  table.compare td::before { content: attr(data-label); display: block; font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-bottom: 2px; }
+  table.compare td:last-child::before { color: var(--primary); }
+  .table-wrap { overflow: visible; }
+}
