@@ -1960,7 +1960,6 @@ def create_modpack_server(user, b):
 
 ASSETS = {"style.css": "text/css; charset=utf-8", "app.js": "text/javascript; charset=utf-8",
           "icons.js": "text/javascript; charset=utf-8", "theme.js": "text/javascript; charset=utf-8",
-          "fonts/IBMPlexSans.ttf": "font/ttf",
           "fonts/Inter.ttf": "font/ttf",
           "brand/modnex-mark.png": "image/png", "brand/modnex-logo.png": "image/png",
           "shots/wizard-tipo.png": "image/png", "shots/wizard-modpack.png": "image/png", "shots/panel-mods.png": "image/png", "shots/panel-cliente.png": "image/png", "shots/panel-propiedades.png": "image/png",

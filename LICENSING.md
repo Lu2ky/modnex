@@ -24,12 +24,13 @@ Funciones de pago, en código que **no** se publica en este repositorio:
 ## Cómo se separa (estado actual)
 
 El núcleo no contiene código de Pro. `plugins.py` carga de forma opcional un paquete externo
-(`modnex_pro`, en su propio repositorio) mediante cuatro enganches: rutas por servidor, pestañas del
-panel, tablas propias y eventos de arranque, parada y caída. Sin el paquete, o si falla al cargarse,
-el núcleo funciona como edición gratuita.
+(`modnex_pro`, en su propio repositorio) mediante la API descrita en [docs/plugins.md](docs/plugins.md).
+Sin el paquete, o si falla al cargarse, el núcleo funciona como edición gratuita.
 
-- Ya está en el paquete Pro: copias de seguridad y versiones, tareas programadas, diagnóstico de
-  crashes y avisos a Discord.
+- **Ya está en el paquete Pro:** copias de seguridad y versiones, tareas programadas, diagnóstico de
+  crashes, avisos a Discord, estadísticas de jugadores, propuestas de mods, actualización segura de
+  mods, servidor de pruebas, sincronización de clientes con AutoModpack, verificación en dos pasos y
+  acceso remoto.
 - **Todavía está en el núcleo y hay que moverlo:** la gestión de permisos por usuario y servidor
   (`db.py`, `app.py`). Hasta entonces, la edición gratuita incluye usuarios y permisos.
 - La validación de licencias **no está implementada**: Pro solo se activa con `MODNEX_PRO_DEV=1` o
@@ -39,12 +40,15 @@ Para probar Pro en local: `MODNEX_PRO_PATH=<ruta a modnex-pro> MODNEX_PRO_DEV=1 
 
 ## Activos de terceros
 
-- **Inter** y **IBM Plex Sans**: licencia SIL OFL 1.1. Compatible con AGPL; hay que conservar su aviso.
-- **Activos de Mojang** (fuente de píxeles, sonidos de clic y portal, textura del portal): no son
-  del proyecto. Deben sustituirse o retirarse antes de publicar el repositorio o vender nada.
+- **Inter**: licencia SIL OFL 1.1. Compatible con AGPL; hay que conservar su aviso.
+- Los iconos de `static/brand/servers/` tienen un origen que **no está verificado**. Comprueba su
+  licencia antes de publicar el repositorio o vender nada.
+- No se incluyen activos de Mojang. La landing menciona el nombre «Minecraft» solo para describir
+  el producto; no es un producto oficial.
 
 ## Pendiente
 
-- Añadir `LICENSE` con el texto oficial de la AGPL-3.0 (https://www.gnu.org/licenses/agpl-3.0.txt).
-- Separar el módulo Pro del núcleo.
-- Sustituir los activos de Mojang.
+- Separar la gestión de permisos del núcleo hacia Pro.
+- Implementar la validación real de licencias Pro.
+- Verificar el origen de los iconos de servidor.
+- Decidir si se pedirá un acuerdo de licencia a quien contribuya (CLA).
