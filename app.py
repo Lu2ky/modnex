@@ -130,8 +130,16 @@ def list_servers():
             continue
         sub = d / templates.folder_for(templates.server_template(d))
         mods = [f for f in sub.glob("*.jar*")] if sub.is_dir() else []
+        parent = None
+        try:
+            parent = json.loads((d / ".manager.json").read_text()).get("parent")
+            if not (isinstance(parent, str) and NAME_RE.fullmatch(parent) and parent != d.name):
+                parent = None
+        except (OSError, ValueError):
+            pass
         out.append({
             "name": d.name,
+            "parent": parent,
             "mods": len([m for m in mods if m.suffix == ".jar"]),
             "status": status(d.name),
             "memory": read_memory(d),
@@ -1832,7 +1840,7 @@ def visible_servers(user):
             if not p:
                 continue
         m = meta.get(s["name"], {})
-        item = {"name": s["name"], "display_name": m.get("display_name") or s["name"],
+        item = {"name": s["name"], "parent": s.get("parent"), "display_name": m.get("display_name") or s["name"],
                 "icon": _server_icon(m.get("icon"), server_path(s["name"])),
                 "mods": s["mods"], "permissions": p,
                 "template": templates.server_template(server_path(s["name"])),
