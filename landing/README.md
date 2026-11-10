@@ -17,8 +17,9 @@ python3 -m http.server 8000 --directory landing     # http://127.0.0.1:8000
 
 ## Publicarla
 
-Es HTML, CSS y JavaScript sin paso de compilación: sirve cualquier alojamiento estático (GitHub Pages, Vercel,
-Netlify, un bucket…). Sube el contenido de esta carpeta tal cual.
+Es HTML, CSS y JavaScript sin paso de compilación: sirve cualquier alojamiento estático. Este repositorio la publica sola
+en **https://lu2ky.github.io/modnex/** con GitHub Pages: el flujo `.github/workflows/pages.yml` sube esta carpeta cada vez
+que cambia en `main`. Las rutas son relativas para que funcione colgando de `/modnex/`.
 
 ## Capturas del panel
 
