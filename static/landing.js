@@ -1,4 +1,4 @@
-// Landing: entradas al hacer scroll, demostración paso a paso, Steve que sigue al cursor e iconos de píxeles.
+// Landing: entradas al hacer scroll, demostración paso a paso, mascota que sigue al cursor e iconos de píxeles.
 (function () {
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -84,29 +84,28 @@
     if (reduce) { scenes.forEach(function (s) { s.classList.add('on'); s.querySelectorAll('[data-i]').forEach(function (n) { n.classList.add('in'); }); }); }
   }
 
-  // 4) Steve: fijo abajo a la izquierda; sus ojos siguen el cursor, como el personaje del inventario.
-  var steve = document.getElementById('steve');
-  if (steve && !reduce && window.matchMedia('(pointer: fine)').matches) {
-    // cabeza 8x8 con sombreado; claves de color: h pelo, s piel, e blanco ojo, i iris, m boca, c camisa
-    var PAL = { h: '#4a3322', H: '#34231a', s: '#e0ad84', S: '#c48e66', e: '#f5f7fa', i: '#2f6fb0', m: '#a2573a', t: '#2c2c2c', c: '#3cb6c8', d: '#2a8fa0' };
+  // 4) Mascota: fija abajo a la derecha; sus ojos siguen el cursor.
+  var mascot = document.getElementById('mascot');
+  if (mascot && !reduce && window.matchMedia('(pointer: fine)').matches) {
+    // mascota 8x8: orejas de gato, pelo violeta, mejillas rosadas. Claves: v/V pelo, p/P piel, b mejilla, m boca
+    var PAL = { v: '#7c5cd6', V: '#5a3fb0', p: '#f1c9a8', P: '#d9a982', b: '#f08a9a', m: '#b04a5a', e: '#ffffff', i: '#262645' };
     var ROWS = [
-      'HHHHHHHH',
-      'HhhhhhhH',
-      'hhhhhhhh',
-      'hssssssh',
-      'hsssssss',
-      'sssssssS',
-      'SsssmsSS',
-      'SSSSSSSS'
+      'vV....Vv',
+      'vvvvvvvv',
+      'vvvvvvvv',
+      'pvpppvpp',
+      'pppppppp',
+      'pbppppbp',
+      'ppppmppp',
+      'pPPPPPPp'
     ];
-    // ojos (2x2 en la fila 3–4); las pupilas se desplazan dentro de ellos
+    // ojos (2x2 en las filas 3–4); las pupilas se desplazan dentro de ellos
     var EYES = [[1, 3], [5, 3]];
     var rects = '';
     ROWS.forEach(function (row, y) {
       [].forEach.call(row, function (c, x) {
-        var color = PAL[c] || PAL[c.toLowerCase()];
-        if (c === 's' || c === 'S' || c === 'h' || c === 'H') rects += '<rect x="' + x + '" y="' + y + '" width="1" height="1" fill="' + (c === 'h' ? PAL.h : c === 'H' ? PAL.H : c === 'S' ? PAL.S : PAL.s) + '"/>';
-        else if (c === 'm') rects += '<rect x="' + x + '" y="' + y + '" width="1" height="1" fill="' + PAL.m + '"/>';
+        if (c === '.' || !PAL[c]) return;
+        rects += '<rect x="' + x + '" y="' + y + '" width="1" height="1" fill="' + PAL[c] + '"/>';
       });
     });
     var eyes = '';
@@ -115,16 +114,16 @@
       eyes += '<rect x="' + x + '" y="' + y + '" width="2" height="2" fill="' + PAL.e + '"/>';
     });
     // capa de ojos que se mueve: la pupila (iris 1x1) cambia de posición dentro del blanco del ojo
-    var pupils = '<g id="steve-pupils">' + EYES.map(function (e) {
+    var pupils = '<g id="mascot-pupils">' + EYES.map(function (e) {
       return '<rect x="' + (e[0] + 0.5) + '" y="' + (e[1] + 0.5) + '" width="1" height="1" fill="' + PAL.i + '"/>';
     }).join('') + '</g>';
-    steve.innerHTML =
+    mascot.innerHTML =
       '<svg viewBox="0 0 8 8" width="96" height="96" shape-rendering="crispEdges" aria-hidden="true">' +
       rects + eyes + pupils + '</svg>';
-    var pupilsEl = document.getElementById('steve-pupils');
+    var pupilsEl = document.getElementById('mascot-pupils');
     var target = { x: 0, y: 0 }, now = { x: 0, y: 0 }, raf = null;
     function aim(e) {
-      var r = steve.getBoundingClientRect();
+      var r = mascot.getBoundingClientRect();
       var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       var dx = e.clientX - cx, dy = e.clientY - cy;
       var len = Math.hypot(dx, dy) || 1;
@@ -140,14 +139,14 @@
       raf = (Math.abs(target.x - now.x) > 0.01 || Math.abs(target.y - now.y) > 0.01) ? requestAnimationFrame(step) : null;
     }
     window.addEventListener('pointermove', aim, { passive: true });
-    // Steve vive en el hero: aparece solo mientras el hero está en pantalla, para no tapar el resto.
+    // La mascota vive en el hero: aparece solo mientras el hero está en pantalla, para no tapar el resto.
     var hero = document.querySelector('.hero');
     if (hero && 'IntersectionObserver' in window) {
       new IntersectionObserver(function (es) {
-        steve.classList.toggle('on', es[0].isIntersecting);
+        mascot.classList.toggle('on', es[0].isIntersecting);
       }, { threshold: 0.6 }).observe(hero);  // solo con el hero casi entero a la vista
     } else {
-      steve.classList.add('on');
+      mascot.classList.add('on');
     }
   }
 })();
