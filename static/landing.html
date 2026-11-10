@@ -307,6 +307,15 @@
         <p class="lead">El núcleo es libre (AGPL-3.0). La licencia Pro añade gestión de permisos, copias de seguridad y versionado del servidor.</p>
         <a class="btn primary xl" href="#pro" aria-disabled="true" data-buy>Comprar licencia Pro</a>
         <p class="hint">La compra se activará cuando haya una tienda publicada.</p>
+        <form class="waitlist" id="waitlist" novalidate>
+          <label for="wl-email">Avísame cuando salga Pro</label>
+          <div class="wl-row">
+            <input id="wl-email" type="email" name="email" required autocomplete="email" maxlength="120" placeholder="tu@correo.com">
+            <button class="btn" type="submit">Avisarme</button>
+          </div>
+          <p class="wl-msg" role="status" aria-live="polite"></p>
+          <p class="hint">Solo usamos tu correo para avisarte del lanzamiento de Pro.</p>
+        </form>
       </div>
     </article>
   </section>
@@ -326,6 +335,7 @@
       <span>MODNEX</span>
     </span>
     <p class="muted">Gestión de servidores de Minecraft con mods, en tu propio equipo.</p>
+    <p class="muted small disclaimer">Modnex es un proyecto independiente. No está afiliado ni respaldado por Mojang Studios ni por Microsoft. Minecraft es una marca de Mojang Studios.</p>
   </div>
   <nav class="foot-nav" aria-label="Pie">
     <a href="#como">Cómo funciona</a>
