@@ -8,7 +8,8 @@ del propio servidor.
 Solo usa la biblioteca estándar de Python (`http.server` + SQLite). No hay que instalar dependencias.
 
 > Estado: uso personal y en desarrollo. Mira [LICENSING.md](LICENSING.md) para saber qué es libre y
-> qué es de pago, y [PRODUCT.md](PRODUCT.md) / [DESIGN.md](DESIGN.md) para el producto y el diseño.
+> qué es de pago, [PRODUCT.md](PRODUCT.md) / [DESIGN.md](DESIGN.md) para el producto y el diseño, y la carpeta
+> [docs/](docs/) para la API HTTP y la API de plugins.
 
 ## Qué hace (edición gratuita)
 
@@ -24,7 +25,8 @@ Solo usa la biblioteca estándar de Python (`http.server` + SQLite). No hay que 
   (encender/apagar) y auditoría de actividad.
 - **Panel:** secciones agrupadas (Operar, Contenido, Distribuir, Proteger), riel de estado en vivo a la derecha
   (estado, jugadores, memoria, avisos y errores, disco) y listas con ficha lateral en mods y usuarios.
-- **Landing pública** en `/` con lista de espera.
+- **Landing aparte** (`landing/`): sitio estático que presenta el proyecto; no forma parte del panel (ver su
+  [README](landing/README.md)). En `/` el gestor solo redirige al panel.
 
 La edición **Pro** añade copias de seguridad, tareas programadas, actualización segura de mods,
 servidor de pruebas, sincronización de clientes, 2FA y acceso remoto. Vive en otro repositorio
@@ -68,6 +70,8 @@ Variables de entorno (tienen prioridad sobre `config.json`):
 | `CURSEFORGE_API_KEY` | vacía |
 | `MODNEX_PRO_PATH` | ruta del paquete Pro, si lo usas |
 
+El panel está en `http://127.0.0.1:8765/app` (la raíz `/` redirige ahí).
+
 Cada subcarpeta de `SERVERS_DIR` con `start.sh`, `run.sh` o `mods/` es un servidor. Una subcarpeta con
 `"parent": "<otro-servidor>"` en su `.manager.json` se muestra como hijo de ese servidor en el panel.
 
@@ -83,6 +87,8 @@ Cada subcarpeta de `SERVERS_DIR` con `start.sh`, `run.sh` o `mods/` es un servid
 | `autofilter.py` | Detección de mods que solo funcionan en el cliente. |
 | `plugins.py` | Carga opcional de plugins ([docs/plugins.md](docs/plugins.md)). |
 | `static/` | Panel (`index.html`, `app.js`, `style.css`) y landing. |
+| `landing/` | Landing pública: sitio estático autónomo, separado del panel. |
+| `docs/` | Documentación: [API HTTP](docs/api.md) y [API de plugins](docs/plugins.md). |
 | `tools/make_scene.py` | Genera la ilustración de la landing. |
 
 ## Seguridad
@@ -103,6 +109,17 @@ Cada subcarpeta de `SERVERS_DIR` con `start.sh`, `run.sh` o `mods/` es un servid
 
 `config.json`, `manager.db`, `manager.log`, `releases/` (clientes generados), `backups/` y `sandbox/`
 (solo con Pro), `bin/` (binarios descargados). Todos están en `.gitignore`.
+
+## Contribuir
+
+- `main` está protegida: no se sube directamente. Cada cambio va en su propia rama (`feat/…` o `fix/…`) y entra
+  por un pull request; un cambio por rama y un commit por cambio, con un mensaje que diga qué cambia, por qué y
+  cómo se verificó.
+- Este repositorio **todavía no incluye pruebas automáticas**: las del gestor (unitarias, de API y de navegador)
+  viven hoy en el repositorio de Pro, que es privado. Hasta que se publiquen, verifica a mano lo que toques y
+  describe en el pull request cómo lo comprobaste.
+- El panel no admite estilos ni scripts en línea (política de seguridad de contenido): usa clases CSS y archivos.
+- No incluyas secretos (`config.json`, claves de API, tokens).
 
 ## Licencia
 
