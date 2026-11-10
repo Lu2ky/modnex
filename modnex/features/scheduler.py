@@ -146,6 +146,10 @@ def start(ctx):
             except Exception:
                 pass
             try:
+                notify.drain(ctx)
+            except Exception:
+                pass
+            try:
                 retention.daily(ctx)
             except Exception:
                 pass
