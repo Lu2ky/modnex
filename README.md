@@ -51,6 +51,7 @@ En el primer arranque se crea `config.json` con un `access_token` aleatorio y un
 | `access_token` | Contraseña inicial del administrador. Se genera sola. |
 | `curseforge_api_key` | Opcional. Activa la búsqueda y descarga de CurseForge. |
 | `bind` | Dirección en la que escucha. Por defecto `0.0.0.0`. |
+| `admin_remote` | Con `true`, los administradores también pueden entrar desde fuera de la red local. No recomendado. |
 | `pro_path`, `pro_dev` | Ruta del paquete Pro y activación de desarrollo (ver [LICENSING.md](LICENSING.md)). |
 
 Variables de entorno (tienen prioridad sobre `config.json`):
@@ -91,6 +92,9 @@ Cada subcarpeta de `SERVERS_DIR` con `start.sh`, `run.sh` o `mods/` es un servid
 - Los nombres de servidor y de archivo se validan con listas permitidas; las descargas de mods solo
   salen a hosts conocidos y se comprueban por hash.
 - Los permisos se aplican en el servidor, no solo en la interfaz.
+- **Los administradores solo entran desde este equipo o la red local.** El núcleo lo comprueba en cada
+  petición (login y sesión), también si la petición llega por un túnel. Detalles y cómo relajarlo en
+  la documentación de Pro; la clave es `admin_remote` en `config.json`.
 
 ## Datos que genera
 
