@@ -6,7 +6,7 @@ archivos y las descargas. No hay compatibilidad garantizada entre versiones.
 ## Acceso
 
 - **Sesión:** `POST /api/login` con `{"username", "password"}` devuelve una cookie `HttpOnly` y `SameSite=Strict`
-  (con `Secure` si se entra por HTTPS a través de un túnel). Con la verificación en dos pasos de Pro activada, se
+  (con `Secure` si se entra por HTTPS a través de un túnel). Con la verificación en dos pasos activada, se
   añade `"otp"`; si falta, la respuesta es `401` con `need_otp: true`.
 - **Origen:** las peticiones con cabecera `Origin` de otro sitio se rechazan (`403`).
 - **Bloqueo:** 5 intentos fallidos de inicio de sesión desde una IP bloquean ese origen 5 minutos.
@@ -24,7 +24,7 @@ archivos y las descargas. No hay compatibilidad garantizada entre versiones.
 | `POST /api/logout` | sesión | La cierra. |
 | `GET /api/me` | sesión | Usuario actual y lista de iconos de servidor. |
 | `POST /api/me/password` | sesión | Cambia la contraseña propia (`old`, `new`); cierra las demás sesiones. |
-| `GET /api/plugins` | sesión | Edición (`free`/`pro`), pestañas, páginas, bloques de riel y scripts de los plugins. |
+| `GET /api/plugins` | sesión | Pestañas, páginas, bloques de riel y scripts de los plugins. |
 
 ## Servidores
 
@@ -83,9 +83,8 @@ archivos y las descargas. No hay compatibilidad garantizada entre versiones.
 | `POST /api/users/<id>/update` · `/delete` · `/permissions` | admin | Cambia, borra o fija los permisos de un usuario. |
 | `GET /api/audit` | admin | Registro de actividad (`?limit=`). |
 | `GET /api/share` · `POST /api/share_stop` | admin | Enlace temporal de descarga del cliente. |
-| `GET /api/waitlist` · `POST /api/waitlist` | admin / público | Lista de espera de Pro. El `POST` es público y limita 5 envíos por hora y origen. |
 
 ## Plugins
 
-Las rutas que añade un plugin cuelgan de `/api/servers/<nombre>/<acción>` o de `/api/pro/<acción>`. Ver
+Las rutas que añade un plugin cuelgan de `/api/servers/<nombre>/<acción>` o de `/api/features/<acción>`. Ver
 [plugins.md](plugins.md).

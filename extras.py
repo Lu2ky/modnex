@@ -1,7 +1,7 @@
 """Extras opcionales al crear un servidor: mods o plugins aparte que se instalan al terminar la creación.
 
-El núcleo registra los suyos (AutoModpack). Un plugin, como Pro, puede añadir otros con `api.extra(...)`;
-si el plugin no está, esos extras no existen ni se aceptan. Un extra que no se puede instalar (cargador
+El núcleo registra AutoModpack y los plugins pueden añadir otros con `api.extra(...)` (spark, por ejemplo);
+los que no estén registrados no existen ni se aceptan. Un extra que no se puede instalar (cargador
 no compatible, sin versión estable, sin red) no hace fallar la creación: queda anotado en la auditoría.
 """
 import json
@@ -18,18 +18,18 @@ UA = "Modnex"
 JAR_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+\-]{0,118}\.jar")
 SAFE_TOKEN = re.compile(r"[A-Za-z0-9._\-]{1,40}")
 
-EXTRAS = {}   # id -> {"id","label","desc","loaders","pro","install"}
+EXTRAS = {}   # id -> {"id","label","desc","loaders","install"}
 
 
 class ExtraUnavailable(Exception):
     """El extra no se puede instalar en este servidor (el motivo se muestra al usuario)."""
 
 
-def register(extra_id, label, desc, install, loaders=None, pro=False):
+def register(extra_id, label, desc, install, loaders=None):
     """install(ctx, nombre_del_servidor) -> nombre del archivo instalado, o None si ya estaba.
     loaders: cargadores donde tiene sentido (None = cualquiera)."""
     EXTRAS[extra_id] = {"id": extra_id, "label": label, "desc": desc, "loaders": sorted(loaders) if loaders else None,
-                        "pro": bool(pro), "install": install}
+                        "install": install}
 
 
 def listing():
