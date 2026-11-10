@@ -226,7 +226,7 @@ function tabsFor(s) {
   if (s.permissions.textures) t.push({ id: 'textures', label: 'Texturas' });
   if (s.permissions.players) t.push({ id: 'players', label: 'Jugadores' });
   if (isAdmin()) t.push({ id: 'client', label: 'Cliente' }, { id: 'props', label: 'Propiedades' }, { id: 'settings', label: 'Ajustes' });
-  for (const p of (state.plugins && state.plugins.tabs) || []) if (!p.admin || isAdmin()) t.push({ id: 'x-' + p.id, label: p.label });
+  for (const p of (state.plugins && state.plugins.tabs) || []) if (p.perm ? (isAdmin() || s.permissions[p.perm]) : (!p.admin || isAdmin())) t.push({ id: 'x-' + p.id, label: p.label });
   return t;
 }
 
