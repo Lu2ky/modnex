@@ -21,6 +21,8 @@ Solo usa la biblioteca estándar de Python (`http.server` + SQLite). No hay que 
   reparte con un enlace de descarga temporal.
 - **Usuarios y permisos por servidor:** logs, mods, datapacks, texturas, jugadores, control
   (encender/apagar) y auditoría de actividad.
+- **Panel:** secciones agrupadas (Operar, Contenido, Distribuir, Proteger), riel de estado en vivo a la derecha
+  (estado, jugadores, memoria, avisos y errores, disco) y listas con ficha lateral en mods y usuarios.
 - **Landing pública** en `/` con lista de espera.
 
 La edición **Pro** añade copias de seguridad, tareas programadas, actualización segura de mods,

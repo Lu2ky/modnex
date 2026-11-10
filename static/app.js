@@ -211,6 +211,7 @@ function renderMain() {
   clearTimers();
   const v = state.view;
   $('#main').classList.toggle('wide', v.kind === 'mod');  // la ficha usa todo el ancho
+  $('#main').classList.remove('srv');
   if (v.kind === 'server') return renderServer();
   if (v.kind === 'users') return renderUsers();
   if (v.kind === 'audit') return renderAudit();
@@ -241,15 +242,21 @@ async function refreshServers() {
 }
 
 /* ---------- vista de servidor ---------- */
+const GROUPS = [['operar', 'Operar'], ['contenido', 'Contenido'], ['distribuir', 'Distribuir'], ['proteger', 'Proteger'], ['mas', 'Más']];
 function tabsFor(s) {
   const t = [];
-  if (s.permissions.logs) t.push({ id: 'logs', label: 'Logs' });
-  if (s.permissions.mods && s.kind !== 'none') t.push({ id: 'mods', label: s.kind === 'plugin' ? 'Plugins' : 'Mods' });
-  if (s.permissions.datapacks) t.push({ id: 'datapacks', label: 'Datapacks' });
-  if (s.permissions.textures) t.push({ id: 'textures', label: 'Texturas' });
-  if (s.permissions.players) t.push({ id: 'players', label: 'Jugadores' });
-  if (isAdmin()) t.push({ id: 'client', label: 'Cliente' }, { id: 'props', label: 'Propiedades' }, { id: 'settings', label: 'Ajustes' });
-  for (const p of (state.plugins && state.plugins.tabs) || []) if (p.perm === '*' ? (isAdmin() || Object.values(s.permissions).some(Boolean)) : p.perm ? (isAdmin() || s.permissions[p.perm]) : (!p.admin || isAdmin())) t.push({ id: 'x-' + p.id, label: p.label });
+  const add = (id, label, group) => t.push({ id, label, group });
+  if (s.permissions.logs) add('logs', 'Consola', 'operar');
+  if (s.permissions.players) add('players', 'Jugadores', 'operar');
+  if (isAdmin()) add('props', 'Propiedades', 'operar'), add('settings', 'Ajustes', 'operar');
+  if (s.permissions.mods && s.kind !== 'none') add('mods', s.kind === 'plugin' ? 'Plugins' : 'Mods', 'contenido');
+  if (s.permissions.datapacks) add('datapacks', 'Datapacks', 'contenido');
+  if (s.permissions.textures) add('textures', 'Texturas', 'contenido');
+  if (isAdmin()) add('client', 'Cliente', 'distribuir');
+  for (const p of (state.plugins && state.plugins.tabs) || []) if (p.perm === '*' ? (isAdmin() || Object.values(s.permissions).some(Boolean)) : p.perm ? (isAdmin() || s.permissions[p.perm]) : (!p.admin || isAdmin())) add('x-' + p.id, p.label, p.group || 'mas');
+  const order = GROUPS.map(([g]) => g);
+  t.sort((x, y) => order.indexOf(x.group) - order.indexOf(y.group));   // estable: dentro de cada grupo se conserva el orden
+  if (t.length) t.unshift({ id: 'summary', label: 'Resumen', group: 'operar' });
   return t;
 }
 
@@ -282,17 +289,136 @@ function renderServer() {
   }
   const tab = tabs.find((t) => t.id === state.view.tab) ? state.view.tab : tabs[0].id;
   state.view.tab = tab;
+  const groupOf = (t) => t.group || 'mas';
+  const activeGroup = groupOf(tabs.find((t) => t.id === tab));
+  const groups = GROUPS.filter(([g]) => tabs.some((t) => groupOf(t) === g));
+  const sub = tabs.filter((t) => groupOf(t) === activeGroup);
+  const href = (id) => `#/s/${encodeURIComponent(s.name)}/${id}`;
+  $('#main').classList.add('srv');
   $('#main').innerHTML = `
-    <header class="srv-head" id="srvHead">${headHTML(s)}</header>
-    <nav class="tabs" aria-label="Secciones del servidor">
-      ${tabs.map((t) => `<a class="tab${t.id === tab ? ' on' : ''}" href="#/s/${encodeURIComponent(s.name)}/${t.id}" ${t.id === tab ? 'aria-current="page"' : ''}>${t.label}</a>`).join('')}
-    </nav>
-    <section class="tab-body" id="tabBody"></section>`;
-  const core = { logs: tabLogs, mods: tabMods, datapacks: tabDatapacks, textures: tabTextures, players: tabPlayers, client: tabClient, props: tabProps, settings: tabSettings };
+    <div class="srv-layout">
+      <header class="srv-head" id="srvHead">${headHTML(s)}</header>
+      <aside class="rail" id="rail" aria-label="Estado del servidor"><div id="railCore"></div><div id="railPlug"></div></aside>
+      <nav class="groups" aria-label="Secciones del servidor">
+        ${groups.map(([g, label]) => `<a class="group${g === activeGroup ? ' on' : ''}" href="${href(tabs.find((t) => groupOf(t) === g).id)}" ${g === activeGroup ? 'aria-current="true"' : ''}>${label}</a>`).join('')}
+      </nav>
+      ${sub.length > 1 ? `<nav class="tabs" aria-label="${esc(groups.find(([g]) => g === activeGroup)[1])}">
+        ${sub.map((t) => `<a class="tab${t.id === tab ? ' on' : ''}" href="${href(t.id)}" ${t.id === tab ? 'aria-current="page"' : ''}>${t.label}</a>`).join('')}
+      </nav>` : ''}
+      <section class="tab-body" id="tabBody"></section>
+    </div>`;
+  const core = { summary: tabSummary, logs: tabLogs, mods: tabMods, datapacks: tabDatapacks, textures: tabTextures, players: tabPlayers, client: tabClient, props: tabProps, settings: tabSettings };
   if (core[tab]) core[tab](s);
   else renderPluginTab(tab.replace(/^x-/, ''), s);
-  const onTab = $('.tab.on');  // con muchas pestañas, la activa puede quedar fuera de la vista
-  if (onTab && onTab.scrollIntoView) onTab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  mountRail(s);
+}
+
+/* --- Riel de estado (derecha): datos en vivo del servidor --- */
+state.metrics = {};
+const fmtUp = (sec) => (sec == null ? '—' : sec >= 86400 ? `${Math.floor(sec / 86400)} d ${Math.floor((sec % 86400) / 3600)} h` : sec >= 3600 ? `${Math.floor(sec / 3600)} h ${Math.floor((sec % 3600) / 60)} min` : `${Math.max(1, Math.floor(sec / 60))} min`);
+const toMb = (v) => { const m = /^(\d+)([GgMm])$/.exec(v || ''); return m ? Number(m[1]) * (m[2].toLowerCase() === 'g' ? 1024 : 1) : null; };
+function railHTML(s, m) {
+  const link = (tab) => `#/s/${encodeURIComponent(s.name)}/${tab}`;
+  const xmx = toMb(s.memory && s.memory.xmx);
+  const run = m.running;
+  const players = !run ? '<p class="rail-empty">El servidor está parado.</p>'
+    : m.players.length ? `<ul class="rail-players">${m.players.map((p) => `<li><span class="avatar-sm" aria-hidden="true">${esc(p[0].toUpperCase())}</span>${esc(p)}</li>`).join('')}</ul>`
+    : '<p class="rail-empty">Nadie conectado.</p>';
+  return `
+    <section class="rail-block">
+      <h2 class="rail-title">Estado</h2>
+      <p class="rail-big"><span class="led ${ledClass(s)}" aria-hidden="true"></span>${run ? 'En marcha' : state.starting[s.name] > Date.now() ? 'Arrancando…' : 'Parado'}</p>
+      ${run ? `<p class="rail-sub">Activo desde hace ${fmtUp(m.uptime_s)}</p>` : ''}
+    </section>
+    <section class="rail-block">
+      <h2 class="rail-title">Jugadores <span class="rail-count">${run ? `${m.players.length}${m.max_players ? ` / ${m.max_players}` : ''}` : '—'}</span></h2>
+      ${players}
+    </section>
+    ${run && m.rss_mb != null ? `<section class="rail-block">
+      <h2 class="rail-title">Memoria <span class="rail-count">${m.rss_mb >= 1024 ? (m.rss_mb / 1024).toFixed(1) + ' GB' : m.rss_mb + ' MB'}${xmx ? ` de ${xmx >= 1024 ? xmx / 1024 + ' GB' : xmx + ' MB'}` : ''}</span></h2>
+      ${xmx ? `<meter class="rail-meter" min="0" max="${xmx}" low="${Math.round(xmx * 0.7)}" high="${Math.round(xmx * 0.9)}" optimum="0" value="${Math.min(m.rss_mb, xmx)}"></meter>` : ''}
+    </section>` : ''}
+    ${s.permissions.logs || isAdmin() ? `<section class="rail-block">
+      <h2 class="rail-title">Registro reciente</h2>
+      <p class="rail-sub"><a class="rail-stat ${m.error ? 'bad' : ''}" href="${link('logs')}">${m.error} ${m.error === 1 ? 'error' : 'errores'}</a> · <a class="rail-stat ${m.warn ? 'warn' : ''}" href="${link('logs')}">${m.warn} ${m.warn === 1 ? 'aviso' : 'avisos'}</a></p>
+    </section>` : ''}
+    <section class="rail-block">
+      <h2 class="rail-title">Disco libre <span class="rail-count ${m.disk_free_gb < 5 ? 'bad' : ''}">${m.disk_free_gb} GB</span></h2>
+      ${m.disk_free_gb < 5 ? '<p class="rail-sub">Queda poco espacio: las copias pueden fallar.</p>' : ''}
+    </section>`;
+}
+async function loadRail(s) {
+  if (!$('#railCore')) return;
+  try {
+    const m = await api(`/api/servers/${encodeURIComponent(s.name)}/metrics`);
+    state.metrics[s.name] = m;
+    const core = $('#railCore');
+    if (core) core.innerHTML = railHTML(s, m);
+  } catch (e) { /* el riel se queda con el último dato */ }
+}
+function mountRail(s) {
+  loadRail(s);
+  every(5000, () => loadRail(s));
+  const host = $('#railPlug');
+  for (const r of (state.plugins && state.plugins.rails) || []) {
+    const plug = window.ModnexPlugins && window.ModnexPlugins[r.id];
+    if (!plug || typeof plug.renderRail !== 'function') continue;
+    const block = document.createElement('section');
+    block.className = 'rail-block';
+    block.innerHTML = `<h2 class="rail-title">${esc(r.label)}</h2><div class="rail-plug"></div>`;
+    host.append(block);
+    try { plug.renderRail($('.rail-plug', block), s); } catch (e) { $('.rail-plug', block).textContent = 'No disponible'; }
+  }
+}
+
+/* --- Resumen --- */
+function tabSummary(s) {
+  const can = (k) => isAdmin() || !!s.permissions[k];
+  const enc = encodeURIComponent(s.name);
+  const quick = [
+    ['logs', 'Abrir la consola', 'Registro completo y comandos', can('logs')],
+    ['players', 'Jugadores', 'Quién está dentro y quién puede entrar', can('players')],
+    ['mods', s.kind === 'plugin' ? 'Plugins' : 'Mods', 'Instalar, actualizar y quitar', can('mods') && s.kind !== 'none'],
+    ['client', 'Generar el cliente', 'Lo que necesitan tus jugadores', isAdmin()],
+  ].filter((q) => q[3]);
+  $('#tabBody').innerHTML = `
+    <div class="summary${isAdmin() ? '' : ' solo'}">
+      <div class="summary-main">
+        ${can('logs') ? `<section class="block"><div class="block-head"><h2>Últimas líneas del registro</h2><a href="#/s/${enc}/logs">Abrir la consola</a></div>
+          <pre class="log mini" id="sumLog" aria-label="Últimas líneas del registro">Cargando…</pre></section>` : ''}
+        <section class="block"><h2>Accesos rápidos</h2>
+          <div class="quick">${quick.map(([id, t, d]) => `<a class="quick-item" href="#/s/${enc}/${id}"><strong>${t}</strong><span class="muted small">${d}</span></a>`).join('')}</div></section>
+      </div>
+      ${isAdmin() ? `<div class="summary-side"><section class="block"><h2>Actividad reciente</h2><div id="sumAudit"><p class="muted small">Cargando…</p></div></section>
+        <section class="block"><h2>Quién tiene acceso</h2><div id="sumUsers"><p class="muted small">Cargando…</p></div></section></div>` : ''}
+    </div>`;
+  if (can('logs')) {
+    const load = async () => {
+      try {
+        const { log } = await api(`/api/servers/${enc}/log?lines=16`);
+        const pre = $('#sumLog'); if (!pre) return;
+        pre.innerHTML = logHTML(stripAnsi(log || '(sin contenido todavía)'));
+        pre.scrollTop = pre.scrollHeight;
+      } catch (e) { /* se queda con lo anterior */ }
+    };
+    load(); every(5000, load);
+  }
+  if (isAdmin()) {
+    api('/api/audit?limit=300').then((rows) => {
+      const el = $('#sumAudit'); if (!el) return;
+      const mine = rows.filter((r) => r.server_name === s.name).slice(0, 8);
+      el.innerHTML = mine.length ? `<ul class="feed">${mine.map((r) => `<li><span class="feed-when">${fmtTime(r.ts)}</span><span><strong>${esc(r.username)}</strong> ${esc(r.action)}${r.detail ? ` <span class="muted">${esc(r.detail)}</span>` : ''}</span></li>`).join('')}</ul>` : '<p class="muted small">Todavía no hay actividad registrada en este servidor.</p>';
+    }).catch(() => {});
+    api('/api/users').then((users) => {
+      const el = $('#sumUsers'); if (!el) return;
+      const who = users.filter((u) => u.active && (u.is_admin || u.permissions[s.name]));
+      el.innerHTML = who.length ? `<ul class="people">${who.map((u) => {
+        const p = u.permissions[s.name] || {};
+        const labels = u.is_admin ? 'Administrador' : Object.keys(PERM_LABELS).filter((k) => p[k]).map((k) => PERM_LABELS[k]).join(', ') || 'Sin permisos';
+        return `<li><span class="avatar-sm" aria-hidden="true">${esc(u.username[0].toUpperCase())}</span><span><strong>${esc(u.username)}</strong><br><span class="muted small">${esc(labels)}</span></span></li>`;
+      }).join('')}</ul>` : '<p class="muted small">Solo los administradores.</p>';
+    }).catch(() => {});
+  }
 }
 
 /* --- Logs --- */
@@ -304,14 +430,31 @@ function logHTML(text) {
   }).join('\n');
 }
 
+state.logLevel = 'all'; state.logQ = ''; state.logRaw = '';
+function paintLog() {
+  const pre = $('#log');
+  if (!pre) return;
+  const q = state.logQ.trim().toLowerCase();
+  const keep = (l) => {
+    if (state.logLevel === 'err' && !/\b(ERROR|FATAL)\b|Exception/.test(l)) return false;
+    if (state.logLevel === 'warn' && !/\b(ERROR|FATAL|WARN)\b|Exception/.test(l)) return false;
+    return !q || l.toLowerCase().includes(q);
+  };
+  const lines = stripAnsi(state.logRaw).split('\n').filter(keep);
+  pre.innerHTML = lines.length ? logHTML(lines.join('\n')) : (state.logRaw ? '(ninguna línea coincide con el filtro)' : '(sin contenido todavía)');
+  if ($('#follow') && $('#follow').checked) pre.scrollTop = pre.scrollHeight;
+}
 function tabLogs(s) {
   const cmd = isAdmin() ? `
     <form class="row" id="cmdForm">
       <input name="cmd" placeholder="Comando para la consola, por ejemplo: say hola" aria-label="Comando" autocomplete="off">
       <button class="btn" type="submit">Enviar</button>
     </form>` : '';
+  $('#tabBody').classList.add('fill');
+  $('.srv-layout').classList.add('is-fill');
   $('#tabBody').innerHTML = `
-    <div class="toolbar"><span class="muted">Últimas 300 líneas, se actualiza cada 3 s</span>
+    <div class="toolbar"><div class="seg" role="group" aria-label="Nivel">${[['all', 'Todo'], ['warn', 'Avisos y errores'], ['err', 'Errores']].map(([id, t]) => `<button type="button" class="seg-btn${state.logLevel === id ? ' on' : ''}" data-action="log-level" data-level="${id}">${t}</button>`).join('')}</div>
+      <input type="search" id="logQ" class="log-q" placeholder="Filtrar el registro" aria-label="Filtrar el registro" value="${esc(state.logQ)}">
       <label class="check"><input type="checkbox" id="follow" checked> Seguir al final</label></div>
     <pre class="log" id="log" tabindex="0" aria-label="Log del servidor"></pre>${cmd}`;
   const load = async () => {
@@ -319,8 +462,8 @@ function tabLogs(s) {
       const { log } = await api(`/api/servers/${encodeURIComponent(s.name)}/log?lines=300`);
       const pre = $('#log');
       if (!pre) return;
-      pre.innerHTML = logHTML(log || '(sin contenido todavía)');
-      if ($('#follow').checked) pre.scrollTop = pre.scrollHeight;
+      state.logRaw = log || '';
+      paintLog();
     } catch (e) { fail(e); }
   };
   load();
@@ -340,6 +483,72 @@ function tabMods(s) {
 
 const SRC = { modrinth: 'Modrinth', curseforge: 'CurseForge' };
 
+state.modSel = null; state.modFilter = 'all'; state.modQ = ''; state.modsData = [];
+const SIDE_TXT = { required: 'Necesario', optional: 'Opcional', unsupported: 'No funciona' };
+const modFilters = (mods) => [
+  ['all', 'Todos', mods.length],
+  ['updates', 'Con actualización', mods.filter((m) => m.latest && m.source === 'modrinth').length],
+  ['off', 'Desactivados', mods.filter((m) => !m.enabled).length],
+  ['unknown', 'Sin reconocer', mods.filter((m) => !m.source).length],
+];
+function modMatches(m) {
+  const f = state.modFilter, q = state.modQ.trim().toLowerCase();
+  if (f === 'updates' && !(m.latest && m.source === 'modrinth')) return false;
+  if (f === 'off' && m.enabled) return false;
+  if (f === 'unknown' && m.source) return false;
+  return !q || (m.name || '').toLowerCase().includes(q) || m.file.toLowerCase().includes(q);
+}
+function modDetailHTML(mods) {
+  const m = mods.find((x) => x.file === state.modSel);
+  if (!m) {
+    const upd = mods.filter((x) => x.latest && x.source === 'modrinth').length, off = mods.filter((x) => !x.enabled).length;
+    return `<div class="detail-empty"><h2>${mods.length} ${mods.length === 1 ? 'mod' : 'mods'}</h2>
+      <p class="muted">${upd ? `${upd} con versión nueva. ` : 'Todos están al día. '}${off ? `${off} desactivados. ` : ''}Elige uno de la lista para ver su ficha y actuar sobre él.</p>
+      <p class="muted small">Los cambios se aplican al reiniciar el servidor.</p></div>`;
+  }
+  const side = (v) => (v ? SIDE_TXT[v] || v : 'Sin datos');
+  return `
+    <div class="detail-head"><h2>${esc(m.name || m.file)}</h2>
+      <p class="muted small mono">${esc(m.file)}</p>
+      <div class="chips"><span class="chip">${m.source ? SRC[m.source] : 'Desconocido'}</span>${m.enabled ? '' : '<span class="chip bad">Desactivado</span>'}${m.latest && m.source === 'modrinth' ? '<span class="chip live">Actualización disponible</span>' : ''}</div></div>
+    <dl class="facts">
+      <dt>Versión instalada</dt><dd>${esc(m.installed || '—')}</dd>
+      ${m.latest ? `<dt>Última versión</dt><dd>${esc(m.latest)}</dd>` : ''}
+      <dt>En el servidor</dt><dd>${esc(side(m.server_side))}</dd>
+      <dt>En el cliente</dt><dd>${esc(side(m.client_side))}</dd>
+      <dt>Tamaño</dt><dd>${fmtSize(m.size)}</dd>
+    </dl>
+    ${m.name ? '' : '<p class="muted small">No se reconoce en Modrinth ni CurseForge, así que no se puede comprobar si hay versión nueva.</p>'}
+    <div class="detail-acts">
+      ${m.latest && m.source === 'modrinth' ? `<button class="btn primary" data-action="mod-update" data-file="${esc(m.file)}">Actualizar a ${esc(m.latest)}</button>` : ''}
+      ${m.project_id && m.source ? `<a class="btn" href="#/m/${esc(m.source)}/${esc(m.project_id)}">Ver ficha</a>` : ''}
+      ${m.source === 'curseforge' && m.slug ? `<a class="btn" target="_blank" rel="noopener" href="https://www.curseforge.com/minecraft/mc-mods/${esc(m.slug)}">Ver en CurseForge</a>` : ''}
+      <button class="btn" data-action="mod-toggle" data-file="${esc(m.file)}">${m.enabled ? 'Desactivar' : 'Activar'}</button>
+      <button class="btn danger" data-action="mod-delete" data-file="${esc(m.file)}">Borrar</button>
+    </div>`;
+}
+function paintMods() {
+  const body = $('#modsBody');
+  if (!body) return;
+  const mods = state.modsData;
+  if (!$('#modList')) {
+    body.innerHTML = `<div class="split">
+      <div class="split-list">
+        <div class="split-tools"><input type="search" id="modQ" placeholder="Buscar entre los instalados" aria-label="Buscar entre los instalados" value="${esc(state.modQ)}"><div class="chipbar" id="modFilters"></div></div>
+        <div class="rows" id="modList"></div>
+      </div>
+      <aside class="split-detail" id="modDetail" aria-live="polite"></aside></div>`;
+  }
+  $('#modFilters').innerHTML = modFilters(mods).map(([id, t, n]) => `<button type="button" class="filter${state.modFilter === id ? ' on' : ''}" data-action="mod-filter" data-filter="${id}">${t} <span class="filter-n">${n}</span></button>`).join('');
+  const list = mods.filter(modMatches);
+  $('#modList').innerHTML = list.map((m) => `
+    <button type="button" class="row-item row-btn${m.enabled ? '' : ' off'}${state.modSel === m.file ? ' sel' : ''}" data-action="mod-select" data-file="${esc(m.file)}">
+      <span class="grow"><strong>${esc(m.name || m.file)}</strong>${m.name ? '' : '<span class="muted small block">Sin reconocer</span>'}</span>
+      ${m.latest && m.source === 'modrinth' ? '<span class="dot-up" title="Actualización disponible"></span>' : ''}
+      <span class="ver">${esc(m.installed || '—')}</span>
+    </button>`).join('') || `<p class="muted pad pad-in">${mods.length ? 'Ningún mod coincide con el filtro.' : 'Este servidor no tiene mods.'}</p>`;
+  $('#modDetail').innerHTML = modDetailHTML(mods);
+}
 async function loadInstalled(s) {
   const body = $('#modsBody');
   body.innerHTML = '<p class="muted pad">Identificando mods…</p>';
@@ -347,23 +556,9 @@ async function loadInstalled(s) {
     const q = new URLSearchParams({ loader: state.loader, version: state.version });
     const mods = await api(`/api/servers/${encodeURIComponent(s.name)}/mods?${q}`);
     if (!$('#modsBody')) return;
-    const updates = mods.filter((m) => m.latest && m.source === 'modrinth').length;
-    body.innerHTML = `
-      ${updates ? `<p class="notice">${updates} ${updates === 1 ? 'mod tiene' : 'mods tienen'} una versión nueva.</p>` : ''}
-      <div class="rows">${mods.map((m) => `
-        <div class="row-item${m.enabled ? '' : ' off'}">
-          <div class="grow"><strong>${m.project_id && m.source ? `<a class="mod-link" href="#/m/${esc(m.source)}/${esc(m.project_id)}">${esc(m.name || m.file)}</a>` : esc(m.name || m.file)}</strong>
-            <div class="muted small">${m.name ? esc(m.file) : 'No reconocido en Modrinth ni CurseForge'}</div></div>
-          <span class="chip">${m.source ? SRC[m.source] : 'Desconocido'}</span>
-          <span class="ver">${esc(m.installed || '—')}${m.latest ? ` <span class="up">→ ${esc(m.latest)}</span>` : ''}</span>
-          <div class="acts">
-            ${m.latest && m.source === 'modrinth' ? `<button class="btn sm" data-action="mod-update" data-file="${esc(m.file)}">Actualizar</button>` : ''}
-            ${m.source === 'curseforge' && m.slug ? `<a class="btn sm" target="_blank" rel="noopener" href="https://www.curseforge.com/minecraft/mc-mods/${esc(m.slug)}">Ver en CurseForge</a>` : ''}
-            <button class="btn sm" data-action="mod-toggle" data-file="${esc(m.file)}">${m.enabled ? 'Desactivar' : 'Activar'}</button>
-            <button class="btn danger sm" data-action="mod-delete" data-file="${esc(m.file)}">Borrar</button>
-          </div>
-        </div>`).join('') || '<p class="muted pad">Este servidor no tiene mods.</p>'}</div>
-      <p class="muted small pad">Los cambios se aplican al reiniciar el servidor.</p>`;
+    state.modsData = mods;
+    if (!mods.some((m) => m.file === state.modSel)) state.modSel = null;
+    paintMods();
   } catch (e) { body.innerHTML = ''; fail(e); }
 }
 
@@ -529,12 +724,13 @@ function wireDrop(id, endpoint, done) {
 /* --- Cliente (releases + enlace temporal) --- */
 async function tabClient(s) {
   $('#tabBody').innerHTML = `
-    <section class="panel"><h2>Cliente compatible con este servidor</h2>
-      <div id="clientInfo"><p class="muted">Analizando los mods del servidor…</p></div></section>
-    <p class="lead">Los clientes generados y los archivos que subas aparecen abajo. Desde ahí puedes compartirlos con un enlace público que se cierra solo; ese enlace da acceso únicamente a ese archivo, nunca al panel.</p>
+    <div class="two-col">
+    <div class="two-main"><section class="panel"><h2>Cliente compatible con este servidor</h2>
+      <div id="clientInfo"><p class="muted">Analizando los mods del servidor…</p></div></section></div>
+    <div class="two-side"><p class="lead">Los clientes generados y los archivos que subas aparecen aquí. Desde ahí puedes compartirlos con un enlace público que se cierra solo; ese enlace da acceso únicamente a ese archivo, nunca al panel.</p>
     <div id="shareBox"></div>
     ${dropzoneHTML('relDrop', 'Subir un cliente ya hecho (.zip o .mrpack)', 'Hasta 2 GB. Queda guardado en el gestor; aún no es público.')}
-    <div id="relList"></div>`;
+    <div id="relList"></div></div></div>`;
   loadClientPlan(s);
   wireDrop('relDrop', `/api/servers/${encodeURIComponent(s.name)}/release_upload`, () => loadReleases(s));
   loadReleases(s);
@@ -729,21 +925,55 @@ async function loadTex(s) {
 const PL_DONE = { tell: 'Mensaje enviado', say: 'Mensaje enviado a todos', kick: 'Expulsión enviada', ban: 'Ban enviado', pardon: 'Ban retirado',
   op: 'OP concedido', deop: 'OP retirado', whitelist_add: 'Añadido a la whitelist', whitelist_remove: 'Quitado de la whitelist' };
 
+state.plSel = null;
 function tabPlayers(s) {
   $('#tabBody').innerHTML = `
     <div id="plStatus" class="notice"></div>
-    <form class="row" data-form="say">
-      <input name="text" maxlength="200" placeholder="Mensaje para todos los jugadores conectados" aria-label="Mensaje para todos" required>
-      <button class="btn" type="submit">Enviar a todos</button>
-    </form>
-    <form class="row" data-form="byname">
-      <input name="player" maxlength="20" pattern="[A-Za-z0-9_.]{1,20}" placeholder="Jugador por nombre, aunque no esté en la lista" aria-label="Nombre de jugador" required>
-      <button class="btn" type="submit" value="whitelist_add">Añadir a la whitelist</button>
-      <button class="btn danger" type="submit" value="ban">Banear</button>
-    </form>
+    <div class="pl-forms">
+      <form class="row" data-form="say">
+        <input name="text" maxlength="200" placeholder="Mensaje para todos los jugadores conectados" aria-label="Mensaje para todos" required>
+        <button class="btn" type="submit">Enviar a todos</button>
+      </form>
+      <form class="row" data-form="byname">
+        <input name="player" maxlength="20" pattern="[A-Za-z0-9_.]{1,20}" placeholder="Jugador por nombre, aunque no esté en la lista" aria-label="Nombre de jugador" required>
+        <button class="btn" type="submit" value="whitelist_add">Añadir a la whitelist</button>
+        <button class="btn danger" type="submit" value="ban">Banear</button>
+      </form>
+    </div>
     <div id="plList"><p class="muted pad">Cargando…</p></div>`;
   loadPlayers(s);
   every(8000, () => loadPlayers(s));
+}
+
+function paintPlayers() {
+  const d = state.players, host = $('#plList');
+  if (!d || !host) return;
+  const ctl = d.running && d.control;
+  if (!d.players.some((p) => p.name === state.plSel)) state.plSel = null;
+  const cols = [
+    ['En línea', (p) => p.online === true, 'Nadie conectado.'],
+    ['Operadores', (p) => p.op, 'Ninguno.'],
+    ['Whitelist', (p) => p.whitelisted, 'Vacía.'],
+    ['Baneados', (p) => p.banned, 'Nadie baneado.'],
+  ];
+  const chip = (p) => `<button type="button" class="pname${state.plSel === p.name ? ' sel' : ''}" data-action="pl-select" data-player="${esc(p.name)}"><span class="avatar-sm" aria-hidden="true">${esc(p.name[0].toUpperCase())}</span>${esc(p.name)}</button>`;
+  const sel = d.players.find((p) => p.name === state.plSel);
+  const btn = (p, act, label, cls = '') => `<button class="btn sm ${cls}" data-action="pl-act" data-act="${act}" data-player="${esc(p.name)}" ${ctl ? '' : 'disabled'}>${label}</button>`;
+  const bar = sel ? `
+    <div class="pl-bar"><div class="grow"><strong>${esc(sel.name)}</strong>
+      <div class="chips">${sel.online === true ? '<span class="chip live">En línea</span>' : ''}${sel.op ? '<span class="chip">OP</span>' : ''}${sel.whitelisted ? '<span class="chip">Whitelist</span>' : ''}${sel.banned ? '<span class="chip bad">Baneado</span>' : ''}</div></div>
+      <div class="acts">
+        ${sel.online ? btn(sel, 'tell', 'Mensaje') + btn(sel, 'kick', 'Expulsar') : ''}
+        ${sel.banned ? btn(sel, 'pardon', 'Perdonar') : btn(sel, 'ban', 'Banear', 'danger')}
+        ${sel.op ? btn(sel, 'deop', 'Quitar OP') : btn(sel, 'op', 'Dar OP')}
+        ${sel.whitelisted ? btn(sel, 'whitelist_remove', 'Quitar de whitelist') : btn(sel, 'whitelist_add', 'Añadir a whitelist')}
+      </div></div>` : `<div class="pl-bar pl-hint"><span class="muted">Elige a un jugador para actuar sobre él: mensaje, expulsar, banear, OP o whitelist.</span></div>`;
+  host.innerHTML = d.players.length ? `${bar}
+    <div class="board">${cols.map(([title, pick, empty]) => {
+      const list = d.players.filter(pick);
+      return `<section class="board-col"><h2 class="board-title">${title} <span class="filter-n">${list.length}</span></h2>
+        <div class="board-list">${list.map(chip).join('') || `<p class="muted small board-empty">${empty}</p>`}</div></section>`;
+    }).join('')}</div>` : '<p class="muted pad">Todavía no ha entrado ningún jugador a este servidor.</p>';
 }
 
 async function loadPlayers(s) {
@@ -756,20 +986,7 @@ async function loadPlayers(s) {
       : !d.control ? 'Este servidor se arrancó fuera del gestor, así que no puedo enviarle órdenes. Páralo y vuelve a arrancarlo desde aquí.'
       : d.online_count == null ? 'El servidor no respondió a la lista de jugadores; puede estar todavía arrancando.'
       : `${d.online_count} de ${d.max} jugadores conectados${d.whitelist_enabled ? ' · whitelist activada' : ''}`;
-    const ctl = d.running && d.control;
-    $('#plList').innerHTML = d.players.length ? `<div class="rows">${d.players.map((p) => {
-      const btn = (act, label, cls = '') => `<button class="btn sm ${cls}" data-action="pl-act" data-act="${act}" data-player="${esc(p.name)}" ${ctl ? '' : 'disabled'}>${label}</button>`;
-      return `<div class="row-item">
-        <span class="tile sm avatar" aria-hidden="true">${esc(p.name[0].toUpperCase())}</span>
-        <div class="grow"><strong>${esc(p.name)}</strong>
-          <div class="chips">${p.online === true ? '<span class="chip live">En línea</span>' : ''}${p.op ? '<span class="chip">OP</span>' : ''}${p.whitelisted ? '<span class="chip">Whitelist</span>' : ''}${p.banned ? `<span class="chip bad">Baneado${p.ban_reason ? ': ' + esc(p.ban_reason) : ''}</span>` : ''}</div></div>
-        <div class="acts">
-          ${p.online ? btn('tell', 'Mensaje') + btn('kick', 'Expulsar') : ''}
-          ${p.banned ? btn('pardon', 'Perdonar') : btn('ban', 'Banear', 'danger')}
-          ${p.op ? btn('deop', 'Quitar OP') : btn('op', 'Dar OP')}
-          ${p.whitelisted ? btn('whitelist_remove', 'Quitar de whitelist') : btn('whitelist_add', 'Añadir a whitelist')}
-        </div></div>`;
-    }).join('')}</div>` : '<p class="muted pad">Todavía no ha entrado ningún jugador a este servidor.</p>';
+    paintPlayers();
   } catch (e) { fail(e); }
 }
 
@@ -1050,21 +1267,27 @@ function followJob(f, job, name) {
 }
 
 /* ---------- administración ---------- */
-async function renderUsers() {
+async function renderUsers(selectId) {
+  state.draft = null;
   $('#main').innerHTML = `
     <header class="page-head"><h1>Usuarios y permisos</h1>
       <button class="btn primary" data-action="user-new">Nuevo usuario</button></header>
-    <div id="usersBody"><p class="muted pad">Cargando…</p></div>`;
+    <div class="split users-split"><div class="split-list" id="usersBody"><p class="muted pad">Cargando…</p></div>
+      <section class="split-detail" id="userPane" aria-live="polite"></section></div>`;
   try {
     const users = await api('/api/users');
     state.users = users;
     $('#usersBody').innerHTML = `<div class="rows">${users.map((u) => {
       const n = Object.keys(u.permissions).length;
-      return `<div class="row-item${u.active ? '' : ' off'}">
-        <div class="grow"><strong>${esc(u.username)}</strong>
-          <div class="muted small">${u.is_admin ? 'Administrador: acceso total' : n ? `Acceso a ${n} ${n === 1 ? 'servidor' : 'servidores'}` : 'Sin acceso a ningún servidor'}${u.active ? '' : ' · desactivado'}</div></div>
-        <button class="btn sm" data-action="user-edit" data-id="${u.id}">Editar</button></div>`;
+      return `<button type="button" class="row-item row-btn${u.active ? '' : ' off'}" data-action="user-select" data-id="${u.id}">
+        <span class="tile sm avatar" aria-hidden="true">${esc(u.username[0].toUpperCase())}</span>
+        <span class="grow"><strong>${esc(u.username)}</strong>
+          <span class="muted small block">${u.is_admin ? 'Administrador: acceso total' : n ? `Acceso a ${n} ${n === 1 ? 'servidor' : 'servidores'}` : 'Sin acceso a ningún servidor'}${u.active ? '' : ' · desactivado'}</span></span></button>`;
     }).join('')}</div>`;
+    const pick = users.find((u) => u.id === selectId);
+    if (pick) mountUserEditor(pick);
+    else $('#userPane').innerHTML = `<div class="detail-empty"><h2>${users.length} ${users.length === 1 ? 'usuario' : 'usuarios'}</h2>
+      <p class="muted">Elige un usuario de la lista para ver y cambiar a qué servidores accede y qué puede hacer en cada uno.</p></div>`;
   } catch (e) { fail(e); }
 }
 
@@ -1085,21 +1308,20 @@ function refreshDirty() {
   if (note) { note.textContent = dirty ? 'Hay cambios sin guardar' : 'Sin cambios'; note.classList.toggle('warn', dirty); }
 }
 
-function userDialog(u) {
+function userEditorHTML(u, embedded) {
   const self = u.id === state.me.id;
-  const base = { active: u.active, is_admin: u.is_admin, permissions: clone(u.permissions) };
   const rows = state.servers.map((s) => {
     const p = u.permissions[s.name] || {};
     return `<tr><th scope="row"><span class="tile sm">${srvIcon(s.icon, 22)}</span>${esc(s.display_name)}</th>${PERM_KEYS.map((k) =>
       `<td><input type="checkbox" data-perm="${k}" data-server="${esc(s.name)}" aria-label="${PERM_LABELS[k]} en ${esc(s.display_name)}" ${p[k] ? 'checked' : ''} ${u.is_admin ? 'disabled' : ''}></td>`).join('')}</tr>`;
   }).join('');
-  openDialog(`
-    <div class="dlg" data-user="${u.id}">
-      <header><h2>${esc(u.username)}</h2><button class="btn ghost sm" data-action="user-close">Cerrar</button></header>
+  return `
+    <div class="dlg${embedded ? ' embedded' : ''}" data-user="${u.id}">
+      <header><h2>${esc(u.username)}</h2>${embedded ? '' : '<button class="btn ghost sm" data-action="user-close">Cerrar</button>'}</header>
       ${u.is_admin ? '<p class="notice">Los administradores tienen acceso total; los permisos por servidor no aplican.</p>' : ''}
       <h3>Permisos por servidor</h3>
       <div class="table-wrap"><table class="perm-table"><thead><tr><th>Servidor</th>${PERM_KEYS.map((k) => `<th>${PERM_LABELS[k]}</th>`).join('')}</tr></thead>
-        <tbody>${rows || '<tr><td colspan="6" class="muted">No hay servidores.</td></tr>'}</tbody></table></div>
+        <tbody>${rows || '<tr><td colspan="7" class="muted">No hay servidores.</td></tr>'}</tbody></table></div>
       <h3>Cuenta</h3>
       <div class="row">
         <label class="check"><input type="checkbox" data-acct="active" ${u.active ? 'checked' : ''} ${self ? 'disabled' : ''}> Cuenta activa</label>
@@ -1113,7 +1335,17 @@ function userDialog(u) {
       <div class="row"><input id="uPass" type="password" placeholder="Nueva contraseña (mínimo 8 caracteres)" autocomplete="new-password" aria-label="Nueva contraseña">
         <button class="btn" type="button" data-action="user-pass" data-id="${u.id}">Cambiar contraseña</button></div>
       ${self ? '' : `<div class="row end"><button class="btn danger" type="button" data-action="user-delete" data-id="${u.id}">Borrar usuario</button></div>`}
-    </div>`, true);
+    </div>`;
+}
+function mountUserEditor(u) {
+  $('#userPane').innerHTML = userEditorHTML(u, true);
+  $$('#usersBody .row-btn').forEach((b) => b.classList.toggle('sel', Number(b.dataset.id) === u.id));
+  const base = { active: u.active, is_admin: u.is_admin, permissions: clone(u.permissions) };
+  state.draft = { id: u.id, base, cur: clone(base) };
+}
+function userDialog(u) {
+  const base = { active: u.active, is_admin: u.is_admin, permissions: clone(u.permissions) };
+  openDialog(userEditorHTML(u, false), true);
   state.draft = { id: u.id, base, cur: clone(base) };  // después de abrir: el cierre del diálogo anterior limpia el borrador
 }
 
@@ -1155,6 +1387,10 @@ const sPath = (suffix) => `/api/servers/${encodeURIComponent(sName())}/${suffix}
 const busy = (el, on) => { el.disabled = on; };
 
 const actions = {
+  'pl-select'(el) { state.plSel = state.plSel === el.dataset.player ? null : el.dataset.player; paintPlayers(); },
+  'mod-select'(el) { state.modSel = state.modSel === el.dataset.file ? null : el.dataset.file; paintMods(); },
+  'mod-filter'(el) { state.modFilter = el.dataset.filter; paintMods(); },
+  'log-level'(el) { state.logLevel = el.dataset.level; $$('[data-action=log-level]').forEach((b) => b.classList.toggle('on', b === el)); paintLog(); },
   theme() {
     const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
     document.documentElement.dataset.theme = next;
@@ -1350,6 +1586,12 @@ const actions = {
     $('input', d).focus();
   },
   'user-edit'(el) { userDialog(state.users.find((u) => u.id === Number(el.dataset.id))); },
+  async 'user-select'(el) {
+    const id = Number(el.dataset.id);
+    if (state.draft && state.draft.id === id) return;
+    if (isDirty() && !(await askConfirm('Hay cambios sin guardar', 'Si cambias de usuario ahora, se pierden.', { confirmLabel: 'Descartar cambios', danger: true }))) return;
+    mountUserEditor(state.users.find((u) => u.id === id));
+  },
   async 'user-close'() {
     if (isDirty() && !(await askConfirm('Hay cambios sin guardar', 'Si cierras ahora, se pierden.', { confirmLabel: 'Descartar cambios', danger: true }))) return;
     actions.close();
@@ -1364,10 +1606,11 @@ const actions = {
       if (JSON.stringify(cur.permissions) !== JSON.stringify(base.permissions)) {
         await api(`/api/users/${d.id}/permissions`, { method: 'POST', body: { permissions: cur.permissions } });
       }
+      const embedded = !!$('#userPane [data-user]');
       state.draft = null;
       actions.close();
       toast('Cambios guardados', 'ok');
-      renderUsers();
+      renderUsers(embedded ? d.id : undefined);
     } catch (e) { fail(e); el.disabled = false; el.textContent = 'Guardar cambios'; }
   },
   async 'user-pass'(el) {
@@ -1505,10 +1748,14 @@ document.addEventListener('submit', async (e) => {
   }
 });
 
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'logQ') { state.logQ = e.target.value; paintLog(); }
+  if (e.target.id === 'modQ') { state.modQ = e.target.value; paintMods(); }
+});
 // Las casillas del diálogo de usuario solo actualizan un borrador; nada se guarda hasta pulsar «Guardar cambios».
 document.addEventListener('change', (e) => {
   const t = e.target, d = state.draft;
-  if (!d || !t.closest('dialog')) return;
+  if (!d || !t.closest('dialog, #userPane')) return;
   if (t.dataset.perm) {
     const srv = t.dataset.server;
     d.cur.permissions[srv] = { ...(d.cur.permissions[srv] || {}), [t.dataset.perm]: t.checked };
