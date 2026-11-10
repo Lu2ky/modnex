@@ -1301,7 +1301,7 @@ const actions = {
         <header><h2>Generar cliente</h2><button class="btn ghost sm" type="button" data-action="close">Cerrar</button></header>
         <p class="muted small">El cliente usará exactamente la misma versión del servidor: Minecraft ${esc(p.minecraft || '?')} y NeoForge ${esc(p.loader_version || '?')}. Marca los mods que deben ir en él.</p>
         <div class="plan-list">${p.mods.map((m) => `
-          <label class="plan-row"><input type="checkbox" name="mod" value="${esc(m.file)}" ${m.include ? 'checked' : ''}>
+          <label class="plan-row"><input type="checkbox" name="mod" value="${esc(m.file)}" ${m.include ? 'checked' : ''}${m.locked ? ' disabled' : ''}>
             <span class="grow"><strong>${esc(m.name || m.file)}</strong><span class="muted small block">${esc(m.reason)}</span></span>
             <span class="chip">${m.source ? SRC[m.source] : 'Sin reconocer'}</span></label>`).join('')}</div>
         <fieldset class="fmt"><legend>Formato</legend>
