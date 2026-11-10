@@ -714,3 +714,13 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface2);
   .btn:active, .filter:active, .seg-btn:active, .pname:active, .page:active { transform: none; }
   .ink { transition: none; }
 }
+
+/* tarjeta de resultado entera clicable: el título es un enlace real (teclado, clic central) que se estira por toda la tarjeta */
+.result { position: relative; cursor: pointer; }
+.result-link { color: inherit; text-decoration: none; }
+.result-link::after { content: ""; position: absolute; inset: 0; }
+.result-link:focus-visible { outline: none; }
+.result:has(.result-link:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+.result .btn, .result .files, .result a:not(.result-link) { position: relative; z-index: 1; cursor: default; }
+.result .btn { cursor: pointer; }
+.result .files { cursor: auto; }
