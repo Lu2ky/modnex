@@ -6,7 +6,7 @@ _tmp = tempfile.mkdtemp(prefix="modnex-policy-")
 os.environ.setdefault("MANAGER_DB", str(Path(_tmp) / "db.db"))
 os.environ.setdefault("SERVERS_DIR", _tmp)
 sys.path.insert(0, str(CORE)); sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from modnex.web import server as app
+from modnex.web import access, server as app
 from modnex.features import remote
 
 
@@ -50,13 +50,13 @@ class OrigenTests(unittest.TestCase):
         self.assertFalse(req("127.0.0.1")._admin_remote_blocked(None))
 
     def test_se_puede_permitir_con_admin_remote_true(self):
-        orig = app.load_config
-        app.load_config = lambda: {"admin_remote": True}
+        orig = access.load_config
+        access.load_config = lambda: {"admin_remote": True}
         try: self.assertFalse(req("8.8.8.8")._admin_remote_blocked(ADMIN))
-        finally: app.load_config = orig
-        app.load_config = lambda: {"admin_remote": "true"}
+        finally: access.load_config = orig
+        access.load_config = lambda: {"admin_remote": "true"}
         try: self.assertTrue(req("8.8.8.8")._admin_remote_blocked(ADMIN), "solo vale el booleano true")
-        finally: app.load_config = orig
+        finally: access.load_config = orig
 
 
 class ProveedoresTests(unittest.TestCase):
