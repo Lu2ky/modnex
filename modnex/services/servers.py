@@ -5,14 +5,13 @@ import json
 import os
 import re
 import shutil
-import signal
 import subprocess
 import threading
 import time
 from pathlib import Path
 
 from modnex import plugins
-from modnex.infra import db
+from modnex.infra import db, processes
 from modnex.services import autofilter
 from modnex.services import release
 from modnex.services import templates
@@ -35,14 +34,7 @@ def server_path(name):
 
 
 def _alive(pid):
-    try:
-        os.kill(pid, 0)
-    except (ProcessLookupError, PermissionError):
-        return False
-    try:
-        return b"java" in Path(f"/proc/{pid}/cmdline").read_bytes()
-    except OSError:
-        return False
+    return processes.backend.is_java_alive(pid)
 
 
 def status(name):
@@ -116,10 +108,7 @@ def start(name, _auto=False):
     # El Java del gestor manda aunque el start.sh se escribiera con otro (p. ej. si el runtime no existía entonces).
     env = dict(os.environ, JAVA_BIN=templates._java())
     offset = (p / "manager-console.log").stat().st_size
-    proc = subprocess.Popen(
-        ["bash", str(script)], cwd=p, env=env, stdin=subprocess.PIPE,
-        stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
-    )
+    proc = processes.backend.spawn(script, p, env, log)
     log.close()
     with LOCK:
         PROCS[name] = proc
@@ -193,7 +182,7 @@ def stop(name):
         st = status(name)
         if st["running"]:
             # Sin manejador de stdin (el gestor se reinició): SIGTERM deja que Java guarde el mundo.
-            os.kill(st["pid"], signal.SIGTERM)
+            processes.backend.terminate(st["pid"])
             for _ in range(240):
                 if not _alive(st["pid"]):
                     break
@@ -230,15 +219,7 @@ def live_metrics(name):
            "warn": 0, "error": 0, "disk_free_gb": round(shutil.disk_usage(p).free / 2**30, 1)}
     pid = st.get("pid")
     if st["running"] and pid:
-        try:
-            for line in Path(f"/proc/{pid}/status").read_text().splitlines():
-                if line.startswith("VmRSS:"):
-                    out["rss_mb"] = int(line.split()[1]) // 1024
-            fields = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()
-            since_boot = float(Path("/proc/uptime").read_text().split()[0])
-            out["uptime_s"] = max(0, int(since_boot - int(fields[19]) / os.sysconf("SC_CLK_TCK")))
-        except (OSError, ValueError, IndexError):
-            pass
+        out.update(processes.backend.usage(pid))
     try:
         for line in (p / "server.properties").read_text().splitlines():
             if line.startswith("max-players="):

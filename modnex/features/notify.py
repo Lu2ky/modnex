@@ -1,5 +1,9 @@
 """Avisos a Discord por webhook: arranque, parada, caída y copias.
 
+Un aviso se intenta enviar al momento; si Discord no responde (sin red, 5xx, 429), se guarda en una cola persistente
+(`pro_notify_outbox`) y `drain()` lo reintenta con espera creciente, así una caída de Discord no hace perder el aviso
+de que el servidor se cayó. Las entradas y salidas de jugadores no se encolan: no merece la pena entregarlas tarde.
+
 El webhook es una credencial: se guarda en la base de datos, nunca se devuelve completo a la
 interfaz ni se escribe en logs. Solo se aceptan URLs de webhooks de Discord, para que esta función
 no pueda usarse como salida hacia direcciones arbitrarias.
@@ -8,6 +12,7 @@ import json
 import re
 import threading
 import time
+import urllib.error
 import urllib.request
 
 SCHEMA = """
@@ -15,7 +20,14 @@ CREATE TABLE IF NOT EXISTS pro_notify (
   server TEXT PRIMARY KEY,
   webhook TEXT NOT NULL,
   events TEXT NOT NULL DEFAULT 'started,stopped,crashed,backup');
+CREATE TABLE IF NOT EXISTS pro_notify_outbox (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  server TEXT NOT NULL, text TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0, next_try INTEGER NOT NULL, created INTEGER NOT NULL);
 """
+MAX_ATTEMPTS = 8
+MAX_AGE = 24 * 3600
+EPHEMERAL = ("players",)      # no se encolan
 WEBHOOK_RE = re.compile(r"https://(?:discord|discordapp)\.com/api/webhooks/\d{5,25}/[A-Za-z0-9_-]{20,120}")
 EVENTS = ("started", "stopped", "crashed", "backup", "players", "proposals")
 _LAST = {}
@@ -88,5 +100,51 @@ def send(ctx, name, event, text, force=False):
         _LAST[key] = now
     try:
         return _post(r["webhook"], text)
-    except Exception:
+    except Exception as e:
+        if not force and event not in EPHEMERAL and _retryable(e):
+            _enqueue(ctx, name, text)
         return False  # un fallo de red no debe afectar al servidor
+
+
+def _retryable(exc):
+    """Reintentar errores de red y 5xx o 429; un 4xx (webhook borrado, texto no válido) no se arregla esperando."""
+    if isinstance(exc, urllib.error.HTTPError):
+        return exc.code >= 500 or exc.code == 429
+    return isinstance(exc, OSError)
+
+
+def _backoff(attempts):
+    return min(30 * 2 ** attempts, 1800)
+
+
+def _enqueue(ctx, name, text, now=None):
+    now = int(now or time.time())
+    with ctx.db_connect() as c:
+        c.execute("INSERT INTO pro_notify_outbox(server, text, attempts, next_try, created) VALUES(?,?,0,?,?)",
+                  (name, text[:1800], now + _backoff(0), now))
+        c.commit()
+
+
+def drain(ctx, now=None, post=None):
+    """Reintenta los avisos pendientes que ya tocan. Devuelve cuántos se entregaron. Descarta los que llevan demasiado
+    tiempo o demasiados intentos, o cuyo servidor ya no tiene webhook."""
+    now = int(now or time.time())
+    post = post or _post
+    sent = 0
+    for row in ctx.db_run("SELECT * FROM pro_notify_outbox WHERE next_try <= ? ORDER BY id LIMIT 20", (now,), many=True):
+        hook = ctx.db_run("SELECT webhook FROM pro_notify WHERE server = ?", (row["server"],), one=True)
+        done = not hook or not valid_webhook(hook["webhook"]) or now - row["created"] > MAX_AGE
+        if not done:
+            try:
+                post(hook["webhook"], row["text"])
+                done, sent = True, sent + 1
+            except Exception as e:
+                done = not _retryable(e) or row["attempts"] + 1 >= MAX_ATTEMPTS
+        with ctx.db_connect() as c:
+            if done:
+                c.execute("DELETE FROM pro_notify_outbox WHERE id = ?", (row["id"],))
+            else:
+                c.execute("UPDATE pro_notify_outbox SET attempts = attempts + 1, next_try = ? WHERE id = ?",
+                          (now + _backoff(row["attempts"] + 1), row["id"]))
+            c.commit()
+    return sent

@@ -1,4 +1,5 @@
-import datetime, json, sqlite3, sys, types, unittest
+import datetime, json, sqlite3, sys, types, unittest, urllib.error
+from unittest import mock
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from modnex.features import notify, scheduler, backups
@@ -20,6 +21,71 @@ def make_ctx():
                                 status=lambda n: {"running": True, "control": True},
                                 stop=lambda n: ctx.sent.append("STOP"), start=lambda n: ctx.sent.append("START"))
     return ctx
+
+
+class OutboxTests(unittest.TestCase):
+    """Cola persistente: un aviso que no se pudo enviar se reintenta con espera creciente y no se pierde."""
+
+    def setUp(self):
+        notify._LAST.clear(); notify._SENT.clear()
+        self.ctx = make_ctx(); notify.set_config(self.ctx, "s", GOOD, ["crashed", "players"])
+        self.pending = lambda: [dict(r) for r in self.ctx.db_run("SELECT * FROM pro_notify_outbox ORDER BY id", many=True)]
+
+    def fail(self, exc):
+        def post(url, text): raise exc
+        return mock.patch.object(notify, "_post", post)
+
+    def test_fallo_de_red_encola_el_aviso(self):
+        with self.fail(urllib.error.URLError("sin red")):
+            self.assertFalse(notify.send(self.ctx, "s", "crashed", "se cayó"))
+        p = self.pending(); self.assertEqual((len(p), p[0]["text"], p[0]["attempts"]), (1, "se cayó", 0))
+
+    def test_5xx_y_429_se_encolan_pero_un_4xx_no(self):
+        for code, n in ((503, 1), (429, 2), (404, 2)):
+            notify._LAST.clear()
+            with self.fail(urllib.error.HTTPError(GOOD, code, "x", {}, None)):
+                notify.send(self.ctx, "s", "crashed", f"t{code}")
+            self.assertEqual(len(self.pending()), n, code)
+
+    def test_las_entradas_de_jugadores_no_se_encolan(self):
+        with self.fail(OSError("x")): notify.send(self.ctx, "s", "players", "Ana entró")
+        self.assertEqual(self.pending(), [])
+
+    def test_la_prueba_manual_no_se_encola(self):
+        with self.fail(OSError("x")): notify.send(self.ctx, "s", "started", "prueba", force=True)
+        self.assertEqual(self.pending(), [])
+
+    def test_drain_entrega_cuando_toca_y_borra(self):
+        with self.fail(OSError("x")): notify.send(self.ctx, "s", "crashed", "se cayó")
+        t0 = self.pending()[0]["created"]; sent = []
+        self.assertEqual(notify.drain(self.ctx, now=t0 + 1, post=lambda u, t: sent.append(t)), 0, "todavía no toca")
+        self.assertEqual(notify.drain(self.ctx, now=t0 + 31, post=lambda u, t: sent.append(t)), 1)
+        self.assertEqual((sent, self.pending()), (["se cayó"], []))
+
+    def test_drain_con_fallo_sube_la_espera(self):
+        with self.fail(OSError("x")): notify.send(self.ctx, "s", "crashed", "se cayó")
+        t0 = self.pending()[0]["created"]
+        def boom(u, t): raise OSError("sigue caído")
+        notify.drain(self.ctx, now=t0 + 31, post=boom)
+        p = self.pending()[0]; self.assertEqual(p["attempts"], 1); self.assertEqual(p["next_try"], t0 + 31 + 60)
+
+    def test_se_descarta_tras_los_intentos_maximos_o_un_dia(self):
+        notify._enqueue(self.ctx, "s", "viejo", now=1000)
+        def boom(u, t): raise OSError("x")
+        self.assertEqual(notify.drain(self.ctx, now=1000 + notify.MAX_AGE + 1, post=boom), 0)
+        self.assertEqual(self.pending(), [], "pasado un día se descarta sin enviarlo")
+        notify._enqueue(self.ctx, "s", "terco", now=2000)
+        t = 2000
+        for _ in range(notify.MAX_ATTEMPTS):
+            t += 4000; notify.drain(self.ctx, now=t, post=boom)
+        self.assertEqual(self.pending(), [])
+
+    def test_si_se_quita_el_webhook_se_descartan_los_pendientes(self):
+        with self.fail(OSError("x")): notify.send(self.ctx, "s", "crashed", "se cayó")
+        notify.remove(self.ctx, "s"); t0 = self.pending()[0]["created"]
+        def no_debe_enviar(u, t): raise AssertionError("no debería enviarse")
+        notify.drain(self.ctx, now=t0 + 100, post=no_debe_enviar)
+        self.assertEqual(self.pending(), [])
 
 
 class NotifyTests(unittest.TestCase):
