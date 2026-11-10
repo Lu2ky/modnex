@@ -1,0 +1,38 @@
+name: pruebas
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unitarias-y-e2e:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Pruebas unitarias
+        run: python3 -I -m unittest discover -s tests
+      - name: Pruebas de extremo a extremo (API y seguridad)
+        run: |
+          python3 tests/e2e_core.py
+          python3 tests/e2e_security.py
+
+  interfaz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Instalar Playwright
+        run: |
+          python3 -m pip install playwright
+          python3 -m playwright install --with-deps chromium
+      - name: Pruebas de interfaz en un navegador real
+        run: python3 tests/e2e_ui.py

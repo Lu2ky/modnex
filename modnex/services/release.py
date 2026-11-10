@@ -21,7 +21,9 @@ import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+from modnex import config
+
+HERE = config.HERE
 BIN = HERE / "bin" / "cloudflared"
 RELEASES = HERE / "releases"
 PID_FILE = HERE / ".tunnel.pid"

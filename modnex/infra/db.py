@@ -11,7 +11,9 @@ import time
 from contextlib import closing
 from pathlib import Path
 
-DB_FILE = Path(os.environ.get("MANAGER_DB") or Path(__file__).resolve().parent / "manager.db")
+from modnex import config
+
+DB_FILE = Path(os.environ.get("MANAGER_DB") or config.HERE / "manager.db")
 SESSION_TTL = 30 * 24 * 3600
 PBKDF2_ITERS = 200_000
 PERMS = ("logs", "mods", "datapacks", "textures", "players", "control")
@@ -32,7 +34,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS servers (
   name TEXT PRIMARY KEY,
   display_name TEXT,
-  icon TEXT NOT NULL DEFAULT 'pokeball');
+  icon TEXT NOT NULL DEFAULT 'vanilla');
 CREATE TABLE IF NOT EXISTS permissions (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   server_name TEXT NOT NULL REFERENCES servers(name) ON DELETE CASCADE,
@@ -55,9 +57,6 @@ CREATE TABLE IF NOT EXISTS client_builds (
   server_name TEXT NOT NULL, filename TEXT NOT NULL, version TEXT NOT NULL, fmt TEXT NOT NULL,
   minecraft TEXT, loader_version TEXT,
   included TEXT NOT NULL, server_mods TEXT NOT NULL, created_at INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS waitlist (
-  email TEXT PRIMARY KEY COLLATE NOCASE,
-  created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash TEXT PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -407,39 +406,3 @@ def delete_server_records(server_name):
         c.execute("DELETE FROM permissions WHERE server_name = ?", (server_name,))
         c.execute("DELETE FROM servers WHERE name = ?", (server_name,))
         c.commit()
-
-
-# ---------- lista de espera (landing pública) ----------
-EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]{1,64}@[A-Za-z0-9\-]{1,63}(\.[A-Za-z0-9\-]{1,63}){1,4}")
-_WL_HITS = {}   # ip -> [instantes]; límite en memoria, sin guardar la IP
-_WL_LOCK = threading.Lock()
-WL_MAX_PER_HOUR = 5
-
-
-def waitlist_rate_ok(ip):
-    now = time.time()
-    with _WL_LOCK:
-        hits = [t for t in _WL_HITS.get(ip, []) if now - t < 3600]
-        if len(hits) >= WL_MAX_PER_HOUR:
-            _WL_HITS[ip] = hits
-            return False
-        hits.append(now)
-        _WL_HITS[ip] = hits
-        if len(_WL_HITS) > 5000:
-            _WL_HITS.clear()
-        return True
-
-
-def waitlist_add(email):
-    """Guarda el correo. Devuelve True si es nuevo; los duplicados no son un error."""
-    email = (email or "").strip()
-    if len(email) > 120 or not EMAIL_RE.fullmatch(email):
-        raise ValueError("escribe un correo válido")
-    with closing(_connect()) as c:
-        cur = c.execute("INSERT OR IGNORE INTO waitlist(email, created_at) VALUES(?, ?)", (email, int(time.time())))
-        c.commit()
-        return cur.rowcount > 0
-
-
-def waitlist_list():
-    return run("SELECT email, created_at FROM waitlist ORDER BY created_at DESC", many=True)

@@ -1,25 +1,23 @@
-"""Carga opcional de plugins (edición Pro).
+"""Carga de las funciones adicionales (paquete `features`) mediante una API de plugins pequeña.
 
-El núcleo no contiene código de Pro ni depende de él. Si existe un paquete `modnex_pro`
-(ruta en la variable MODNEX_PRO_PATH o en `pro_path` de config.json) y expone
-`register(api)`, se le ofrece una API pequeña:
+El panel y el núcleo no dependen de ellas: cada función se engancha con `register(api)`.
 
     api.route("GET", "backups")      rutas por servidor: /api/servers/<nombre>/<acción>
-    api.tab(id, label, js)           pestaña extra en la página de un servidor
-    api.add_schema(sql)              tablas propias del plugin
-    api.on("server_crashed")         eventos: server_started, server_stopped, server_crashed
+    api.tab(id, label, ...)          pestaña extra en la página de un servidor
+    api.page(id, label)              página propia en la barra lateral
+    api.add_schema(sql)              tablas propias
+    api.on("server_crashed")         eventos: server_started, server_stopped, server_crashed, server_created
     api.asset(nombre, ruta, mime)    archivo estático servido en /plugin/<nombre>
+    api.extra(...)                   opción extra del asistente de creación de servidores
 
-Si el paquete no está, o falla al cargarse, el núcleo sigue funcionando como edición gratuita.
+Si el paquete falla al cargarse, el núcleo sigue funcionando sin esas funciones y lo registra en `LOAD_ERROR`.
 """
 import importlib
-import os
-import sys
 import threading
 import traceback
 from pathlib import Path
 
-import extras
+from modnex.services import extras
 
 API = None          # PluginAPI activa, o None en la edición gratuita
 LOAD_ERROR = None   # motivo por el que no se cargó, si falló (no si simplemente no existe)
@@ -28,7 +26,7 @@ LOAD_ERROR = None   # motivo por el que no se cargó, si falló (no si simplemen
 class PluginAPI:
     def __init__(self, ctx):
         self.ctx = ctx
-        self.name = "pro"
+        self.name = "features"
         self.routes = {}      # (METHOD, acción) -> fn(ctx, user, servidor, q, body) -> (status, dict)
         self.tabs = []        # [{"id","label","admin"}]
         self.scripts = []     # rutas /plugin/... que el panel debe cargar
@@ -57,7 +55,7 @@ class PluginAPI:
         self.pages.append({"id": page_id, "label": label, "admin": bool(admin)})
 
     def global_route(self, method, action):
-        """Ruta que no es de un servidor: /api/pro/<acción>. Exige sesión; la autorización la decide el plugin."""
+        """Ruta que no es de un servidor: /api/features/<acción>. Exige sesión; la autorización la decide el plugin."""
         def deco(fn):
             self.global_routes[(method.upper(), action)] = fn
             return fn
@@ -75,8 +73,8 @@ class PluginAPI:
     def extra(self, extra_id, label, desc, install, loaders=None):
         """Opción extra del asistente de creación de servidores (solo existe mientras el plugin esté cargado).
         install(ctx, nombre) -> archivo instalado o None; puede lanzar extras.ExtraUnavailable con el motivo.
-        loaders: cargadores donde tiene sentido (None = cualquiera). Se marca como de pago en el panel."""
-        extras.register(extra_id, label, desc, install, loaders=loaders, pro=True)
+        loaders: cargadores donde tiene sentido (None = cualquiera)."""
+        extras.register(extra_id, label, desc, install, loaders=loaders)
 
     def second_factor(self, fn):
         """Comprobación adicional tras acertar la contraseña. Devuelve None para dejar pasar."""
@@ -99,27 +97,19 @@ class PluginAPI:
 
 
 def load(ctx, config):
-    """Intenta cargar el paquete Pro. Devuelve la API o None."""
+    """Carga el paquete `features`. Devuelve la API, o None si falla (el núcleo sigue sin ellas)."""
     global API, LOAD_ERROR
     API, LOAD_ERROR = None, None
-    path = os.environ.get("MODNEX_PRO_PATH") or config.get("pro_path")
-    if path and Path(path).is_dir() and str(path) not in sys.path:
-        sys.path.insert(0, str(path))
-    try:
-        mod = importlib.import_module("modnex_pro")
-    except ModuleNotFoundError as e:
-        if e.name != "modnex_pro":
-            LOAD_ERROR = f"falta una dependencia de modnex_pro: {e.name}"
-        return None
     api = PluginAPI(ctx)
     try:
+        mod = importlib.import_module("modnex.features")
         mod.register(api)
         if api.schema:
             with ctx.db_connect() as c:
                 for sql in api.schema:
                     c.executescript(sql)
                 c.commit()
-    except Exception as e:  # un plugin roto no debe tumbar el núcleo
+    except Exception as e:  # una función rota no debe tumbar el núcleo
         LOAD_ERROR = f"{type(e).__name__}: {e}"
         traceback.print_exc()
         return None
@@ -128,7 +118,7 @@ def load(ctx, config):
 
 
 def info():
-    return {"edition": "pro" if API else "free", "tabs": API.tabs if API else [], "pages": API.pages if API else [], "rails": API.rails if API else [],
+    return {"tabs": API.tabs if API else [], "pages": API.pages if API else [], "rails": API.rails if API else [],
             "scripts": API.scripts if API else [], "error": LOAD_ERROR}
 
 

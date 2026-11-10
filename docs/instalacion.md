@@ -1,4 +1,4 @@
-# Instalación de Modnex (edición gratuita)
+# Instalación de Modnex
 
 Modnex es un programa de Python que corre en tu propio equipo y se usa desde el navegador. No instala
 dependencias: usa solo la biblioteca estándar de Python y SQLite.
@@ -7,7 +7,7 @@ dependencias: usa solo la biblioteca estándar de Python y SQLite.
 
 | Requisito | Detalle |
 |---|---|
-| Python 3 reciente | Probado con 3.14. Comprueba con `python3 --version`. |
+| Python 3.12 o superior | Probado con 3.12, 3.13 y 3.14. Comprueba con `python3 --version`. |
 | Java | Para los servidores de Minecraft. Minecraft 1.20.5 o posterior pide Java 21; de 1.18 a 1.20.4, Java 17. Comprueba con `java -version`. |
 | Git | Solo para descargar el proyecto. También sirve bajar el `.zip` desde GitHub. |
 | Espacio en disco | Cada servidor ocupa lo que ocupe su mundo y sus mods; reserva varios GB. |
@@ -21,20 +21,19 @@ git clone https://github.com/Lu2ky/modnex.git
 cd modnex
 ```
 
-## 2. Elegir dónde viven los servidores
+## 2. Elegir dónde viven los servidores (opcional)
 
-Cada subcarpeta de `SERVERS_DIR` que tenga `start.sh`, `run.sh` o una carpeta `mods/` es un servidor.
-El valor por defecto es una ruta fija del autor (`/home/luky/servers`), así que **en tu equipo debes
-indicar la tuya**:
+Cada subcarpeta de la carpeta de servidores que tenga `start.sh`, `run.sh` o una carpeta `mods/` es un servidor.
+Por defecto es `servers/` junto al proyecto y se crea sola en el primer arranque, así que puedes saltarte este paso.
+
+Para usar otra carpeta, por ejemplo una donde ya tienes servidores de Minecraft, hay dos formas:
 
 ```bash
-mkdir -p ~/minecraft-servers
-export SERVERS_DIR=~/minecraft-servers
+export SERVERS_DIR=~/minecraft-servers     # variable de entorno (añádela a ~/.bashrc o ~/.zshrc)
 ```
 
-Para no repetirlo en cada arranque, añade esa línea a tu `~/.bashrc` o `~/.zshrc`.
-
-Si ya tienes servidores de Minecraft en una carpeta, apunta `SERVERS_DIR` a ella: el gestor los detecta.
+o la clave `"servers_dir": "/ruta/a/tus/servidores"` en `config.json`. La variable tiene prioridad sobre `config.json`.
+Si ya tienes servidores en esa carpeta, el gestor los detecta.
 
 ## 3. Arrancar
 
@@ -70,13 +69,14 @@ tienes que abrir ese puerto en tu router o usar un servicio de túnel; el gestor
 |---|---|
 | `curseforge_api_key` | Activa la búsqueda y descarga de CurseForge. Se consigue gratis en la consola de desarrolladores de CurseForge. |
 | `bind` | Dirección en la que escucha el panel. Por defecto `0.0.0.0` (toda la red local). |
+| `servers_dir` | Carpeta de los servidores (ver arriba). |
 | `admin_remote` | Con `true`, los administradores pueden entrar desde fuera de tu red. No recomendado. |
 
 Variables de entorno (tienen prioridad sobre `config.json`):
 
 | Variable | Valor por defecto |
 |---|---|
-| `SERVERS_DIR` | `/home/luky/servers` |
+| `SERVERS_DIR` | `servers/` junto al proyecto (o `servers_dir` de `config.json`) |
 | `MANAGER_PORT` | `8765` |
 | `MANAGER_BIND` | `0.0.0.0` |
 | `MANAGER_DB` | `manager.db` junto a `app.py` |
@@ -117,9 +117,3 @@ Reinicia el gestor después: los cambios de `app.py` no se aplican hasta reinici
 | No veo mis servidores | `SERVERS_DIR` apunta a otra carpeta. Comprueba la línea «Gestor en … (servidores en …)» que imprime el arranque. |
 | Olvidé la contraseña del admin | El administrador inicial solo se crea con la base de datos vacía. Si no tienes otros usuarios que conservar, para el gestor, mueve `manager.db` a otro sitio y arráncalo: vuelve a crear `admin` con el `access_token` de `config.json`. Se pierden usuarios, permisos y registro de actividad; los servidores no se tocan. |
 | El puerto 8765 está ocupado | Cámbialo con `MANAGER_PORT=8800 ./run.sh`. |
-
-## Edición Pro
-
-Las copias de seguridad con historial, las tareas programadas, el servidor de pruebas, la sincronización
-de clientes y el 2FA son de pago y viven en otro repositorio. Se instalan aparte, sobre esta instalación:
-ver el manual del repositorio `modnex-pro`.

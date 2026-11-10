@@ -341,41 +341,11 @@ table.compare td:last-child { color: var(--text); }
 .btn.xl:not(:has(.btn-icon)) { padding: 0 32px; align-items: center; }
 
 /* tarjeta de licencias: marco de bloques al estilo de las ventanas del juego (dibujado aquí, sin texturas de Minecraft) */
-.pro-card { position: relative; display: grid; grid-template-columns: minmax(0, 440px) minmax(0, 1fr); gap: 28px; align-items: center; background: var(--surface); padding: 32px; margin: 0 4px; border-radius: 4px; box-shadow: 0 -4px 0 0 var(--border), 0 4px 0 0 var(--border), -4px 0 0 0 var(--border), 4px 0 0 0 var(--border), 0 -8px 0 0 var(--bg), 0 8px 0 0 var(--bg), -8px 0 0 0 var(--bg), 8px 0 0 0 var(--bg); }
-.pro-body h2 { margin-bottom: 10px; }
-.pro-body .lead { margin: 0 0 22px; }
-@media (max-width: 760px) { .pro-card { grid-template-columns: 1fr; padding: 24px; } }
 
 /* escena lo-fi (dibujo propio: noche de lluvia, persona de espaldas, taza de té) */
-#pro.section { max-width: 1080px; }
-.pro-scene { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 4px; overflow: hidden; box-shadow: inset 0 0 0 2px #0b0d12; background: #2b2036; }
-.pro-scene::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgb(0 0 0 / 0.14) 0 1px, transparent 1px 3px); }
-.lofi-scene { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
-.l-rain rect { animation: rain 720ms steps(6, end) infinite; }
-.l-rain rect:nth-child(3n) { animation-delay: -240ms; } .l-rain rect:nth-child(3n+1) { animation-delay: -480ms; }
-@keyframes rain { from { transform: translateY(0); opacity: 0.6; } to { transform: translateY(8px); opacity: 0; } }
-.l-lights rect { animation: twinkle 2.8s steps(1, end) infinite; }
-.l-lights rect:nth-child(even) { animation-delay: -1.4s; }
-@keyframes twinkle { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.3; } }
-.l-flick rect { animation: flick 5s steps(1, end) infinite; }
-.l-flick rect:nth-child(2n) { animation-delay: -1.7s; } .l-flick rect:nth-child(3n) { animation-delay: -3.1s; }
-@keyframes flick { 0%, 70% { opacity: 0; } 71%, 100% { opacity: 1; } }
-.l-scr { opacity: 0; animation: scr 1.8s steps(1, end) infinite; }
 .l-s2 { animation-delay: 0.6s; } .l-s3 { animation-delay: 1.2s; }
-@keyframes scr { 0%, 33% { opacity: 1; } 34%, 100% { opacity: 0; } }
-.l-steam rect { animation: steam 2.4s steps(4, end) infinite; }
-.l-steam rect:nth-child(2) { animation-delay: 0.8s; } .l-steam rect:nth-child(3) { animation-delay: 1.6s; }
-@keyframes steam { 0% { transform: translateY(0); opacity: 0; } 25% { opacity: 0.9; } 100% { transform: translateY(-6px); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .l-rain rect, .l-lights rect, .l-flick rect, .l-scr, .l-steam rect { animation: none; } .l-s1 { opacity: 1; } }
 
 /* lista de espera y aviso de no afiliación */
-.waitlist { margin-top: 22px; display: grid; gap: 8px; max-width: 420px; }
-.waitlist label { font-weight: 600; font-size: 0.95rem; }
-.wl-row { display: flex; gap: 8px; }
-.wl-row input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; }
-.wl-row input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.wl-msg { min-height: 1.4em; margin: 0; font-size: 0.9rem; color: var(--muted); }
-.wl-msg.ok { color: var(--primary); } .wl-msg.bad { color: var(--error); }
 .disclaimer { margin-top: 10px; max-width: 34rem; font-size: 0.82rem; }
 
 /* ---------- barras de desplazamiento con la marca (menta a violeta del logo) ---------- */
@@ -399,4 +369,34 @@ table.compare td:last-child { color: var(--text); }
 .btn .gh-mark { width: 1.15em; height: 1.15em; flex: none; }
 .btn.xl .btn-icon .gh-mark { width: 30px; height: 30px; }
 .btn.sm { gap: 8px; }
-.waitlist[hidden] { display: none; }
+
+/* ---- Respuesta, resortes y materiales (Apple Design) ----
+   Resorte con amortiguación 1.0 (sin rebote): nada de lo que hay aquí se lanza con un gesto, así que no hay
+   motivo para rebotar. Respuesta 0.22 s -> 300 ms; respuesta 0.30 s -> 410 ms. Sin linear() cae a la curva fuerte. */
+:root { --spring: var(--ease); --t-fast: 300ms; --t-move: 410ms; }
+@supports (transition-timing-function: linear(0, 1)) { :root { --spring: linear(0, 0.058, 0.181, 0.322, 0.456, 0.574, 0.672, 0.751, 0.813, 0.861, 0.897, 0.925, 0.945, 0.96, 0.971, 0.979, 0.985, 0.989, 0.992, 0.995, 0.996, 0.997, 1); } }
+html { -webkit-tap-highlight-color: transparent; }
+a, button, summary, label, select, input, [role="button"] { touch-action: manipulation; }   /* sin la espera del doble toque */
+
+.btn { transition-property: background-color, border-color, color, transform; transition-duration: 160ms, 160ms, 160ms, var(--t-fast); transition-timing-function: ease, ease, ease, var(--spring); }
+.demo-tab { transition-property: color, background-color, transform; transition-duration: 160ms, 160ms, var(--t-fast); transition-timing-function: ease, ease, var(--spring); }
+.demo-tab:active { transform: scale(0.97); }
+.gallery-card { transition-property: border-color, box-shadow, transform; transition-duration: 180ms, 220ms, var(--t-fast); transition-timing-function: ease, var(--ease-out), var(--spring); }
+.gallery-card:active { transform: scale(0.99); }
+.btn:active, .demo-tab:active, .gallery-card:active, .gallery-dot:active { transition-duration: 60ms; transition-timing-function: ease-out; }
+.top-nav a:active, .foot-nav a:active { opacity: 0.6; transition-duration: 0s; }
+.faq summary { -webkit-user-select: none; user-select: none; }
+.faq summary:active { background-color: color-mix(in srgb, var(--text) 6%, transparent); }
+
+/* Material: la barra superior flota sobre el contenido que pasa por debajo. */
+.top { background: rgb(17 19 24 / 0.7); backdrop-filter: blur(20px) saturate(180%); border-bottom-color: rgb(255 255 255 / 0.09); }
+
+/* Tipografía: títulos grandes con seguimiento negativo; texto pequeño con un poco más de aire. */
+h1 { letter-spacing: -0.03em; }
+h2 { letter-spacing: -0.022em; }
+.hero h1 { letter-spacing: -0.015em; }   /* en mayúsculas se aprieta menos */
+.chip, .muted.small, .disclaimer { letter-spacing: 0.01em; }
+
+@media (prefers-reduced-transparency: reduce) { .top { backdrop-filter: none; background: var(--bg); } }
+@media (prefers-contrast: more) { .top { backdrop-filter: none; background: var(--bg); border-bottom-color: var(--text); } }
+@media (prefers-reduced-motion: reduce) { .demo-tab:active, .gallery-card:active { transform: none; } }
