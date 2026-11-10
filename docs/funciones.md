@@ -29,7 +29,11 @@ de la que desciende el estado actual del servidor.
 - **Restaurar una copia antigua mueve «Estás aquí» a ella.** Lo que copies después cuelga de esa copia, así que
   el historial se bifurca y la rama que dejaste atrás sigue visible (con su copia «Antes de restaurar»).
 - Las copias anteriores a esta función no guardaban de quién partían: se encadenan por fecha.
-- Si una regla de retención borra una copia, sus hijos se enlazan con la anterior en el tiempo.
+- **Borrar una copia no borra su sitio en el árbol.** Se elimina el archivo (y su espacio), pero la copia queda como una
+  lápida atenuada con la marca «Borrada», con sus metadatos y de quién partía. Así el historial no se pierde, ni a mano ni
+  por las reglas de retención. De una borrada se puede ver qué cambió, y «Quitar del historial» elimina su rastro; no se
+  puede restaurar ni fijar. Las copias que se borraron antes de esta función ya no están y, si faltaba su padre, sus hijos
+  se enlazan con la anterior en el tiempo.
 
 ### Ciclo de vida de las copias
 

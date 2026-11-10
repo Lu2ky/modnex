@@ -176,7 +176,9 @@ def _create(ctx, name, label="", note="", kind="manual", allow_hot_without_conso
         lk.release()
 
 
-def list_backups(ctx, name):
+def list_backups(ctx, name, include_deleted=False):
+    """Copias disponibles, de la más reciente a la más antigua. Con `include_deleted` salen también las borradas, que
+    solo conservan sus metadatos (ver `delete`) y llevan `deleted: True`."""
     d = backup_dir(ctx, name)
     out = []
     for f in sorted(d.glob("*.json"), reverse=True):
@@ -186,6 +188,8 @@ def list_backups(ctx, name):
             continue
         if (d / f"{m.get('id')}.tar.gz").exists():
             out.append(m)
+        elif include_deleted and ID_RE.fullmatch(str(m.get("id") or "")):
+            out.append({**m, "deleted": True})   # sin archivo: borrada, o el archivo se quitó a mano
     return out
 
 
@@ -193,11 +197,12 @@ def graph(ctx, name):
     """Historial como árbol, estilo `git log --graph`: cada copia es un commit y `parent` es la copia de la que partía.
 
     Restaurar una copia antigua y seguir copiando abre una rama. Las copias anteriores a esta función no guardaban
-    padre: se encadenan por fecha. Si el padre se borró (retención), se enlaza con la copia anterior en el tiempo.
+    padre: se encadenan por fecha. Las copias borradas siguen en el árbol como lápidas (`deleted`), así el historial no
+    se pierde con la retención; solo si falta del todo el padre (borrado de versiones anteriores) se enlaza con la anterior.
     Devuelve {"head", "lanes", "nodes": [{... meta, "row", "lane", "parent", "edges": [{"to", "lane"}]}]},
     de la más reciente a la más antigua.
     """
-    found = list_backups(ctx, name)
+    found = list_backups(ctx, name, include_deleted=True)
     by_id = {m["id"]: m for m in found}
 
     def depth(bid, seen=()):
@@ -236,7 +241,7 @@ def graph(ctx, name):
         for i in mine:
             lanes[i] = None
         lanes[lane] = parent[bid]
-        node = {**m, "row": row[bid], "lane": lane, "parent": parent[bid], "head": bid == head}
+        node = {**m, "row": row[bid], "lane": lane, "parent": parent[bid], "head": bid == head, "deleted": bool(m.get("deleted"))}
         nodes.append(node)
     lane_of = {n["id"]: n["lane"] for n in nodes}
     for n in nodes:
@@ -254,9 +259,31 @@ def _find(ctx, name, bid):
 
 
 def delete(ctx, name, bid):
+    """Borra el archivo de la copia y libera su espacio, pero conserva sus metadatos como una lápida (`deleted`): el
+    árbol de versiones sigue mostrando de dónde partía cada rama aunque la copia ya no exista."""
     d, bid = _find(ctx, name, bid)
     (d / f"{bid}.tar.gz").unlink(missing_ok=True)
-    (d / f"{bid}.json").unlink(missing_ok=True)
+    f = d / f"{bid}.json"
+    try:
+        meta = json.loads(f.read_text())
+    except (OSError, ValueError):
+        meta = {"id": bid}
+    meta.update(deleted=True, deleted_at=int(time.time()), pinned=False)
+    tmp = f.with_suffix(".json.part")
+    tmp.write_text(json.dumps(meta, ensure_ascii=False))
+    tmp.replace(f)
+
+
+def forget(ctx, name, bid):
+    """Quita del historial una copia que ya estaba borrada. Es lo único que borra su rastro."""
+    if not ID_RE.fullmatch(bid or ""):
+        raise BackupError("identificador de copia no válido")
+    d = backup_dir(ctx, name)
+    if (d / f"{bid}.tar.gz").exists():
+        raise BackupError("esa copia todavía existe: bórrala primero")
+    if not (d / f"{bid}.json").exists():
+        raise BackupError("esa copia no está en el historial")
+    (d / f"{bid}.json").unlink()
 
 
 def set_pinned(ctx, name, bid, pinned):
@@ -311,8 +338,12 @@ def diff(ctx, name, a, b):
         if x == "current":
             p = Path(ctx.server_path(name))
             return {"mods": _mods(p), **_server_meta(p)}
-        d, x = _find(ctx, name, x)
-        return json.loads((d / f"{x}.json").read_text())
+        if not ID_RE.fullmatch(x or ""):
+            raise BackupError("identificador de copia no válido")
+        f = backup_dir(ctx, name) / f"{x}.json"      # también vale para una copia borrada: basta con sus metadatos
+        if not f.exists():
+            raise BackupError("esa copia no existe")
+        return json.loads(f.read_text())
     sa, sb = snap(a), snap(b)
     ma, mb = {n: s for n, s in sa.get("mods", [])}, {n: s for n, s in sb.get("mods", [])}
     return {"added": sorted(set(mb) - set(ma)), "removed": sorted(set(ma) - set(mb)),
