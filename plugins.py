@@ -33,6 +33,9 @@ class PluginAPI:
         self.schema = []
         self.handlers = {}
         self.assets = {}
+        self.pages = []            # [{"id","label","admin"}] entradas de la barra lateral
+        self.global_routes = {}    # (METHOD, acción) -> fn(ctx, user, q, body) -> (status, dict)
+        self.second_factors = []   # fn(ctx, user, body, remote, ip) -> None | (status, dict[, contar_fallo])
 
     def route(self, method, action):
         def deco(fn):
@@ -43,6 +46,22 @@ class PluginAPI:
     def tab(self, tab_id, label, admin=True, perm=None):
         """perm: permiso por servidor que basta para ver la pestaña (además de ser admin); "*" = cualquiera."""
         self.tabs.append({"id": tab_id, "label": label, "admin": bool(admin), "perm": perm})
+
+    def page(self, page_id, label, admin=False):
+        """Página propia en la barra lateral (#/p/<id>); la interfaz llama a ModnexPlugins[id].renderPage."""
+        self.pages.append({"id": page_id, "label": label, "admin": bool(admin)})
+
+    def global_route(self, method, action):
+        """Ruta que no es de un servidor: /api/pro/<acción>. Exige sesión; la autorización la decide el plugin."""
+        def deco(fn):
+            self.global_routes[(method.upper(), action)] = fn
+            return fn
+        return deco
+
+    def second_factor(self, fn):
+        """Comprobación adicional tras acertar la contraseña. Devuelve None para dejar pasar."""
+        self.second_factors.append(fn)
+        return fn
 
     def add_schema(self, sql):
         self.schema.append(sql)
@@ -89,8 +108,34 @@ def load(ctx, config):
 
 
 def info():
-    return {"edition": "pro" if API else "free", "tabs": API.tabs if API else [],
+    return {"edition": "pro" if API else "free", "tabs": API.tabs if API else [], "pages": API.pages if API else [],
             "scripts": API.scripts if API else [], "error": LOAD_ERROR}
+
+
+def second_factor(user, body, remote, ip):
+    """None si se permite el acceso; si no, (status, dict[, contar_fallo]).
+    Falla CERRADO: si un plugin de seguridad se rompe, no se salta la verificación."""
+    if not API:
+        return None
+    for fn in API.second_factors:
+        try:
+            r = fn(API.ctx, user, body, remote, ip)
+        except Exception:
+            traceback.print_exc()
+            return 503, {"error": "no se pudo completar la verificación en dos pasos"}
+        if r:
+            return r
+    return None
+
+
+def dispatch_global(method, user, action, q, body_fn):
+    if not API:
+        return None
+    fn = API.global_routes.get((method.upper(), action))
+    if not fn:
+        return None
+    body = body_fn() if method.upper() == "POST" else {}
+    return fn(API.ctx, user, q, body)
 
 
 def dispatch(method, user, name, action, q, body_fn):
