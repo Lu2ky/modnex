@@ -1238,44 +1238,81 @@ CLIENT_PRESETS = {
                   "ferrite-core", "modernfix", "lithium"],
     },
 }
+CLIENT_PRESETS["ayudas"] = {
+    "label": "Ayudas de juego",
+    "desc": "JEI (recetas y usos de cada objeto) y Jade (información de lo que miras), con sus dependencias.",
+    "slugs": ["jei", "jade"],
+}
 _PRESET_CACHE = {}
 _PRESET_LOCK = threading.Lock()
+PRESET_DEP_DEPTH = 3
 
 
-def preset_items(name, preset="rendimiento"):
-    """Versiones del preset para la versión de Minecraft y NeoForge del servidor. Cacheado 15 minutos."""
-    if preset not in CLIENT_PRESETS:
+def _preset_version(slug, ver):
+    """Proyecto y versión de Modrinth para la versión de Minecraft y NeoForge del servidor (None si no hay)."""
+    proj = _mr(f"/project/{slug}")
+    vs = _mr(f"/project/{slug}/version?" + urllib.parse.urlencode({
+        "loaders": json.dumps(["neoforge"]), "game_versions": json.dumps([ver["minecraft"]])}))
+    return proj, (vs[0] if vs else None)
+
+
+def _item_from(proj, v, slug, note=None):
+    f = next((x for x in v["files"] if x.get("primary")), v["files"][0])
+    if not JAR_RE.fullmatch(f["filename"]):
+        return {"slug": slug, "name": proj["title"], "status": "unavailable", "note": "Nombre de archivo no válido."}
+    return {"slug": slug, "name": proj["title"], "status": "ok", "version": v["version_number"],
+            "filename": f["filename"], "url": f["url"], "sha1": f["hashes"].get("sha1"),
+            "sha512": f["hashes"].get("sha512"), "client": proj.get("client_side"),
+            "server": proj.get("server_side"), **({"note": note} if note else {})}
+
+
+def _preset_slug_items(slug, ver, seen, depth=0, note=None):
+    """Un mod del preset más sus dependencias obligatorias (Modrinth), en orden y sin repetir."""
+    seen.add(slug)
+    try:
+        proj, v = _preset_version(slug, ver)
+    except (urllib.error.URLError, KeyError, ValueError):
+        return [{"slug": slug, "name": slug, "status": "unavailable", "note": "No se pudo consultar en Modrinth."}]
+    if v is None:
+        return [{"slug": slug, "name": slug, "status": "unavailable",
+                 "note": f"No hay versión para Minecraft {ver['minecraft']} y NeoForge."}]
+    out = [_item_from(proj, v, slug, note)]
+    if depth >= PRESET_DEP_DEPTH:
+        return out
+    for d in v.get("dependencies", []):
+        if d.get("dependency_type") != "required":
+            continue
+        try:
+            pid = d.get("project_id") or _mr(f"/version/{d['version_id']}")["project_id"]
+            dep_slug = _mr(f"/project/{pid}")["slug"]
+        except (urllib.error.URLError, KeyError, ValueError):
+            continue
+        if dep_slug in seen:
+            continue
+        out.extend(_preset_slug_items(dep_slug, ver, seen, depth + 1, note=f"dependencia de {proj['title']}"))
+    return out
+
+
+def preset_items(name, preset="all"):
+    """Versiones de los presets para la versión de Minecraft y NeoForge del servidor. Cacheado 15 minutos.
+    preset='all' combina todos los presets; cada mod de Modrinth aparece una sola vez."""
+    keys = list(CLIENT_PRESETS) if preset == "all" else [preset]
+    if any(k not in CLIENT_PRESETS for k in keys):
         raise ValueError("preset no válido")
     ver = server_versions(name)
     if not (ver["minecraft"] and ver["loader_version"]):
         return []
-    key = (preset, ver["minecraft"])
+    key = (tuple(keys), ver["minecraft"])
     with _PRESET_LOCK:
         hit = _PRESET_CACHE.get(key)
         if hit and time.time() - hit[0] < 900:
             return hit[1]
-    items = []
-    for slug in CLIENT_PRESETS[preset]["slugs"]:
-        base = {"slug": slug, "name": slug, "status": "unavailable", "note": f"No hay versión para Minecraft {ver['minecraft']} y NeoForge."}
-        try:
-            proj = _mr(f"/project/{slug}")
-            vs = _mr(f"/project/{slug}/version?" + urllib.parse.urlencode({
-                "loaders": json.dumps(["neoforge"]), "game_versions": json.dumps([ver["minecraft"]])}))
-        except (urllib.error.URLError, KeyError, ValueError):
-            items.append({**base, "note": "No se pudo consultar en Modrinth."})
-            continue
-        if not vs:
-            items.append(base)
-            continue
-        v = vs[0]
-        f = next((x for x in v["files"] if x.get("primary")), v["files"][0])
-        if not JAR_RE.fullmatch(f["filename"]):
-            items.append({**base, "note": "Nombre de archivo no válido."})
-            continue
-        items.append({"slug": slug, "name": proj["title"], "status": "ok", "version": v["version_number"],
-                      "filename": f["filename"], "url": f["url"], "sha1": f["hashes"].get("sha1"),
-                      "sha512": f["hashes"].get("sha512"), "client": proj.get("client_side"),
-                      "server": proj.get("server_side")})
+    items, seen = [], set()
+    for k in keys:
+        for slug in CLIENT_PRESETS[k]["slugs"]:
+            if slug in seen:
+                continue
+            items.extend(i for i in _preset_slug_items(slug, ver, seen) if i.get("slug") not in {x.get("slug") for x in items})
     with _PRESET_LOCK:
         _PRESET_CACHE[key] = (time.time(), items)
     return items
@@ -1308,7 +1345,8 @@ def client_plan(name):
         _warm_cf_cache([addons_dir(name) / m["file"] for m in mods])
     server_slugs = {r["slug"] for r in rows if r.get("slug")}
     preset_list = [i for i in preset_items(name) if i["slug"] not in server_slugs]
-    preset = {"label": CLIENT_PRESETS["rendimiento"]["label"], "desc": CLIENT_PRESETS["rendimiento"]["desc"],
+    preset = {"label": "Rendimiento y ayudas de juego",
+              "desc": CLIENT_PRESETS["rendimiento"]["desc"] + " " + CLIENT_PRESETS["ayudas"]["desc"],
               "items": [{k: i.get(k) for k in ("slug", "name", "status", "version", "client", "server", "note")} for i in preset_list],
               "available": sum(1 for i in preset_list if i["status"] == "ok")} if ver.get("loader") == "neoforge" else None
     return {**ver, "curseforge": bool(load_cf_key()), "mods": mods, "preset": preset, "last_build": ({k: last[k] for k in ("filename", "version", "fmt", "created_at")}
