@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Genera la escena lo-fi de la landing (personaje de espaldas, noche lluviosa) como SVG de píxeles.
-Dibujo propio; usa solo formas y colores definidos aquí. Salida: SVG en stdout."""
+Dibujo propio; usa solo formas y colores definidos aquí. Salida: SVG en stdout; se pega en landing/index.html."""
 import random
 W, H = 96, 54
 cv = [[None] * W for _ in range(H)]
