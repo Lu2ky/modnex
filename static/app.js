@@ -99,7 +99,7 @@ const state = {
 state.dpPane = 'installed'; state.texPane = 'providers'; state.draft = null; state.tex = null;
 const srvIcon = (name, size = 32) => (state.icons.includes(name)
   ? `<img class="srv-img" src="/assets/brand/servers/${name}.png" width="${size}" height="${size}" alt="">`
-  : pixelIcon('pokeball', size));
+  : pixelIcon('orb', size));
 const isAdmin = () => !!(state.me && state.me.is_admin);
 const server = (name) => state.servers.find((s) => s.name === name);
 const current = () => (state.view.kind === 'server' ? server(state.view.name) : null);
@@ -1203,7 +1203,7 @@ async function renderModPage() {
 }
 
 /* ---------- crear un servidor desde plantilla ---------- */
-const TPL_ICON = { vanilla: 'pokeball', fabric: 'gear', neoforge: 'diamond', forge: 'shield', paper: 'leaf' };
+const TPL_ICON = { vanilla: 'orb', fabric: 'gear', neoforge: 'diamond', forge: 'shield', paper: 'leaf' };
 const TPL_KIND = { none: 'Sin mods ni plugins', mod: 'Admite mods', plugin: 'Admite plugins' };
 const SRV_STEPS = ['Preparando la carpeta', 'Descargando e instalando el servidor', 'Instalando el preset de rendimiento', 'Escribiendo la configuración', 'Listo'];
 
