@@ -43,8 +43,9 @@ Para probar Pro en local: `MODNEX_PRO_PATH=<ruta a modnex-pro> MODNEX_PRO_DEV=1 
 - **Inter**: licencia SIL OFL 1.1. Compatible con AGPL; hay que conservar su aviso.
 - El botón «Ir al proyecto» de la landing usa la marca de GitHub (Octocat). Se usa solo para enlazar al repositorio,
   como permiten las [pautas de uso del logo de GitHub](https://github.com/logos).
-- Los iconos de `static/brand/servers/` tienen un origen que **no está verificado**. Comprueba su
-  licencia antes de publicar el repositorio o vender nada.
+- Los iconos de `static/brand/servers/` son dibujos propios (un monograma sobre un mosaico de color) generados con
+  `tools/make_server_icons.py`; no reproducen logotipos de ningún proyecto. Los iconos de píxeles de
+  `static/icons.js` también son propios.
 - No se incluyen activos de Mojang. La landing menciona el nombre «Minecraft» solo para describir
   el producto; no es un producto oficial.
 
@@ -52,7 +53,4 @@ Para probar Pro en local: `MODNEX_PRO_PATH=<ruta a modnex-pro> MODNEX_PRO_DEV=1 
 
 - Separar la gestión de permisos del núcleo hacia Pro.
 - Implementar la validación real de licencias Pro.
-- Verificar el origen de los iconos de servidor.
-- Revisar los iconos de píxeles de `static/icons.js`: `pokeball` (también el icono por defecto de un servidor) y
-  `creeper` evocan marcas de terceros (Nintendo/Game Freak y Mojang). Sustituirlos por dibujos propios.
 - Decidir si se pedirá un acuerdo de licencia a quien contribuya (CLA).
