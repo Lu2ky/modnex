@@ -488,7 +488,9 @@ const segHTML = (scope, items, cur, label) => `
   <div class="seg" role="tablist" aria-label="${label}">${items.map(([id, text]) =>
     `<button class="seg-btn${cur === id ? ' on' : ''}" role="tab" aria-selected="${cur === id}" data-action="pane" data-scope="${scope}" data-pane="${id}">${text}</button>`).join('')}</div>`;
 
+state.modsSeq = 0;
 function tabMods(s) {
+  state.modsSeq++;   // cualquier repintado de la pestaña invalida las cargas de «Instalados» que sigan en curso
   const pane = state.modsPane, plugins = s.kind === 'plugin';
   $('#tabBody').innerHTML = `${segHTML('mods', [['installed', 'Instalados'], ['add', plugins ? 'Añadir plugins' : 'Añadir mods']], pane, plugins ? 'Plugins' : 'Mods')}<div id="modsBody"></div>`;
   pane === 'installed' ? loadInstalled(s) : mountFinder(s.kind === 'plugin' ? 'plugin' : 'mod', $('#modsBody'));
@@ -565,15 +567,19 @@ function paintMods() {
 }
 async function loadInstalled(s) {
   const body = $('#modsBody');
+  const seq = ++state.modsSeq;
+  // Identificar los mods puede tardar varios segundos. Si mientras tanto se cambió de panel («Añadir mods»),
+  // de pestaña o de servidor, la respuesta ya no es para lo que se ve y no debe pintarse encima.
+  const stale = () => seq !== state.modsSeq || state.modsPane !== 'installed' || !$('#modsBody');
   body.innerHTML = '<p class="muted pad">Identificando mods…</p>';
   try {
     const q = new URLSearchParams({ loader: state.loader, version: state.version });
     const mods = await api(`/api/servers/${encodeURIComponent(s.name)}/mods?${q}`);
-    if (!$('#modsBody')) return;
+    if (stale()) return;
     state.modsData = mods;
     if (!mods.some((m) => m.file === state.modSel)) state.modSel = null;
     paintMods();
-  } catch (e) { body.innerHTML = ''; fail(e); }
+  } catch (e) { if (!stale()) body.innerHTML = ''; fail(e); }
 }
 
 /* --- Buscador en proveedores: mods, datapacks y texturas --- */
