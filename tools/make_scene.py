@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genera la escena lo-fi de la landing (Steve de espaldas, noche lluviosa) como SVG de píxeles.
+"""Genera la escena lo-fi de la landing (personaje de espaldas, noche lluviosa) como SVG de píxeles.
 Dibujo propio; usa solo formas y colores definidos aquí. Salida: SVG en stdout."""
 import random
 W, H = 96, 54
@@ -87,29 +87,14 @@ rect(15, 39, 27, 40, "#d9b88a")
 for kx in range(16, 27, 2): px(kx, 39, "#a07a52")
 # papel y bolígrafo
 rect(34, 40, 43, 41, "#d9c8a8")
-# --- Steve de frente, tras el escritorio (cara reconocible; cada texel = 2x2 celdas) -------------
-FACE = ["HHHHHHHH",
-        "HHHHHHHH",
-        "HSSSSSSH",
-        "SSSSSSSS",
-        "SWISSIWS",
-        "SSSNNSSS",
-        "SSMMMMSS",
-        "SSSMMSSS"]
-PAL = {"H": "#4a2f1c", "S": "#c99a6b", "W": "#ffffff", "I": "#4b3f9a", "N": "#8d5a3a", "M": "#6b3a2a"}
-HX, HY = 40, 15
-for ty, row in enumerate(FACE):
-    for tx, ch in enumerate(row):
-        rect(HX + tx * 2, HY + ty * 2, HX + tx * 2 + 1, HY + ty * 2 + 1, PAL[ch])
-rect(HX - 1, HY - 1, HX + 16, HY - 1, "#2a1a10"); rect(HX - 1, HY - 1, HX - 1, HY + 16, "#2a1a10"); rect(HX + 16, HY - 1, HX + 16, HY + 16, "#2a1a10")
-rect(HX + 5, HY + 16, HX + 10, HY + 17, "#b98458")                      # cuello
-rect(HX - 1, HY + 18, HX + 16, HY + 26, "#3fb3b8"); rect(HX - 1, HY + 18, HX + 16, HY + 19, "#5ad0d6")  # camiseta
-rect(HX + 6, HY + 18, HX + 9, HY + 19, "#2f8f96")                       # cuello de la camiseta
-rect(HX - 7, HY + 18, HX - 2, HY + 27, "#3fb3b8"); rect(HX + 17, HY + 18, HX + 22, HY + 27, "#3fb3b8")  # brazos
-rect(HX - 7, HY + 28, HX - 2, HY + 29, "#c99a6b"); rect(HX + 17, HY + 28, HX + 22, HY + 29, "#c99a6b")  # manos
-# portátil visto por detrás, delante de Steve
-rect(37, 36, 62, 41, "#9aa0ad"); rect(37, 36, 62, 36, "#b8bdc8"); rect(37, 41, 62, 41, "#6c7280")
-rect(48, 38, 51, 39, "#e0409a")                                          # pegatina
+# silla
+rect(47, 37, 65, 53, "#2e2230"); rect(49, 35, 63, 37, "#2e2230")
+# --- personaje de espaldas ----------------------------------------------------------------
+rect(49, 20, 63, 33, "#3e2a1a"); rect(50, 20, 62, 21, "#6a4a30"); rect(52, 22, 60, 23, "#4a3322"); rect(49, 31, 63, 33, "#2e1f13"); rect(49, 27, 50, 29, "#b98458"); rect(62, 27, 63, 29, "#b98458"); rect(48, 21, 48, 32, "#2a1a10"); rect(64, 21, 64, 32, "#2a1a10"); rect(49, 19, 63, 19, "#2a1a10")
+rect(53, 34, 59, 35, "#b98458")
+rect(46, 35, 66, 41, "#2f8f96"); rect(46, 35, 66, 36, "#4cc0c6"); rect(46, 40, 66, 41, "#26757b"); rect(55, 36, 57, 41, "#26757b")
+rect(44, 38, 49, 42, "#2f8f96"); rect(63, 38, 71, 42, "#2f8f96")
+rect(41, 40, 44, 42, "#b98458"); rect(72, 39, 74, 41, "#b98458")
 # --- taza --------------------------------------------------------------------------------
 rect(76, 34, 81, 40, "#e9e4d8"); rect(76, 34, 81, 34, "#c98a4a"); rect(82, 35, 83, 38, "#e9e4d8")
 px(78, 33, "#e9e4d8"); px(79, 32, "#e9e4d8")  # hilo de la bolsita
@@ -129,8 +114,7 @@ def runs():
     return "".join(out)
 
 rain = "".join(f'<rect x="{x}" y="{y}" width="1" height="3" fill="#8fa4d6" opacity="0.55"/>'
-               for x, y in [(x, y) for x, y in ((rnd.randint(9, 58), rnd.randint(6, 30)) for _ in range(40))
-                          if not (37 <= x <= 58 and 11 <= y <= 36)][:26])
+               for x, y in [(rnd.randint(9, 58), rnd.randint(6, 30)) for _ in range(26)])
 lights = "".join(f'<rect x="{x}" y="{3 + int(2 * ((x - 48) / 48) ** 2) - 1}" width="2" height="2" fill="#ffd27a"/>' for x in range(3, 95, 12))
 flick = "".join(f'<rect x="{x}" y="{y}" width="1" height="1" fill="#14101f"/>' for x, y in rnd.sample(lit_windows, min(6, len(lit_windows))))
 screens = ("".join(f'<rect x="{17 + i * 2}" y="{34 + (i % 2)}" width="2" height="2" fill="{c}"/>' for i, c in enumerate(("#ff6b9a", "#6bf0ff", "#ffd27a", "#9aff9a", "#ff6b9a")))
@@ -138,7 +122,7 @@ screens = ("".join(f'<rect x="{17 + i * 2}" y="{34 + (i % 2)}" width="2" height=
            + "|" + '<rect x="17" y="35" width="8" height="1" fill="#6bf0ff"/>')
 s1, s2, s3 = screens.split("|")
 steam = '<rect x="77" y="29" width="1" height="2" fill="#d9dde8"/><rect x="79" y="28" width="1" height="2" fill="#d9dde8"/><rect x="78" y="30" width="1" height="2" fill="#d9dde8"/>'
-svg = (f'<svg class="lofi-scene" viewBox="0 0 {W} {H}" shape-rendering="crispEdges" role="img" aria-label="Steve frente a su portátil, de noche, con una taza de té y lluvia en la ventana">'
+svg = (f'<svg class="lofi-scene" viewBox="0 0 {W} {H}" shape-rendering="crispEdges" role="img" aria-label="Persona de espaldas, trabajando de noche con una taza de té y lluvia en la ventana">'
        f'<g>{runs()}</g><g class="l-rain">{rain}</g><g class="l-flick">{flick}</g><g class="l-lights">{lights}</g>'
        f'<g class="l-scr l-s1">{s1}</g><g class="l-scr l-s2">{s2}</g><g class="l-scr l-s3">{s3}</g><g class="l-steam">{steam}</g></svg>')
 print(svg)
