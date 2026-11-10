@@ -1343,10 +1343,13 @@ def client_plan(name):
     ver = server_versions(name)
     rows = [r for r in identify_mods(name, ver["loader"] or "neoforge", ver["minecraft"] or "1.21.1") if r["enabled"]]
     mods = []
+    forced = set(plugins.client_must_include(name, {r["file"]: r for r in rows}))
     for r in rows:
         include, reason = _mod_decision(r)
+        if r["file"] in forced:
+            include, reason = True, "Se incluye siempre: sincroniza el cliente con el servidor"
         mods.append({"file": r["file"], "name": r["name"], "source": r["source"], "installed": r["installed"],
-                     "size": r["size"], "client_side": r["client_side"], "include": include, "reason": reason})
+                     "size": r["size"], "client_side": r["client_side"], "include": include, "reason": reason, "locked": r["file"] in forced})
     builds = db.builds_for(name)
     last = builds[0] if builds else None
     stale = None
@@ -1432,6 +1435,7 @@ def build_client(name, files, fmt, version, include_config, pack_name, author="G
     rows = {r["file"]: r for r in identify_mods(name, ver["loader"] or "neoforge", ver["minecraft"] or "1.21.1") if r["enabled"]}
     if not isinstance(files, list) or not files:
         raise ValueError("selecciona al menos un mod para el cliente")
+    files = list(dict.fromkeys(files + [f for f in plugins.client_must_include(name, rows) if f not in files]))
     unknown = [f for f in files if f not in rows]
     if unknown:
         raise ValueError(f"mods que no existen en el servidor: {', '.join(map(str, unknown[:3]))}")
@@ -1903,6 +1907,7 @@ def create_server(user, b):
     def on_done(n):
         db.sync_servers([n])
         db.audit(user, n, "crear servidor", f"{template} {mc}")
+        plugins.emit("server_created", n)
 
     perf = b.get("perf", True) is not False
     job = templates.start_job(SERVERS_DIR, name, template, mc, memory, port, display,
@@ -1943,6 +1948,7 @@ def create_modpack_server(user, b):
     def on_done(n):
         db.sync_servers([n])
         db.audit(user, n, "crear servidor desde modpack", f"{source}:{project}:{version_id}")
+        plugins.emit("server_created", n)
 
     job = modpacks.start_job(SERVERS_DIR, name, source, project, version_id, memory, port, display,
                              bool(b.get("include_client", True)), on_done)

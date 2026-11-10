@@ -35,6 +35,7 @@ class PluginAPI:
         self.assets = {}
         self.pages = []            # [{"id","label","admin"}] entradas de la barra lateral
         self.global_routes = {}    # (METHOD, acción) -> fn(ctx, user, q, body) -> (status, dict)
+        self.client_includes = []  # fn(ctx, name, rows) -> nombres de archivo que el cliente debe llevar siempre
         self.second_factors = []   # fn(ctx, user, body, remote, ip) -> None | (status, dict[, contar_fallo])
 
     def route(self, method, action):
@@ -57,6 +58,11 @@ class PluginAPI:
             self.global_routes[(method.upper(), action)] = fn
             return fn
         return deco
+
+    def client_include(self, fn):
+        """Mods que el cliente generado debe incluir siempre (p. ej. el que lo sincroniza con el servidor)."""
+        self.client_includes.append(fn)
+        return fn
 
     def second_factor(self, fn):
         """Comprobación adicional tras acertar la contraseña. Devuelve None para dejar pasar."""
@@ -110,6 +116,19 @@ def load(ctx, config):
 def info():
     return {"edition": "pro" if API else "free", "tabs": API.tabs if API else [], "pages": API.pages if API else [],
             "scripts": API.scripts if API else [], "error": LOAD_ERROR}
+
+
+def client_must_include(name, rows):
+    """Archivos de `rows` que un plugin exige en el cliente. Un plugin roto no impide generar el cliente."""
+    out = []
+    if not API:
+        return out
+    for fn in API.client_includes:
+        try:
+            out += [f for f in fn(API.ctx, name, rows) if f in rows]
+        except Exception:
+            traceback.print_exc()
+    return list(dict.fromkeys(out))
 
 
 def second_factor(user, body, remote, ip):
