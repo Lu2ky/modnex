@@ -2,7 +2,7 @@ import json, sqlite3, sys, tempfile, types, unittest
 from pathlib import Path
 from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from features import staging as S
+from modnex.features import staging as S
 
 
 class Base(unittest.TestCase):

@@ -1,7 +1,7 @@
 import io, json, os, sys, tarfile, tempfile, time, types, unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from features import backups
+from modnex.features import backups
 
 
 def make_ctx(root, running=False, control=False):

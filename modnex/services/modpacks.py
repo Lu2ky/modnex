@@ -22,7 +22,9 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-import templates
+from modnex.services import templates
+
+from modnex import config
 
 UA = "modnex-server-manager/1.0 (local)"
 CF_CLASS_MODPACKS = 4471
@@ -43,7 +45,7 @@ def _cf_key():
     from_env = os.environ.get("CURSEFORGE_API_KEY")
     if from_env:
         return from_env
-    cfg = Path(__file__).resolve().parent / "config.json"
+    cfg = config.CONFIG_FILE
     return json.loads(cfg.read_text()).get("curseforge_api_key", "") if cfg.exists() else ""
 
 

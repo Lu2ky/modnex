@@ -3,8 +3,9 @@ import json, os, sys, tempfile, types, unittest
 from pathlib import Path
 CORE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(CORE)); sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import extras, plugins
-from features import spark
+from modnex import plugins
+from modnex.services import extras
+from modnex.features import spark
 
 ROW = {"version_number": "1.0", "version_type": "release", "date_published": "2026-10-23",
        "files": [{"primary": True, "filename": "automodpack-mc1.21.1-neoforge-4.0.7.jar",

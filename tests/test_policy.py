@@ -6,8 +6,8 @@ _tmp = tempfile.mkdtemp(prefix="modnex-policy-")
 os.environ.setdefault("MANAGER_DB", str(Path(_tmp) / "db.db"))
 os.environ.setdefault("SERVERS_DIR", _tmp)
 sys.path.insert(0, str(CORE)); sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import app
-from features import remote
+from modnex.web import server as app
+from modnex.features import remote
 
 
 def req(peer, **headers):

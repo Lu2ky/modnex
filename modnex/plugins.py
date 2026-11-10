@@ -17,7 +17,7 @@ import threading
 import traceback
 from pathlib import Path
 
-import extras
+from modnex.services import extras
 
 API = None          # PluginAPI activa, o None en la edición gratuita
 LOAD_ERROR = None   # motivo por el que no se cargó, si falló (no si simplemente no existe)
@@ -102,7 +102,7 @@ def load(ctx, config):
     API, LOAD_ERROR = None, None
     api = PluginAPI(ctx)
     try:
-        mod = importlib.import_module("features")
+        mod = importlib.import_module("modnex.features")
         mod.register(api)
         if api.schema:
             with ctx.db_connect() as c:

@@ -1,7 +1,7 @@
 import sqlite3, sys, types, unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from features import proposals as P
+from modnex.features import proposals as P
 
 ANA = {"id": 1, "username": "ana", "is_admin": False}
 BOB = {"id": 2, "username": "bob", "is_admin": False}

@@ -10,7 +10,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-import templates
+from modnex.services import templates
 
 CDN = "cdn.modrinth.com"
 API = "https://api.modrinth.com/v2/project"

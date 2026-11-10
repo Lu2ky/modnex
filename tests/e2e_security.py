@@ -2,7 +2,7 @@
 import http.client, json, os, shutil, subprocess, sys, tempfile, time
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from features import security as S
+from modnex.features import security as S
 
 CORE = Path(__file__).resolve().parent.parent
 TOKEN = "token-de-prueba-e2e"

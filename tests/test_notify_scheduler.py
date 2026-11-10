@@ -1,7 +1,7 @@
 import datetime, json, sqlite3, sys, types, unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from features import notify, scheduler, backups
+from modnex.features import notify, scheduler, backups
 
 GOOD = "https://discord.com/api/webhooks/123456789012345678/abcDEFghiJKLmnoPQRstu-_123456"
 
