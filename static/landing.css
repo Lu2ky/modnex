@@ -201,13 +201,13 @@ a { color: inherit; }
 .demo-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--border); overflow: hidden; }
 .demo-fill { display: block; height: 100%; width: 100%; background: var(--brand-grad); transform-origin: left; transform: scaleX(0); }
 
-/* ---------- Steve (sigue el cursor, abajo a la izquierda) ---------- */
-.steve { position: fixed; right: 18px; bottom: 18px; z-index: 5; width: 112px; height: 112px; padding: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 16px 36px -14px rgb(0 0 0 / 0.7); pointer-events: none; opacity: 0; transform: translateY(12px); transition: opacity 500ms var(--ease-out), transform 600ms var(--ease-out); }
-.steve.on { opacity: 1; transform: none; }
-.steve svg { display: block; width: 96px; height: 96px; image-rendering: pixelated; filter: drop-shadow(0 8px 16px rgb(0 0 0 / 0.45)); }
-#steve-pupils { will-change: transform; }
-@media (max-width: 900px) { .steve { display: none; } }
-@media (prefers-reduced-motion: reduce) { .scene, .scene-lines li, .scene-row, .scene-btn, .steve { transition: none !important; } }
+/* ---------- mascota (sigue el cursor) ---------- */
+.mascot { position: fixed; right: 18px; bottom: 18px; z-index: 5; width: 112px; height: 112px; padding: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 16px 36px -14px rgb(0 0 0 / 0.7); pointer-events: none; opacity: 0; transform: translateY(12px); transition: opacity 500ms var(--ease-out), transform 600ms var(--ease-out); }
+.mascot.on { opacity: 1; transform: none; }
+.mascot svg { display: block; width: 96px; height: 96px; image-rendering: pixelated; filter: drop-shadow(0 8px 16px rgb(0 0 0 / 0.45)); }
+#mascot-pupils { will-change: transform; }
+@media (max-width: 900px) { .mascot { display: none; } }
+@media (prefers-reduced-motion: reduce) { .scene, .scene-lines li, .scene-row, .scene-btn, .mascot { transition: none !important; } }
 
 /* logo Modnex (PNG con fondo transparente, pensado para fondo oscuro) */
 .brand-img { height: 28px; width: auto; display: block; }
@@ -346,7 +346,7 @@ table.compare td:last-child { color: var(--text); }
 .pro-body .lead { margin: 0 0 22px; }
 @media (max-width: 760px) { .pro-card { grid-template-columns: 1fr; padding: 24px; } }
 
-/* escena lo-fi (dibujo propio: noche de lluvia, Steve de espaldas, taza de té) */
+/* escena lo-fi (dibujo propio: noche de lluvia, persona de espaldas, taza de té) */
 #pro.section { max-width: 1080px; }
 .pro-scene { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 4px; overflow: hidden; box-shadow: inset 0 0 0 2px #0b0d12; background: #2b2036; }
 .pro-scene::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgb(0 0 0 / 0.14) 0 1px, transparent 1px 3px); }
