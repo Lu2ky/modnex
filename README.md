@@ -17,7 +17,8 @@ Solo usa la biblioteca estándar de Python (`http.server` + SQLite). No hay que 
   Modrinth o CurseForge. Arranque, parada, consola, registros y memoria.
 - **Mods, plugins y datapacks:** búsqueda con páginas y filtro por etiqueta (Modrinth), instalación con
   dependencias, marca «Instalado» en lo que ya tiene el servidor, comprobación de compatibilidad con la versión
-  del servidor y filtro automático de mods que solo sirven en el cliente.
+  del servidor y filtro automático de mods que solo sirven en el cliente. Los administradores también pueden subir
+  mods o plugins propios (`.jar`), que se validan contra el cargador del servidor.
 - **Jugadores:** lista blanca, operadores, expulsiones, bloqueos y mensajes.
 - **Extras al crear un servidor:** AutoModpack, para que los jugadores reciban los mods al entrar, y el perfilador
   spark. Son opcionales y vienen desmarcados; el cliente generado lleva siempre AutoModpack.

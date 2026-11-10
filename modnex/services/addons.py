@@ -45,6 +45,48 @@ def _invalidate_installed(name):
     INSTALLED_CACHE.pop(name, None)
 
 
+MAX_MOD_UPLOAD = 256 * 1024 * 1024
+
+# Archivo que identifica un mod o plugin dentro del .jar, y a qué cargador pertenece cada uno
+DESCRIPTORS = {
+    "META-INF/neoforge.mods.toml": "NeoForge", "META-INF/mods.toml": "Forge", "mcmod.info": "Forge",
+    "fabric.mod.json": "Fabric", "quilt.mod.json": "Quilt", "plugin.yml": "Paper", "paper-plugin.yml": "Paper",
+}
+ACCEPTS = {   # qué descriptores sirven en cada tipo de servidor
+    "neoforge": {"NeoForge", "Forge"}, "forge": {"Forge"}, "fabric": {"Fabric"}, "quilt": {"Quilt", "Fabric"}, "paper": {"Paper"},
+}
+
+
+def finish_mod_upload(name, tmp, fname):
+    """Valida un .jar subido por el administrador y lo deja en la carpeta de mods o plugins del servidor.
+
+    Comprueba que sea un zip con el descriptor de un mod del cargador del servidor (un mod de Fabric no arranca en
+    NeoForge), que no pise otro archivo y que el servidor admita mods. Si algo falla, borra el archivo temporal."""
+    try:
+        template = server_template_of(name)
+        if templates.kind_of(template) == "none":
+            raise ValueError("este servidor es Vanilla: no admite mods ni plugins")
+        if not zipfile.is_zipfile(tmp):
+            raise ValueError("el archivo no es un .jar válido (no es un zip)")
+        with zipfile.ZipFile(tmp) as z:
+            found = {DESCRIPTORS[n] for n in z.namelist() if n in DESCRIPTORS}
+        if not found:
+            raise ValueError("no parece un mod ni un plugin: falta su descriptor (neoforge.mods.toml, fabric.mod.json, plugin.yml…)")
+        loader = templates.loader_of(template)
+        if loader in ACCEPTS and not found & ACCEPTS[loader]:
+            raise ValueError(f"es un mod de {' / '.join(sorted(found))} y este servidor es {templates.TEMPLATES[template]['label']}")
+        dest = addons_dir(name)
+        dest.mkdir(exist_ok=True)
+        if (dest / fname).exists() or (dest / (fname + ".disabled")).exists():
+            raise ValueError(f"ya hay un archivo llamado {fname}: bórralo o cambia el nombre antes de subir otro")
+        tmp.replace(dest / fname)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+    _invalidate_installed(name)
+    return fname
+
+
 def safe_jar_name(filename):
     fname = os.path.basename(filename or "")
     if not re.fullmatch(r"[A-Za-z0-9._+\-\[\]() ]+\.jar", fname):

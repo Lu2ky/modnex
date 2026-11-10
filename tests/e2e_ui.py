@@ -66,6 +66,20 @@ async def main():
             check("al pulsar, el botón reacciona al instante (escala y 60 ms)", act.startswith("matrix(0.98") and act.endswith("0.06s"), act)
             media = await pg.evaluate("() => { let t = 0, c = 0; for (const s of document.styleSheets) { try { for (const r of s.cssRules) { if (r.media && /reduced-transparency/.test(r.media.mediaText)) t++; if (r.media && /prefers-contrast/.test(r.media.mediaText)) c++; } } catch (e) {} } return [t, c] }")
             check("hay variantes para menos transparencia y más contraste", media[0] >= 1 and media[1] >= 1, media)
+            # Subir un mod propio desde la sección de mods
+            import io, zipfile
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w") as z: z.writestr("META-INF/neoforge.mods.toml", "modLoader='javafml'")
+            await pg.evaluate("location.hash='#/s/fake/mods'"); await pg.wait_for_selector(".seg-btn[data-pane=upload]", timeout=10000)
+            check("la sección de mods ofrece «Subir el mío» a un administrador", "Subir el mío" in await pg.inner_text(".seg"))
+            await pg.click(".seg-btn[data-pane=upload]"); await pg.wait_for_selector("#modDrop")
+            check("el campo de subida solo admite .jar", await pg.get_attribute("#modDrop input", "accept") == ".jar")
+            await pg.set_input_files("#modDrop input", files=[{"name": "ui-mod.jar", "mimeType": "application/java-archive", "buffer": buf.getvalue()}])
+            await pg.wait_for_selector(".toast:has-text('Subido: ui-mod.jar')", timeout=10000)
+            await pg.wait_for_selector(".seg-btn.on:has-text('Instalados')", timeout=10000)
+            await pg.wait_for_selector("#modsBody:has-text('ui-mod.jar')", timeout=40000)   # la lista identifica los mods por huella: tarda unos segundos
+            check("tras subirlo se vuelve a «Instalados» y el mod aparece", await pg.locator("#modsBody:has-text('ui-mod.jar')").count() == 1)
+            await pg.evaluate("() => fetch('/api/servers/fake/mod_delete', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({file: 'ui-mod.jar'})})")
             # Asistente de creación: extras opcionales según el tipo de servidor
             await pg.click("button[data-action=new-server]"); await pg.wait_for_selector("#wizardForm")
             vis = lambda: pg.eval_on_selector_all("#wizExtras [data-extra]:not([hidden])", "e=>e.map(x=>x.dataset.extra)")

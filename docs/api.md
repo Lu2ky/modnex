@@ -60,6 +60,7 @@ archivos y las descargas. No hay compatibilidad garantizada entre versiones.
 | `command` · `memory` · `meta` · `properties` · `delete` | admin | Consola, memoria, nombre e icono, propiedades, borrado. |
 | `mod_toggle` · `mod_delete` · `mod_update` | `mods` | Activa o desactiva, borra o actualiza un mod. |
 | `datapack_upload` · `datapack_delete` | `datapacks` | Sube o borra un datapack. |
+| `mod_upload` | admin | Sube un mod o plugin propio (`.jar`, cuerpo en bruto con el nombre en `X-Filename`, hasta 256 MB). Solo administradores: un `.jar` es código que corre con los permisos del servidor. Comprueba que sea un zip con el descriptor de un mod del cargador del servidor y no pisa otro archivo. |
 | `resourcepack_upload` · `resourcepack_set` · `resourcepack_use` · `resourcepack_delete` | `textures` | Gestiona las texturas. |
 | `player` | `players` | Acción sobre un jugador (mensaje, expulsar, banear, OP, whitelist). |
 | `client_build` · `release_upload` · `release_delete` · `release_share` | admin | Genera, sube, borra o comparte un cliente. |

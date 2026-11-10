@@ -5,7 +5,8 @@ Cada acción declara el permiso que exige; los plugins pueden añadir las suyas 
 from modnex import plugins
 from modnex.infra import db
 from modnex.services import release
-from modnex.services.addons import _invalidate_installed
+from modnex.services.addons import MAX_MOD_UPLOAD, _invalidate_installed, addons_dir, finish_mod_upload, safe_jar_name
+from modnex.services.catalog import compat_for
 from modnex.services.client import build_client, client_plan
 from modnex.services.datapacks import datapacks_dir, delete_datapack, finish_datapack, list_datapacks
 from modnex.services.identify import identify_mods, update_mod
@@ -124,6 +125,17 @@ def resourcepack_upload(req, name):
     tmp, fname = req.h._save_upload(packs_dir(name), MAX_DATAPACK)
     finish_pack_upload(name, tmp, fname)
     db.audit(req.user, name, "subir pack de texturas", fname)
+    return {"uploaded": fname}
+
+
+@server_action("POST", "mod_upload", raw=True)    # solo administradores: un .jar es código que corre con los permisos del servidor
+def mod_upload(req, name):
+    compat_for(name, "mod")        # falla con un mensaje claro si el servidor es Vanilla
+    d = addons_dir(name)
+    d.mkdir(exist_ok=True)
+    tmp, fname = req.h._save_upload(d, MAX_MOD_UPLOAD, safe_jar_name)
+    finish_mod_upload(name, tmp, fname)
+    db.audit(req.user, name, "subir mod propio", fname)
     return {"uploaded": fname}
 
 

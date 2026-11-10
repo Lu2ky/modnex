@@ -532,8 +532,20 @@ state.modsSeq = 0;
 function tabMods(s) {
   state.modsSeq++;   // cualquier repintado de la pestaña invalida las cargas de «Instalados» que sigan en curso
   const pane = state.modsPane, plugins = s.kind === 'plugin';
-  $('#tabBody').innerHTML = `${segHTML('mods', [['installed', 'Instalados'], ['add', plugins ? 'Añadir plugins' : 'Añadir mods']], pane, plugins ? 'Plugins' : 'Mods')}<div id="modsBody"></div>`;
+  const panes = [['installed', 'Instalados'], ['add', plugins ? 'Añadir plugins' : 'Añadir mods']];
+  if (isAdmin()) panes.push(['upload', 'Subir el mío']);
+  $('#tabBody').innerHTML = `${segHTML('mods', panes, pane, plugins ? 'Plugins' : 'Mods')}<div id="modsBody"></div>`;
+  if (pane === 'upload' && isAdmin()) return mountUploadMod(s, plugins);
   pane === 'installed' ? loadInstalled(s) : mountFinder(s.kind === 'plugin' ? 'plugin' : 'mod', $('#modsBody'));
+}
+
+// Subir un mod o plugin propio (.jar). Solo administradores: un .jar es código que corre con los permisos del servidor.
+function mountUploadMod(s, plugins) {
+  const what = plugins ? 'plugin' : 'mod';
+  $('#modsBody').innerHTML = `
+    ${dropzoneHTML('modDrop', `Subir un ${what} desde tu equipo`, `Archivo .jar, hasta 256 MB. Debe ser ${plugins ? 'un plugin de Paper' : 'un mod del mismo cargador que el servidor'}. Se carga al reiniciar el servidor.`, '.jar')}
+    <p class="muted small">Se comprueba que el archivo sea un ${what} válido y que encaje con el servidor, y no pisa otro con el mismo nombre. Un ${what} es código que se ejecuta con los permisos del servidor: sube solo los que conozcas y en los que confíes. Después aparece en «Instalados» como no reconocido, porque no viene de Modrinth ni CurseForge.</p>`;
+  wireDrop('modDrop', `/api/servers/${encodeURIComponent(s.name)}/mod_upload`, () => { state.modsPane = 'installed'; refreshServers(); tabMods(s); });
 }
 
 const SRC = { modrinth: 'Modrinth', curseforge: 'CurseForge' };
@@ -801,9 +813,9 @@ async function runFinder(kind, form, page = 1) {
 }
 
 /* --- Datapacks --- */
-function dropzoneHTML(id, label, hint) {
+function dropzoneHTML(id, label, hint, accept = '.zip') {
   return `<label class="drop" id="${id}" tabindex="0">
-      <input type="file" accept=".zip" hidden>
+      <input type="file" accept="${accept}" hidden>
       <strong>${label}</strong><span class="muted small">${hint}</span>
       <span class="progress" hidden><span class="progress-fill"></span></span>
     </label>`;
