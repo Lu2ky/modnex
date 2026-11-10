@@ -9,6 +9,7 @@ buscar/instalar mods desde Modrinth y CurseForge.
 import collections
 import hashlib
 import html
+import ipaddress
 import json
 import os
 import re
@@ -2016,6 +2017,46 @@ class Handler(BaseHTTPRequestHandler):
     def _via_tunnel(self):
         return self._peer_loopback() and bool(self.headers.get("Cf-Connecting-Ip") or self.headers.get("X-Forwarded-For"))
 
+    PRIVATE_SUFFIXES = (".local", ".lan", ".home", ".internal", ".localdomain", ".home.arpa")
+
+    @staticmethod
+    def _is_local_ip(value):
+        """Local = no enrutable por internet (loopback, red local, ZeroTier, Tailscale, enlace local)."""
+        try:
+            ip = ipaddress.ip_address(str(value).strip())
+        except ValueError:
+            return False
+        ip = getattr(ip, "ipv4_mapped", None) or ip
+        return not ip.is_global
+
+    def _host_is_public_name(self):
+        """True si el Host de la petición es un nombre de dominio público (p. ej. el de un túnel)."""
+        h = (self.headers.get("Host") or "").strip().lower()
+        if h.startswith("["):
+            return False                      # IPv6 literal
+        h = h.rsplit(":", 1)[0] if h.count(":") == 1 else h
+        try:
+            ipaddress.ip_address(h)
+            return False                      # IP literal: se juzga por la IP
+        except ValueError:
+            pass
+        return "." in h and not h.endswith(self.PRIVATE_SUFFIXES)
+
+    def _remote_origin(self):
+        """True si la petición llega desde fuera de este equipo y de la red local.
+        Se considera remota si pasa por un túnel (cabeceras de reenvío desde loopback), si la conexión viene
+        de una IP enrutable, o si llega por loopback pero con un nombre de dominio público en `Host`."""
+        if self._via_tunnel():
+            return True
+        peer = self.client_address[0]
+        if not self._is_local_ip(peer):
+            return True
+        return self._peer_loopback() and self._host_is_public_name()
+
+    def _admin_remote_blocked(self, user):
+        """Los administradores solo entran desde el equipo o la red local, salvo `admin_remote: true` en config.json."""
+        return bool(user and user.get("is_admin") and self._remote_origin() and load_config().get("admin_remote") is not True)
+
     def _https(self):
         return self._peer_loopback() and (self.headers.get("X-Forwarded-Proto") or "").lower() == "https"
 
@@ -2124,6 +2165,11 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send(429, {"error": str(e)})
                 if not user:
                     return self._send(401, {"error": "usuario o contraseña incorrectos"})
+                if self._admin_remote_blocked(user):
+                    # Misma respuesta que una contraseña errónea: desde fuera no se revela que la cuenta existe ni que es admin.
+                    db.register_fail(self._client_ip())
+                    db.audit(user, None, "acceso de administrador bloqueado", f"desde fuera de la red local ({self._client_ip()})")
+                    return self._send(401, {"error": "usuario o contraseña incorrectos"})
                 sf = plugins.second_factor(user, b, self._via_tunnel(), self._client_ip())
                 if sf:
                     if len(sf) > 2 and sf[2]:
@@ -2139,6 +2185,8 @@ class Handler(BaseHTTPRequestHandler):
             user = db.user_for_token(self._cookie())
             if path.startswith("/api/") and not user:
                 return self._send(401, {"error": "no autorizado"})
+            if self._admin_remote_blocked(user):  # una sesión de administrador no sirve desde fuera, aunque se robe la cookie
+                return self._send(403, {"error": "los administradores solo pueden usar el panel desde este equipo o la red local"})
 
             if method == "GET" and path == "/api/me":
                 return self._send(200, {"user": user, "icons": db.ICONS})
