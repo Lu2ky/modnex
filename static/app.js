@@ -234,7 +234,10 @@ function renderMain() {
     const meta = ((state.plugins && state.plugins.pages) || []).find((p) => p.id === v.id);
     const body = $('#main');
     if (!plug || typeof plug.renderPage !== 'function' || !meta || (meta.admin && !isAdmin())) { body.innerHTML = '<div class="empty"><h1>Esta sección no está disponible</h1></div>'; return; }
-    try { plug.renderPage(body); } catch (e) { body.innerHTML = `<p class="muted">No se pudo mostrar esta sección: ${esc(e.message)}</p>`; }
+    // El plugin recibe un contenedor propio y no #main: #main sobrevive al cambiar de vista, y los manejadores
+    // (onclick, onsubmit…) que un plugin ate a lo que recibe seguirían activos en el resto del panel.
+    body.innerHTML = '<div id="pluginPage"></div>';
+    try { plug.renderPage($('#pluginPage')); } catch (e) { body.innerHTML = `<p class="muted">No se pudo mostrar esta sección: ${esc(e.message)}</p>`; }
     return;
   }
   $('#main').innerHTML = `
