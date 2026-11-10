@@ -7,7 +7,7 @@ dependencias: usa solo la biblioteca estándar de Python y SQLite.
 
 | Requisito | Detalle |
 |---|---|
-| Python 3 reciente | Probado con 3.14. Comprueba con `python3 --version`. |
+| Python 3.12 o superior | Probado con 3.12, 3.13 y 3.14. Comprueba con `python3 --version`. |
 | Java | Para los servidores de Minecraft. Minecraft 1.20.5 o posterior pide Java 21; de 1.18 a 1.20.4, Java 17. Comprueba con `java -version`. |
 | Git | Solo para descargar el proyecto. También sirve bajar el `.zip` desde GitHub. |
 | Espacio en disco | Cada servidor ocupa lo que ocupe su mundo y sus mods; reserva varios GB. |
