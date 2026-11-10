@@ -64,3 +64,7 @@
 .vt-info { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vt-row .ft-actions { flex: none; flex-wrap: nowrap; }
 @media (max-width: 860px) { .vt-row .ft-actions { flex-wrap: wrap; max-width: 180px; } }
+.vt-row.is-gone { opacity: 0.62; }
+.vt-row.is-gone .vt-title strong { font-weight: 500; }
+.vt-dot.gone { fill: var(--bg); stroke-dasharray: 2 2; }
+@media (prefers-contrast: more) { .vt-row.is-gone { opacity: 1; } }

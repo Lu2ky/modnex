@@ -100,23 +100,30 @@ async def main():
             await pg.wait_for_selector("text=03:15"); check("tarea programada visible", True)
             # borrar con confirmación
             await pg.click("button[data-act=delete]"); await pg.wait_for_selector(".confirm-dlg")
-            await pg.click(".confirm-dlg button[value=ok]"); await pg.wait_for_selector("text=Todavía no hay copias", timeout=10000)
-            check("borrar copia con confirmación", True)
+            await pg.click(".confirm-dlg button[value=ok]"); await pg.wait_for_selector(".vt-row.is-gone", timeout=10000)
+            check("borrar una copia la deja en el árbol como borrada, con su historial", await pg.locator(".vt-row").count() == 1 and "Borrada" in await pg.inner_text(".vt-row.is-gone"))
+            check("una copia borrada no se puede restaurar ni borrar, pero sí ver sus cambios o quitarla del historial",
+                  await pg.locator(".vt-row.is-gone button[data-act=restore], .vt-row.is-gone button[data-act=delete]").count() == 0
+                  and await pg.locator(".vt-row.is-gone button[data-act=diff], .vt-row.is-gone button[data-act=forget]").count() == 2)
             # árbol de versiones: dos copias, restaurar la antigua y copiar otra vez abre una rama
             async def nueva(label, n):
                 await pg.fill("input[name=label]", label); await pg.click("form[data-form=create] button[type=submit]")
                 await pg.wait_for_function("n => document.querySelectorAll('.vt-row').length >= n", arg=n, timeout=20000)
                 await pg.wait_for_selector("form[data-form=create] button:not([disabled])", timeout=20000)
-            await nueva("uno", 1); await pg.wait_for_timeout(1100); await nueva("dos", 2); await pg.wait_for_timeout(1100)
+            await nueva("uno", 2); await pg.wait_for_timeout(1100); await nueva("dos", 3); await pg.wait_for_timeout(1100)
             check("una copia tras otra forman una sola línea", await pg.eval_on_selector_all(".vt-dot", "e=>new Set(e.map(x=>x.getAttribute('cx'))).size") == 1)
             check("solo la última marca «Estás aquí»", await pg.locator(".vt-row.is-head").count() == 1 and "dos" in await pg.inner_text(".vt-row.is-head"))
             await pg.click(".vt-row:has-text('uno') button[data-act=restore]"); await pg.wait_for_selector(".confirm-dlg")
             await pg.click(".confirm-dlg button[value=ok]"); await pg.wait_for_selector(".vt-row.is-head:has-text('uno')", timeout=20000)
             check("restaurar mueve «Estás aquí» a esa copia", True)
-            await nueva("tres", 4)
+            await nueva("tres", 5)
             check("seguir copiando tras restaurar abre una rama (dos columnas)", await pg.eval_on_selector_all(".vt-dot", "e=>new Set(e.map(x=>x.getAttribute('cx'))).size") == 2)
             check("la copia de la que parten dos ramas lo indica", "ramas parten de aquí" in await pg.inner_text(".vt-row:has-text('uno')"))
-            check("las líneas del árbol se dibujan", await pg.locator("path.vt-edge").count() == 3)
+            check("las líneas del árbol se dibujan, también desde la copia borrada", await pg.locator("path.vt-edge").count() == 4)
+            check("la copia borrada sigue siendo la raíz de la que cuelga todo", await pg.locator(".vt-row.is-gone").count() == 1)
+            await pg.click(".vt-row.is-gone button[data-act=forget]"); await pg.wait_for_selector(".confirm-dlg")
+            await pg.click(".confirm-dlg button[value=ok]"); await pg.wait_for_function("() => document.querySelectorAll('.vt-row.is-gone').length === 0", timeout=10000)
+            check("quitar del historial elimina la lápida", await pg.locator(".vt-row").count() == 4)
             await pg.screenshot(path=os.environ.get("MODNEX_SHOT", str(tmp / "arbol.png")), clip=await pg.eval_on_selector(".vt", "e=>{const r=e.getBoundingClientRect();return {x:Math.max(0,r.x-10),y:Math.max(0,r.y-10),width:r.width+20,height:r.height+20}}"))
             print("captura:", os.environ.get("MODNEX_SHOT", tmp / "arbol.png"))
             # Diagnóstico

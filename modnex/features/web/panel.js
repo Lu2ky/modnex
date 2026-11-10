@@ -23,27 +23,30 @@
       const dpath = x1 === x2 ? `M${x1} ${y1}V${y2}` : `M${x1} ${y1}V${y2 - 26}C${x1} ${y2 - 12} ${x2} ${y2 - 16} ${x2} ${y2}`;
       return `<path class="vt-edge vl${n.lane % 6}" d="${dpath}"/>`;
     }).join('');
-    const dots = g.nodes.map((n) => `<circle class="vt-dot vl${n.lane % 6}${n.head ? ' head' : ''}" cx="${x(n.lane)}" cy="${y(n.row)}" r="${n.head ? VT.r + 1 : VT.r}"/>`).join('');
+    const dots = g.nodes.map((n) => `<circle class="vt-dot vl${n.lane % 6}${n.head ? ' head' : ''}${n.deleted ? ' gone' : ''}" cx="${x(n.lane)}" cy="${y(n.row)}" r="${n.head ? VT.r + 1 : VT.r}"/>`).join('');
     const rows = g.nodes.map((b) => {
       const kids = g.nodes.filter((n) => n.parent === b.id).length;
-      const info = [fmtDate(b.created), fmtSize(b.size), `${(b.mods || []).length} mods`, b.minecraft, b.loader].filter(Boolean).join(' · ');
-      return `<div class="vt-row${b.head ? ' is-head' : ''}">
-        <div class="vt-main">
-          <div class="vt-title"><strong>${esc(b.label || KIND[b.kind] || b.kind)}</strong>
-            ${b.label && b.label !== (KIND[b.kind] || b.kind) ? `<span class="chip">${esc(KIND[b.kind] || b.kind)}</span>` : ''}${b.pinned ? ' <span class="chip live">Fijada</span>' : ''}${b.head ? ' <span class="chip ok">Estás aquí</span>' : ''}${kids > 1 ? ` <span class="chip">${kids} ramas parten de aquí</span>` : ''}</div>
-          <div class="vt-info muted small">${esc(info)}</div>
-        </div>
-        <div class="ft-actions">
-          <button class="btn sm" data-act="diff" data-id="${esc(b.id)}">Ver cambios</button>
+      const info = [fmtDate(b.created), b.deleted ? 'archivo borrado' : fmtSize(b.size), `${(b.mods || []).length} mods`, b.minecraft, b.loader].filter(Boolean).join(' · ');
+      const title = b.label || KIND[b.kind] || b.kind;
+      const actions = b.deleted
+        ? `<button class="btn sm" data-act="diff" data-id="${esc(b.id)}">Ver cambios</button>
+          <button class="btn sm" data-act="forget" data-id="${esc(b.id)}" title="Quita este punto del historial. Solo se pierde el rastro de dónde partía.">Quitar del historial</button>`
+        : `<button class="btn sm" data-act="diff" data-id="${esc(b.id)}">Ver cambios</button>
           <button class="btn sm" data-act="pin" data-id="${esc(b.id)}" data-on="${b.pinned ? 0 : 1}" title="${b.pinned ? 'Vuelve a quedar sujeta a las reglas de retención' : 'Ninguna regla la borrará'}">${b.pinned ? 'Soltar' : 'Fijar'}</button>
           <button class="btn sm" data-act="restore" data-id="${esc(b.id)}" ${d.running ? 'disabled title="Para el servidor antes de restaurar"' : ''}>Restaurar</button>
-          <button class="btn sm danger" data-act="delete" data-id="${esc(b.id)}">Borrar</button>
-        </div></div>`;
+          <button class="btn sm danger" data-act="delete" data-id="${esc(b.id)}">Borrar</button>`;
+      return `<div class="vt-row${b.head ? ' is-head' : ''}${b.deleted ? ' is-gone' : ''}">
+        <div class="vt-main">
+          <div class="vt-title"><strong>${esc(title)}</strong>
+            ${b.label && b.label !== (KIND[b.kind] || b.kind) ? `<span class="chip">${esc(KIND[b.kind] || b.kind)}</span>` : ''}${b.deleted ? ' <span class="chip">Borrada</span>' : ''}${b.pinned ? ' <span class="chip live">Fijada</span>' : ''}${b.head ? ' <span class="chip ok">Estás aquí</span>' : ''}${kids > 1 ? ` <span class="chip">${kids} ramas parten de aquí</span>` : ''}</div>
+          <div class="vt-info muted small">${esc(info)}</div>
+        </div>
+        <div class="ft-actions">${actions}</div></div>`;
     }).join('');
     return `<div class="vt" data-gw="${gw}">
       <svg class="vt-graph" width="${gw}" height="${g.nodes.length * VT.row}" aria-hidden="true">${edges}${dots}</svg>
       <div class="vt-rows">${rows}</div></div>
-      <p class="muted small">Cada punto es una copia y la línea lo une con la copia de la que partía. Si restauras una copia antigua y sigues copiando, el historial se bifurca en una rama nueva. Arriba, lo más reciente.</p>`;
+      <p class="muted small">Cada punto es una copia y la línea lo une con la copia de la que partía. Si restauras una copia antigua y sigues copiando, el historial se bifurca en una rama nueva. Las copias que borras (a mano o por las reglas de retención) siguen en el árbol, atenuadas, para que no se pierda el historial; solo se quita su archivo. Arriba, lo más reciente.</p>`;
   }
 
   // ---------- Copias ----------
@@ -161,6 +164,9 @@
           M().$('#ftDiff').innerHTML = `<div class="ft-card info"><h3>Cambios desde esa copia hasta ahora</h3>${
             list('Mods añadidos', d.added) + list('Mods quitados', d.removed) + list('Mods con otra versión', d.changed) + (v ? `<p><strong>Versiones</strong></p><ul>${v}</ul>` : '')
             || '<p class="muted">Sin diferencias en mods ni versiones.</p>'}</div>`;
+        } else if (act === 'forget') {
+          if (!(await askConfirm('¿Quitar del historial?', 'La copia ya estaba borrada. Solo se pierde el rastro de dónde partía en el árbol.', { confirmLabel: 'Quitar', danger: true }))) return;
+          await api(url(s, 'backup_forget'), { method: 'POST', body: { id } }); load();
         } else if (act === 'pin') {
           await api(url(s, 'backup_pin'), { method: 'POST', body: { id, pinned: b.getAttribute('data-on') === '1' } }); load();
         } else if (act === 'ret-preview') {

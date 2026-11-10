@@ -136,7 +136,10 @@ class ApplyTests(Base):
         left = {m["id"] for m in backups.list_backups(self.ctx, "s")}
         self.assertEqual(len(left), 3); self.assertFalse(left & self.ids(pl))
         d = backups.backup_dir(self.ctx, "s")
-        for i in self.ids(pl): self.assertFalse((d / f"{i}.tar.gz").exists() or (d / f"{i}.json").exists())
+        for i in self.ids(pl):
+            self.assertFalse((d / f"{i}.tar.gz").exists(), "el archivo se borra y libera espacio")
+            self.assertTrue(json.loads((d / f"{i}.json").read_text())["deleted"], "los metadatos quedan como lápida")
+        self.assertEqual({m["id"] for m in backups.list_backups(self.ctx, "s", include_deleted=True) if m.get("deleted")}, self.ids(pl))
 
     def test_deja_rastro_en_auditoria_y_avisa(self):
         for a in (1, 2, 3, 4): self.make("pre-update", a)

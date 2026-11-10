@@ -78,6 +78,13 @@ def register(api):
         ctx.audit(user, name, "borrar copia", str(b.get("id")))
         return 200, {"ok": True}
 
+    @api.route("POST", "backup_forget")
+    @_guard
+    def r_backup_forget(ctx, user, name, q, b):
+        backups.forget(ctx, name, str(b.get("id") or ""))
+        ctx.audit(user, name, "quitar copia borrada del historial", str(b.get("id")))
+        return 200, {"ok": True}
+
     @api.route("GET", "backup_diff")
     @_guard
     def r_backup_diff(ctx, user, name, q, b):
