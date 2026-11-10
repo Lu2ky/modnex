@@ -55,7 +55,7 @@ function askConfirm(title, message, { confirmLabel = 'Confirmar', danger = false
   return new Promise((resolve) => {
     const d = openDialog(`
       <form class="dlg confirm-dlg" method="dialog" role="alertdialog" aria-labelledby="confirmTitle" aria-describedby="confirmMsg">
-        <header><h2 id="confirmTitle">${esc(title)}</h2></header>
+        <header>${danger ? motionIcon('trash', 22) : ''}<h2 id="confirmTitle">${esc(title)}</h2></header>
         <p id="confirmMsg" class="muted">${esc(message)}</p>
         <div class="row end">
           <button class="btn" value="cancel">Cancelar</button>
@@ -70,7 +70,10 @@ function askConfirm(title, message, { confirmLabel = 'Confirmar', danger = false
 function toast(message, kind = 'info') {
   const el = document.createElement('div');
   el.className = `toast ${kind}`;
-  el.textContent = message;
+  const msg = document.createElement('span');
+  msg.textContent = message;
+  el.innerHTML = `<span class="toast-ico">${motionIcon(kind === 'ok' ? 'check' : kind === 'error' ? 'error' : 'info')}</span>`;
+  el.append(msg);
   $('#toasts').append(el);
   const ttl = kind === 'error' ? 7000 : 3500;
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 180); }, ttl);
@@ -705,7 +708,7 @@ function finderResultsHTML(kind) {
   if (f.error) return `<p class="form-error pad" role="alert">${esc(f.error)}</p>`;
   if (!f.results) return `<div aria-busy="true" aria-label="Cargando resultados">${Array.from({ length: 5 }, () => `
     <div class="skel-row"><span class="skel"></span><div class="skel-lines"><span class="skel"></span><span class="skel"></span></div></div>`).join('')}</div>`;
-  if (!f.results.length) return `<p class="muted pad">${KIND[kind].empty}</p>`;
+  if (!f.results.length) return emptyState('search', KIND[kind].empty);
   return `<div class="rows">${f.results.map((h) => `
     <div class="result" data-kind="${kind}" data-id="${esc(h.id)}" data-slug="${esc(h.slug)}" data-source="${esc(h.source)}">
       ${h.icon ? `<img src="${esc(h.icon)}" alt="" loading="lazy">` : '<span class="img-ph"></span>'}
@@ -816,6 +819,7 @@ async function runFinder(kind, form, page = 1) {
 function dropzoneHTML(id, label, hint, accept = '.zip') {
   return `<label class="drop" id="${id}" tabindex="0">
       <input type="file" accept="${accept}" hidden>
+      <span class="drop-ico">${motionIcon('upload', 26)}</span>
       <strong>${label}</strong><span class="muted small">${hint}</span>
       <span class="progress" hidden><span class="progress-fill"></span></span>
     </label>`;
@@ -840,8 +844,16 @@ async function loadDatapacks(s) {
       <div class="row-item"><div class="grow"><strong>${esc(d.file)}</strong>
         <div class="muted small">${d.kind === 'zip' ? fmtSize(d.size) : 'Carpeta'}</div></div>
         ${d.kind === 'zip' ? `<button class="btn danger sm" data-action="dp-delete" data-file="${esc(d.file)}">Borrar</button>` : ''}
-      </div>`).join('')}</div>` : '<p class="muted pad">No hay datapacks en el mundo de este servidor.</p>';
+      </div>`).join('')}</div>` : emptyState('box', 'No hay datapacks en el mundo de este servidor.');
   } catch (e) { fail(e); }
+}
+
+// La zona de subida muestra un tick dibujándose un momento y luego vuelve a la flecha.
+function flashDone(drop) {
+  const ico = $('.drop-ico', drop);
+  if (!ico || !ico.isConnected) return;
+  ico.classList.add('done'); ico.innerHTML = motionIcon('check', 26);
+  setTimeout(() => { if (ico.isConnected) { ico.classList.remove('done'); ico.innerHTML = motionIcon('upload', 26); } }, 1700);
 }
 
 function wireDrop(id, endpoint, done) {
@@ -854,6 +866,7 @@ function wireDrop(id, endpoint, done) {
     try {
       const r = await upload(endpoint, file, (p) => { fill.style.transform = `scaleX(${p})`; });
       toast(`Subido: ${r.uploaded}`, 'ok');
+      flashDone(drop);
       done();
     } catch (e) { fail(e); }
     bar.hidden = true; input.value = '';
@@ -916,7 +929,7 @@ async function loadReleases(s) {
         <div class="acts">
           <button class="btn primary sm" data-action="share" data-file="${esc(r.file)}">Compartir con enlace temporal…</button>
           <button class="btn danger sm" data-action="rel-delete" data-file="${esc(r.file)}">Borrar</button>
-        </div></div>`).join('')}</div>` : '<p class="muted pad">Todavía no hay releases para este servidor.</p>';
+        </div></div>`).join('')}</div>` : emptyState('box', 'Todavía no hay releases para este servidor.', 'Genera un cliente o sube uno ya hecho.');
   } catch (e) { fail(e); }
 }
 
@@ -932,7 +945,7 @@ async function loadShare() {
           <span class="muted small">${esc(sh.file)} · ${esc(sh.server)} · caduca en ${fmtLeft(sh.expires_at)} · ${sh.downloads} ${sh.downloads === 1 ? 'descarga' : 'descargas'}</span></div>
         ${sh.ready ? '' : '<p class="muted small">El enlace puede tardar unos segundos más en responder desde fuera.</p>'}
         <div class="row"><input readonly value="${esc(sh.url)}" aria-label="Enlace público" id="shareUrl">
-          <button class="btn" data-action="copy-url">Copiar enlace</button>
+          <button class="btn" data-action="copy-url">${motionIcon('copy', 16)}Copiar enlace</button>
           <button class="btn danger" data-action="share-stop">Detener ahora</button></div>
       </div>`;
   } catch (e) { /* el sondeo no debe molestar con avisos */ }
@@ -1062,7 +1075,7 @@ async function loadTex(s) {
       <div class="acts">
         <button class="btn primary sm" data-action="tex-use-local" data-file="${esc(p.file)}">Usar en el servidor</button>
         <button class="btn danger sm" data-action="tex-delete-local" data-file="${esc(p.file)}">Borrar</button>
-      </div></div>`).join('')}</div>` : '<p class="muted pad">Todavía no has subido ningún pack.</p>';
+      </div></div>`).join('')}</div>` : emptyState('box', 'Todavía no has subido ningún pack.');
 }
 
 /* --- Jugadores --- */
@@ -1117,7 +1130,7 @@ function paintPlayers() {
       const list = d.players.filter(pick);
       return `<section class="board-col"><h2 class="board-title">${title} <span class="filter-n">${list.length}</span></h2>
         <div class="board-list">${list.map(chip).join('') || `<p class="muted small board-empty">${empty}</p>`}</div></section>`;
-    }).join('')}</div>` : '<p class="muted pad">Todavía no ha entrado ningún jugador a este servidor.</p>';
+    }).join('')}</div>` : emptyState('list', 'Todavía no ha entrado ningún jugador a este servidor.');
 }
 
 async function loadPlayers(s) {
@@ -1520,7 +1533,7 @@ async function renderAudit() {
     const rows = await api('/api/audit?limit=200');
     $('#auditBody').innerHTML = rows.length ? `<table class="table"><thead><tr><th>Cuándo</th><th>Usuario</th><th>Servidor</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>${rows.map((r) => `
       <tr><td>${fmtTime(r.ts)}</td><td>${esc(r.username)}</td><td>${esc(r.server_name || '')}</td><td>${esc(r.action)}</td><td class="muted">${esc(r.detail || '')}</td></tr>`).join('')}</tbody></table>`
-      : '<p class="muted pad">Todavía no hay actividad registrada.</p>';
+      : emptyState('list', 'Todavía no hay actividad registrada.');
   } catch (e) { fail(e); }
 }
 
@@ -1746,7 +1759,10 @@ const actions = {
   async 'share-stop'() { try { await api('/api/share_stop', { method: 'POST', body: {} }); toast('Descarga pública detenida', 'ok'); loadShare(); } catch (e) { fail(e); } },
   async 'copy-url'() {
     const input = $('#shareUrl');
-    try { await navigator.clipboard.writeText(input.value); toast('Enlace copiado', 'ok'); } catch { input.select(); toast('Selecciona y copia el enlace manualmente'); }
+    try {
+      await navigator.clipboard.writeText(input.value); toast('Enlace copiado', 'ok');
+      const ico = $('[data-action=copy-url] .mi-copy'); if (ico) { ico.classList.add('is-done'); setTimeout(() => ico.classList.remove('is-done'), 1600); }
+    } catch { input.select(); toast('Selecciona y copia el enlace manualmente'); }
   },
   async 'rel-delete'(el) {
     if (!(await askConfirm('¿Borrar esta release?', `${el.dataset.file} se elimina del gestor. Si hay un enlace público activo, se cierra antes.`, { confirmLabel: 'Borrar release', danger: true }))) return;
@@ -1981,7 +1997,7 @@ function renderPluginTab(id, s) {
 async function loadPlugins() {
   state.plugins = { tabs: [], scripts: [] };
   try { state.plugins = await api('/api/plugins'); } catch { return; }
-  window.Modnex = { api, esc, $, toast, askConfirm, isAdmin, current, state };
+  window.Modnex = { api, esc, $, toast, askConfirm, isAdmin, current, state, emptyState, motionIcon };
   await Promise.all((state.plugins.scripts || []).map((src) => new Promise((ok) => {
     const el = document.createElement('script');
     el.src = src; el.onload = ok; el.onerror = ok;

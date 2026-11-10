@@ -107,7 +107,7 @@
           <label>Etiqueta (opcional)<input name="label" maxlength="80" placeholder="Antes de actualizar mods"></label>
           <button class="btn primary" type="submit" ${busy ? 'disabled' : ''}>${busy ? 'Copiando…' : 'Crear copia'}</button>
         </form>
-        ${d.graph.nodes.length ? treeHTML(d.graph, d) : '<p class="muted">Todavía no hay copias.</p>'}
+        ${d.graph.nodes.length ? treeHTML(d.graph, d) : M().emptyState('box', 'Todavía no hay copias.', 'Crea la primera con el botón de arriba.')}
         <div class="ft-diff" id="ftDiff"></div>
         ${retentionHTML(d.retention)}
         <div class="ft-section">
@@ -269,7 +269,7 @@
         ${d.players.length ? `<table class="ft-table"><thead><tr><th>Jugador</th><th>Tiempo jugado</th><th>Sesiones</th><th>Sesión más larga</th><th>Visto</th></tr></thead><tbody>${rows}</tbody></table>
           <div class="ft-section"><div class="ft-head"><h2>Actividad por hora del día</h2></div>${bars(d.hours, d.hours.map((_, i) => `${String(i).padStart(2, '0')}:00`), 'Tiempo jugado por hora del día')}</div>
           ${d.days.length > 1 ? `<div class="ft-section"><div class="ft-head"><h2>Últimos días</h2></div>${bars(d.days.map((x) => x.seconds), d.days.map((x) => x.date), 'Tiempo jugado por día')}</div>` : ''}`
-          : '<p class="muted">Todavía no hay entradas de jugadores en los logs.</p>'}`;
+          : M().emptyState('list', 'Todavía no hay entradas de jugadores en los logs.')}`;
     }
     el.onclick = (e) => { if (e.target.closest('[data-act=reload]')) load(); };
     load();
