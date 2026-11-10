@@ -121,7 +121,11 @@
       '<svg viewBox="0 0 8 8" width="96" height="96" shape-rendering="crispEdges" aria-hidden="true">' +
       rects + eyes + pupils + '</svg>';
     var pupilsEl = document.getElementById('mascot-pupils');
-    var target = { x: 0, y: 0 }, now = { x: 0, y: 0 }, raf = null;
+    // Cada eje es un resorte propio con amortiguación 1.0 (sin rebote) y respuesta 0.25 s. Se resuelve con la solución
+    // exacta del resorte crítico, x(t) = obj + (A + B·t)·e^(−ω·t): es estable con cualquier dt, arrastra la velocidad y no
+    // depende de los fotogramas por segundo (antes cada fotograma recorría un 25 % y en 120 Hz iba el doble de rápido).
+    var W = (2 * Math.PI) / 0.25;
+    var target = { x: 0, y: 0 }, now = { x: 0, y: 0 }, vel = { x: 0, y: 0 }, raf = null, last = 0;
     function aim(e) {
       var r = mascot.getBoundingClientRect();
       var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
@@ -130,13 +134,20 @@
       // máximo desplazamiento: media casilla de píxel dentro del ojo
       target.x = Math.max(-0.5, Math.min(0.5, (dx / len) * 0.5 * Math.min(1, len / 240)));
       target.y = Math.max(-0.5, Math.min(0.5, (dy / len) * 0.5 * Math.min(1, len / 240)));
-      if (!raf) raf = requestAnimationFrame(step);
+      if (!raf) { last = 0; raf = requestAnimationFrame(step); }
     }
-    function step() {
-      now.x += (target.x - now.x) * 0.25;
-      now.y += (target.y - now.y) * 0.25;
+    function spring(axis, dt) {
+      var A = now[axis] - target[axis], B = vel[axis] + W * A, e = Math.exp(-W * dt);
+      now[axis] = target[axis] + (A + B * dt) * e;
+      vel[axis] = (B - W * (A + B * dt)) * e;
+    }
+    function step(t) {
+      var dt = last ? Math.min((t - last) / 1000, 0.1) : 1 / 60;
+      last = t;
+      spring('x', dt); spring('y', dt);
       pupilsEl.setAttribute('transform', 'translate(' + now.x.toFixed(3) + ' ' + now.y.toFixed(3) + ')');
-      raf = (Math.abs(target.x - now.x) > 0.01 || Math.abs(target.y - now.y) > 0.01) ? requestAnimationFrame(step) : null;
+      var moving = Math.abs(target.x - now.x) > 0.002 || Math.abs(target.y - now.y) > 0.002 || Math.abs(vel.x) > 0.01 || Math.abs(vel.y) > 0.01;
+      raf = moving ? requestAnimationFrame(step) : null;
     }
     window.addEventListener('pointermove', aim, { passive: true });
     // La mascota vive en el hero: aparece solo mientras el hero está en pantalla, para no tapar el resto.

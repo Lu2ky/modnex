@@ -701,6 +701,45 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface2);
 .pager-info { text-align: center; margin: 0 0 8px; }
 .chip.inst { margin-left: 4px; }
 
+/* ---- Respuesta, resortes y materiales (Apple Design) ----
+   Resorte con amortiguación 1.0 (sin rebote): nada de lo que hay aquí se lanza con un gesto, así que no hay
+   motivo para rebotar. Respuesta 0.22 s -> 300 ms; respuesta 0.30 s -> 410 ms. Sin linear() cae a la curva fuerte. */
+:root { --spring: var(--ease); --t-fast: 300ms; --t-move: 410ms; }
+@supports (transition-timing-function: linear(0, 1)) { :root { --spring: linear(0, 0.058, 0.181, 0.322, 0.456, 0.574, 0.672, 0.751, 0.813, 0.861, 0.897, 0.925, 0.945, 0.96, 0.971, 0.979, 0.985, 0.989, 0.992, 0.995, 0.996, 0.997, 1); } }
+html { -webkit-tap-highlight-color: transparent; }
+a, button, summary, label, select, input, [role="button"] { touch-action: manipulation; }   /* sin la espera del doble toque */
+
+/* Respuesta: al pulsar, el cambio es inmediato; al soltar, vuelve con el resorte. */
+.btn, .filter, .seg-btn, .pname, .page { transition-property: color, background-color, border-color, transform; transition-duration: 120ms, 120ms, 120ms, var(--t-fast); transition-timing-function: var(--ease), var(--ease), var(--ease), var(--spring); }
+.btn:active, .filter:active, .seg-btn:active, .pname:active, .page:active:not(:disabled), .tab:active, .group:active { transition-duration: 60ms; transition-timing-function: ease-out; }
+.tab:active, .group:active { transform: scale(0.97); }
+.tab, .group { transition-property: color, transform; transition-duration: 160ms, var(--t-fast); transition-timing-function: var(--ease), var(--spring); }
+.srv-item, .nav-item, .tpl-card, .mp-hit, .quick-item, .result, .row-item, .icon-opt { -webkit-user-select: none; user-select: none; }
+.srv-item:active, .nav-item:active, .tpl-card:active, .mp-hit:active, .quick-item:active, .result:active, .row-item:active {
+  background-color: color-mix(in srgb, var(--text) 9%, var(--surface)); transition-duration: 0s;
+}
+.ink { transition: transform var(--t-move) var(--spring), width var(--t-move) var(--spring); }
+.ink.no-anim { transition: none; }
+
+/* Materiales: lo que flota sobre el contenido es translúcido; lo que lo cubre, atenúa y desenfoca el fondo. */
+dialog::backdrop { background: rgba(5, 9, 14, .5); backdrop-filter: blur(6px) saturate(120%); }
+.toast, .savebar { background: color-mix(in srgb, var(--surface) 82%, transparent); backdrop-filter: blur(14px) saturate(160%); }
+.savebar { border-top-color: color-mix(in srgb, var(--text) 14%, transparent); }
+
+/* Tipografía: el seguimiento depende del tamaño. Los títulos grandes se aprietan; el texto pequeño se abre un poco. */
+h1 { letter-spacing: -0.012em; }
+.mp-head h1 { letter-spacing: -0.02em; }
+.small, .chip { letter-spacing: 0.01em; }
+
+@media (prefers-reduced-transparency: reduce) {
+  dialog::backdrop { backdrop-filter: none; background: rgba(5, 9, 14, .72); }
+  .toast, .savebar { backdrop-filter: none; background: var(--surface); }
+}
+@media (prefers-contrast: more) {
+  .toast, .savebar { backdrop-filter: none; background: var(--surface); border-color: var(--text); }
+  .savebar { border-top-color: var(--text); }
+}
+
 /* Al final del archivo para ganar a las reglas que anula */
 @media (prefers-reduced-motion: reduce) {
   /* se conservan los fundidos que ayudan a entender; se quitan desplazamientos, escalas y pulsos */
@@ -713,6 +752,7 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface2);
   .bar.on::after { width: 100%; opacity: .5; }
   .btn:active, .filter:active, .seg-btn:active, .pname:active, .page:active { transform: none; }
   .ink { transition: none; }
+  .tab:active, .group:active { transform: none; }
 }
 
 /* tarjeta de resultado entera clicable: el título es un enlace real (teclado, clic central) que se estira por toda la tarjeta */
