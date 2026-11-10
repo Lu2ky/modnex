@@ -42,7 +42,8 @@ estándar de Python y SQLite.
 **Necesitas**
 
 - Python 3 reciente (probado con 3.14): `python3 --version`.
-- Java para los servidores: 21 para Minecraft 1.20.5 o posterior, 17 de 1.18 a 1.20.4. Compruébalo con `java -version`.
+- Java para los servidores: 21 para Minecraft 1.20.5 o posterior, 17 de 1.18 a 1.20.4. Compruébalo con `java -version`. Si hay un Java en
+  `.runtime/java21` dentro de la carpeta de los servidores, el gestor usa ese.
 - Git, solo para descargar el proyecto (también sirve el `.zip` de GitHub).
 
 **1. Descargar**
@@ -52,12 +53,12 @@ git clone https://github.com/Lu2ky/modnex.git
 cd modnex
 ```
 
-**2. Elegir dónde viven los servidores.** Cada subcarpeta de `SERVERS_DIR` con `start.sh`, `run.sh` o `mods/` es un
-servidor. El valor por defecto es una ruta fija del autor (`/home/luky/servers`), así que en tu equipo indica la tuya:
+**2. Elegir dónde viven los servidores (opcional).** Cada subcarpeta con `start.sh`, `run.sh` o `mods/` es un servidor.
+Por defecto es `servers/` junto al proyecto, que se crea sola. Para usar otra carpeta, por ejemplo una donde ya tienes
+servidores:
 
 ```bash
-mkdir -p ~/minecraft-servers
-export SERVERS_DIR=~/minecraft-servers     # añádelo a ~/.bashrc o ~/.zshrc para no repetirlo
+export SERVERS_DIR=~/minecraft-servers     # o "servers_dir" en config.json; añádelo a ~/.bashrc para no repetirlo
 ```
 
 **3. Arrancar**
@@ -104,7 +105,7 @@ Variables de entorno (tienen prioridad sobre `config.json`):
 
 | Variable | Valor por defecto |
 |---|---|
-| `SERVERS_DIR` | `/home/luky/servers`: carpeta donde viven los servidores. |
+| `SERVERS_DIR` | Carpeta de los servidores. Por defecto, `servers/` junto al proyecto (se crea sola); también se puede fijar con `servers_dir` en `config.json`. |
 | `MANAGER_PORT` | `8765` |
 | `MANAGER_BIND` | `0.0.0.0` |
 | `MANAGER_DB` | `manager.db` junto a `app.py` |

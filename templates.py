@@ -18,7 +18,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 UA = "modnex-server-manager/1.0 (local)"
-RUNTIME_JAVA = Path("/home/luky/servers/.runtime/java21/bin/java")
+RUNTIME_JAVA = None   # lo fija app.py: <carpeta de servidores>/.runtime/java21/bin/java, si existe
 MAX_DOWNLOAD = 1024 * 1024 * 1024
 MC_RE = re.compile(r"\d+\.\d+(\.\d+)?")
 
@@ -248,7 +248,7 @@ def _mc_key(v):
 # ---------- instalación ----------
 
 def _java():
-    return str(RUNTIME_JAVA) if RUNTIME_JAVA.exists() else "java"
+    return str(RUNTIME_JAVA) if RUNTIME_JAVA and RUNTIME_JAVA.exists() else "java"
 
 
 def _run_installer(dest, jar_url, version_label, expect):
