@@ -342,8 +342,19 @@ table.compare td:last-child { color: var(--text); }
 
 /* tarjeta de licencias: marco de bloques al estilo de las ventanas del juego (dibujado aquí, sin texturas de Minecraft) */
 .pro-card { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: center; background: var(--surface); padding: 32px; margin: 0 4px; border-radius: 4px; box-shadow: 0 -4px 0 0 var(--border), 0 4px 0 0 var(--border), -4px 0 0 0 var(--border), 4px 0 0 0 var(--border), 0 -8px 0 0 var(--bg), 0 8px 0 0 var(--bg), -8px 0 0 0 var(--bg), 8px 0 0 0 var(--bg); }
-.pro-icon { display: grid; place-items: center; width: 96px; height: 96px; background: var(--elevated); box-shadow: inset -4px -4px 0 0 var(--border), inset 4px 4px 0 0 rgb(255 255 255 / 0.05); }
-.pro-icon .px { width: 64px; height: 64px; image-rendering: pixelated; }
 .pro-body h2 { margin-bottom: 10px; }
 .pro-body .lead { margin: 0 0 22px; }
-@media (max-width: 640px) { .pro-card { grid-template-columns: 1fr; padding: 24px; } .pro-icon { width: 72px; height: 72px; } }
+@media (max-width: 640px) { .pro-card { grid-template-columns: 1fr; padding: 24px; } .pro-scene { width: 160px; height: 120px; } }
+/* escena lo-fi: Steve escribiendo con una taza de café (dibujo propio) */
+.pro-scene { position: relative; width: 220px; height: 165px; background: linear-gradient(180deg, #2b2446 0%, #1b2a33 100%); padding: 10px; border-radius: 4px; box-shadow: inset 0 0 0 2px #0b0d12; overflow: hidden; }
+.pro-scene::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgb(0 0 0 / 0.18) 0 1px, transparent 1px 3px); }
+.steve-scene { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.s-arm { animation: type 520ms steps(2, end) infinite; }
+@keyframes type { 0% { transform: translateY(0); } 50% { transform: translateY(1px); } 100% { transform: translateY(0); } }
+.s-eyes { transform-box: fill-box; transform-origin: 50% 50%; animation: blink 4.6s steps(1, end) infinite; }
+@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 94% { transform: scaleY(0.15); } }
+.s-steam rect { animation: steam 2.4s steps(4, end) infinite; }
+.s-steam rect:nth-child(2) { animation-delay: 0.8s; }
+.s-steam rect:nth-child(3) { animation-delay: 1.6s; }
+@keyframes steam { 0% { transform: translateY(0); opacity: 0; } 25% { opacity: 0.9; } 100% { transform: translateY(-6px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .s-arm, .s-eyes, .s-steam rect { animation: none; } }
