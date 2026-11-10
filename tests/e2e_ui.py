@@ -73,6 +73,7 @@ async def main():
             await pg.evaluate("location.hash='#/s/fake/mods'"); await pg.wait_for_selector(".seg-btn[data-pane=upload]", timeout=10000)
             check("la sección de mods ofrece «Subir el mío» a un administrador", "Subir el mío" in await pg.inner_text(".seg"))
             await pg.click(".seg-btn[data-pane=upload]"); await pg.wait_for_selector("#modDrop")
+            check("la zona de subida lleva la flecha animada", await pg.locator("#modDrop .mi-upload .arrow").count() == 1)
             check("el campo de subida solo admite .jar", await pg.get_attribute("#modDrop input", "accept") == ".jar")
             await pg.set_input_files("#modDrop input", files=[{"name": "ui-mod.jar", "mimeType": "application/java-archive", "buffer": buf.getvalue()}])
             await pg.wait_for_selector(".toast:has-text('Subido: ui-mod.jar')", timeout=10000)
@@ -80,6 +81,24 @@ async def main():
             await pg.wait_for_selector("#modsBody:has-text('ui-mod.jar')", timeout=40000)   # la lista identifica los mods por huella: tarda unos segundos
             check("tras subirlo se vuelve a «Instalados» y el mod aparece", await pg.locator("#modsBody:has-text('ui-mod.jar')").count() == 1)
             await pg.evaluate("() => fetch('/api/servers/fake/mod_delete', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({file: 'ui-mod.jar'})})")
+            # Iconos SVG animados: avisos, confirmaciones, zonas de subida y estados vacíos
+            await pg.evaluate("() => window.Modnex.toast('Todo bien', 'ok')"); await pg.wait_for_selector(".toast.ok .mi-check")
+            await pg.wait_for_timeout(900)
+            off = await pg.evaluate("() => [...document.querySelectorAll('.toast.ok .mi .d')].map((p) => getComputedStyle(p).strokeDashoffset)")
+            check("el aviso de éxito dibuja su tick hasta el final", len(off) >= 2 and all(float(o.replace('px', '')) == 0 for o in off), off)
+            await pg.evaluate("() => window.Modnex.toast('Algo falló', 'error')"); await pg.wait_for_selector(".toast.error .mi-error")
+            check("el aviso de error lleva su icono", await pg.locator(".toast.error .mi-error").count() == 1)
+            check("el texto del aviso sigue siendo texto (sin HTML)", await pg.evaluate("() => { window.Modnex.toast('<b>x</b>', 'info'); return [...document.querySelectorAll('.toast span:last-child')].some((e) => e.textContent === '<b>x</b>' && !e.querySelector('b')); }"))
+            await pg.emulate_media(reduced_motion="reduce"); await pg.evaluate("() => window.Modnex.toast('Sin movimiento', 'ok')"); await pg.wait_for_timeout(200)
+            rm = await pg.evaluate("() => { const p = [...document.querySelectorAll('.toast.ok')].pop().querySelector('.d'); const c = getComputedStyle(p); return [c.animationName, c.strokeDashoffset]; }")
+            check("con movimiento reducido el icono sale ya dibujado y sin animación de trazo", rm[0] == "none" and float(rm[1].replace('px', '')) == 0, rm)
+            await pg.emulate_media(reduced_motion="no-preference")
+            await pg.evaluate("location.hash='#/s/fake/datapacks'"); await pg.wait_for_selector(".empty-state .mi-empty", timeout=10000)
+            check("un estado vacío lleva ilustración y su mensaje", "datapacks" in await pg.inner_text(".empty-state") and await pg.locator(".empty-state .mi-empty .d").count() >= 2)
+            if os.environ.get("MODNEX_SHOT_EMPTY"):
+                await pg.evaluate("() => { window.Modnex.toast('Enlace copiado', 'ok'); window.Modnex.toast('No se pudo conectar con Modrinth', 'error'); }"); await pg.wait_for_timeout(900)
+                await pg.screenshot(path=os.environ["MODNEX_SHOT_EMPTY"], clip={"x": 0, "y": 0, "width": 1280, "height": 900})
+            await pg.evaluate("location.hash='#/s/fake/logs'"); await pg.wait_for_timeout(300)
             # Asistente de creación: extras opcionales según el tipo de servidor
             await pg.click("button[data-action=new-server]"); await pg.wait_for_selector("#wizardForm")
             vis = lambda: pg.eval_on_selector_all("#wizExtras [data-extra]:not([hidden])", "e=>e.map(x=>x.dataset.extra)")
@@ -114,6 +133,7 @@ async def main():
             await pg.wait_for_selector("text=03:15"); check("tarea programada visible", True)
             # borrar con confirmación
             await pg.click("button[data-act=delete]"); await pg.wait_for_selector(".confirm-dlg")
+            check("la confirmación de borrar lleva la papelera animada", await pg.locator(".confirm-dlg .mi-trash").count() == 1)
             await pg.click(".confirm-dlg button[value=ok]"); await pg.wait_for_selector(".vt-row.is-gone", timeout=10000)
             check("borrar una copia la deja en el árbol como borrada, con su historial", await pg.locator(".vt-row").count() == 1 and "Borrada" in await pg.inner_text(".vt-row.is-gone"))
             check("una copia borrada no se puede restaurar ni borrar, pero sí ver sus cambios o quitarla del historial",

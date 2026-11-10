@@ -14,7 +14,9 @@ dónde va cada cosa.
   ```
   Si añades lógica, añade su prueba. Las pruebas de extremo a extremo usan puertos 8821–8824 y no tocan tu `config.json`.
 - **Panel.** No admite estilos ni scripts en línea (política de seguridad de contenido): usa clases CSS y archivos.
-  Respeta `prefers-reduced-motion` y `prefers-reduced-transparency`.
+  Respeta `prefers-reduced-motion` y `prefers-reduced-transparency`. Los iconos animados (avisos, confirmaciones,
+  subidas, estados vacíos) salen de `static/motion.js` y sus animaciones viven en `static/style.css`; úsalos en vez de
+  dibujar otros.
 - **Capas.** Los servicios no importan de `web/`; lo que necesiten del exterior lo piden a `infra/` o lo reciben por
   parámetro. Una ruta nueva declara su permiso con `@route` o `@server_action`.
 - **Secretos.** No incluyas `config.json`, claves de API ni tokens.

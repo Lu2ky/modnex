@@ -740,6 +740,65 @@ h1 { letter-spacing: -0.012em; }
   .savebar { border-top-color: var(--text); }
 }
 
+/* ---- Iconos SVG animados (static/motion.js) ----
+   Un trazo con pathLength="1" se dibuja animando stroke-dashoffset de 1 a 0. El patrón es «1 2» y no «1 1» para que,
+   con el trazo del todo «borrado», no quede un punto de la tapa redondeada. Todo es de una sola vez al aparecer. */
+.mi { flex: none; overflow: visible; }
+.mi .d { stroke-dasharray: 1 2; stroke-dashoffset: 1; animation: mi-draw 380ms var(--ease-out) both; }
+.mi .d1 { animation-delay: 0ms; } .mi .d2 { animation-delay: 90ms; } .mi .d3 { animation-delay: 170ms; }
+.mi .d4 { animation-delay: 250ms; } .mi .d5 { animation-delay: 330ms; }
+@keyframes mi-draw { to { stroke-dashoffset: 0; } }
+@keyframes mi-pop { from { transform: scale(0.82); opacity: 0; } }
+@keyframes mi-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-2px); } 45% { transform: translateX(2px); } 70% { transform: translateX(-1.2px); } }
+@keyframes mi-lid { 0% { transform: rotate(0); } 35% { transform: translateY(-1.5px) rotate(-16deg); } 100% { transform: rotate(0); } }
+@keyframes mi-wobble { 0% { transform: rotate(-10deg); } 100% { transform: rotate(0); } }
+
+.mi-check, .mi-error, .mi-info { animation: mi-pop var(--t-fast) var(--spring) both; }
+.mi-error .d3, .mi-error .d4 { animation-duration: 260ms; }
+.mi-error { animation: mi-pop var(--t-fast) var(--spring) both, mi-shake 320ms var(--ease-out) 420ms both; }
+.mi-trash .lid { transform-box: fill-box; transform-origin: 8% 100%; animation: mi-lid 520ms var(--ease-out) 260ms both; }
+.mi-search .lens { transform-box: fill-box; transform-origin: 50% 50%; animation: mi-wobble 520ms var(--spring) 120ms both; }
+
+/* subir: la flecha sube al arrastrar un archivo encima o al enfocar la zona */
+.mi-upload .arrow { transition: transform var(--t-fast) var(--spring); }
+.drop.over .mi-upload .arrow { transform: translateY(-3px); }
+@media (hover: hover) and (pointer: fine) { .drop:hover .mi-upload .arrow { transform: translateY(-2px); } }
+.drop:focus-visible .mi-upload .arrow { transform: translateY(-2px); }
+.drop-ico { display: grid; place-items: center; color: var(--muted); transition: color 160ms var(--ease); }
+.drop:hover .drop-ico, .drop.over .drop-ico { color: var(--accent); }
+.drop-ico.done { color: var(--ok); }
+
+/* copiar: las hojas se encogen y en su lugar se dibuja un tick (transición, no animación: se puede interrumpir) */
+.mi-copy .sheets { transform-box: fill-box; transform-origin: 50% 50%; transition: opacity 140ms var(--ease), transform var(--t-fast) var(--spring); }
+.mi-copy .tick { stroke-dasharray: 1 2; stroke-dashoffset: 1; transition: stroke-dashoffset 300ms var(--ease-out) 80ms; }
+.mi-copy.is-done .sheets { opacity: 0; transform: scale(0.8); }
+.mi-copy.is-done .tick { stroke-dashoffset: 0; }
+.btn .mi-copy { margin-right: 6px; vertical-align: -4px; }
+
+/* avisos: el icono entra con el color de su tipo */
+.toast { display: flex; align-items: center; gap: 10px; }
+.toast .toast-ico { display: grid; place-items: center; color: var(--accent); }
+.toast.ok .toast-ico { color: var(--ok); } .toast.error .toast-ico { color: var(--bad); } .toast.info .toast-ico { color: var(--info); }
+.confirm-dlg > header { display: flex; align-items: center; gap: 10px; }
+.confirm-dlg .mi-trash { color: var(--bad); }
+
+/* estados vacíos */
+.empty-state { display: grid; justify-items: center; gap: 6px; padding: 30px 12px; text-align: center; color: var(--muted); }
+.empty-state .mi-empty { color: var(--muted); margin-bottom: 6px; }
+.empty-state .mi-empty .acc { color: var(--accent); }
+.empty-state .mi-empty .acc .d { stroke-width: 2; }
+.empty-state p { margin: 0; max-width: 46ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* el dibujo ya está terminado y solo entra con un fundido; nada se mueve */
+  .mi .d { animation: none; stroke-dashoffset: 0; }
+  .mi-check, .mi-error, .mi-info { animation: mi-fade 160ms ease both; }
+  .mi-trash .lid, .mi-search .lens { animation: none; }
+  .mi-upload .arrow, .drop:hover .mi-upload .arrow, .drop.over .mi-upload .arrow, .drop:focus-visible .mi-upload .arrow { transition: none; transform: none; }
+  .mi-copy .sheets, .mi-copy .tick { transition: none; }
+}
+@keyframes mi-fade { from { opacity: 0; } }
+
 /* Al final del archivo para ganar a las reglas que anula */
 @media (prefers-reduced-motion: reduce) {
   /* se conservan los fundidos que ayudan a entender; se quitan desplazamientos, escalas y pulsos */
