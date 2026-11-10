@@ -1,4 +1,4 @@
-"""Prueba de la interfaz Pro en un navegador real (Playwright), sobre una instancia aislada (puerto 8823)."""
+"""Prueba de la interfaz en un navegador real (Playwright), sobre una instancia aislada (puerto 8823)."""
 import asyncio, json, os, shutil, subprocess, sys, tempfile, time, urllib.request
 from pathlib import Path
 from playwright.async_api import async_playwright
@@ -49,9 +49,10 @@ async def main():
             groups = await pg.eval_on_selector_all("a.group", "els=>els.map(e=>e.textContent.trim())")
             check("secciones del servidor agrupadas", groups[:2] == ["Operar", "Contenido"] and "Proteger" in groups, groups)
             await go_tab(pg, "copias"); tabs = await pg.eval_on_selector_all("a.tab", "els=>els.map(e=>e.textContent.trim())")
-            check("pestañas Pro visibles", all(t in tabs for t in ("Copias", "Diagnóstico", "Avisos")), tabs)
+            check("las pestañas de copias, diagnóstico y avisos están", all(t in tabs for t in ("Copias", "Diagnóstico", "Avisos")), tabs)
             check("el riel de estado se muestra", await pg.locator("#rail .rail-block").count() >= 4)
-            check("el bloque de copias de Pro está en el riel", await pg.locator("#rail .rail-block:has-text('Copias')").count() == 1)
+            await pg.wait_for_selector("#rail .rail-block:has-text('Copias')", timeout=10000)   # el bloque se pinta tras pedir sus datos
+            check("el bloque de copias está en el riel", await pg.locator("#rail .rail-block:has-text('Copias')").count() == 1)
             # Respuesta, resortes y materiales del panel
             st = await pg.evaluate("""() => { const root = getComputedStyle(document.documentElement);
               const b = document.querySelector('.btn'); const t = getComputedStyle(b);
@@ -166,7 +167,7 @@ async def main():
             # regresión: tras visitar Seguridad, los botones y formularios de otras vistas no deben repintarla
             await go_tab(pg, "copias"); await pg.wait_for_selector("form[data-form=retention]")
             await pg.click("button[data-act=ret-preview]"); await pg.wait_for_selector("#ftRet .ft-card"); await pg.wait_for_timeout(300)
-            check("un botón de Pro tras visitar Seguridad no vuelve a pintar Seguridad", "Copias de seguridad" in await pg.inner_text("#main .ft-head") and "Seguridad de la cuenta" not in await pg.inner_text("#main"))
+            check("un botón de las funciones tras visitar Seguridad no vuelve a pintar Seguridad", "Copias de seguridad" in await pg.inner_text("#main .ft-head") and "Seguridad de la cuenta" not in await pg.inner_text("#main"))
             await pg.evaluate("location.hash = '#/s/fake/mods'"); await pg.wait_for_selector(".seg-btn")
             await pg.click(".seg-btn:has-text('Añadir')"); await pg.wait_for_selector("form[data-finder=mod]")
             await pg.click("form[data-finder=mod] button[type=submit]"); await pg.wait_for_timeout(500)

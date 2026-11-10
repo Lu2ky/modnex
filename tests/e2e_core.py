@@ -218,14 +218,14 @@ def main():
         check("métricas: sin permisos -> 403", carl.req("GET", "/api/servers/fake/metrics")[0] == 403)
         check("métricas: usuario con algún permiso -> 200", b.req("GET", "/api/servers/fake/metrics")[0] == 200)
         check("métricas: servidor inexistente -> 404 o 400", c.req("GET", "/api/servers/noexiste/metrics")[0] in (400, 404))
-        s, d = c.req("GET", "/api/plugins"); check("plugins: Pro declara grupos y bloque de riel", any(x.get("group") == "proteger" for x in d["tabs"]) and any(r["id"] == "copias" for r in d.get("rails", [])), d)
+        s, d = c.req("GET", "/api/plugins"); check("plugins: declaran grupos y bloque de riel", any(x.get("group") == "proteger" for x in d["tabs"]) and any(r["id"] == "copias" for r in d.get("rails", [])), d)
         s, d = b.req("GET", "/api/servers/fake/proposal_search?q=sodium")
         check("búsqueda de propuestas: resultados reales (o 502 si no hay red)", (s == 200 and len(d["results"]) > 0 and all(r["project_id"] and r["title"] for r in d["results"])) or s == 502, (s, str(d)[:200]))
         if s == 200: print("     ->", [r["title"] for r in d["results"][:4]])
         check("no admin: backups -> 403", b.req("GET", "/api/servers/fake/backups")[0] == 403)
         check("no admin: crear copia -> 403", b.req("POST", "/api/servers/fake/backup_create", {})[0] == 403)
         check("sin sesión: backups -> 401/403", Client(8822).req("GET", "/api/servers/fake/backups")[0] in (401, 403))
-        check("assets de Pro se sirven", urllib.request.urlopen("http://127.0.0.1:8822/plugin/panel.js").status == 200)
+        check("los recursos de las funciones se sirven", urllib.request.urlopen("http://127.0.0.1:8822/plugin/panel.js").status == 200)
         check("servidor inexistente -> 400", c.req("GET", "/api/servers/nada/backups")[0] == 400)
     finally:
         for p in procs:
