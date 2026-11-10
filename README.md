@@ -34,20 +34,59 @@ La edición **Pro** añade copias de seguridad, tareas programadas, actualizaci�
 servidor de pruebas, pruebas de AutoModpack en una copia aislada, el perfilador spark como extra, 2FA y acceso remoto. Vive en otro repositorio
 (`modnex-pro`) y se carga como plugin; sin él, todo lo anterior funciona igual.
 
-## Arrancar
+## Instalación
 
-Requisitos: Python 3 reciente (probado con 3.14) y Java para los servidores. Si existe un Java en `.runtime/java21` dentro de `SERVERS_DIR`, el gestor usa ese; si no, el `java` del sistema.
+Modnex corre en tu propio equipo y se usa desde el navegador. No instala dependencias: usa solo la biblioteca
+estándar de Python y SQLite.
+
+**Necesitas**
+
+- Python 3 reciente (probado con 3.14): `python3 --version`.
+- Java para los servidores: 21 para Minecraft 1.20.5 o posterior, 17 de 1.18 a 1.20.4. Compruébalo con `java -version`.
+- Git, solo para descargar el proyecto (también sirve el `.zip` de GitHub).
+
+**1. Descargar**
 
 ```bash
-cp config.example.json config.json     # opcional; se crea sola al primer arranque
-./run.sh                               # http://127.0.0.1:8765
+git clone https://github.com/Lu2ky/modnex.git
+cd modnex
 ```
 
-En el primer arranque se crea `config.json` con un `access_token` aleatorio y un administrador
-`admin` cuya contraseña inicial es ese token. Entra con él y cámbiala desde "Usuarios y permisos".
+**2. Elegir dónde viven los servidores.** Cada subcarpeta de `SERVERS_DIR` con `start.sh`, `run.sh` o `mods/` es un
+servidor. El valor por defecto es una ruta fija del autor (`/home/luky/servers`), así que en tu equipo indica la tuya:
+
+```bash
+mkdir -p ~/minecraft-servers
+export SERVERS_DIR=~/minecraft-servers     # añádelo a ~/.bashrc o ~/.zshrc para no repetirlo
+```
+
+**3. Arrancar**
+
+```bash
+./run.sh                                   # panel en http://127.0.0.1:8765/app
+```
+
+En el primer arranque se crea `config.json` con un `access_token` aleatorio y un administrador `admin` cuya contraseña
+inicial es ese token (`grep access_token config.json`). Entra con él y cámbiala desde «Usuarios y permisos».
 
 > El gestor escucha por defecto en todas las interfaces (`0.0.0.0`), así que cualquiera en tu red
 > local puede ver la pantalla de acceso. Para dejarlo solo en tu equipo: `MANAGER_BIND=127.0.0.1 ./run.sh`.
+
+**4. Crear tu primer servidor.** En la barra lateral pulsa **+ Nuevo servidor**, elige una plantilla o un modpack,
+indica nombre, versión, memoria y puerto, y marca que aceptas el EULA de Minecraft. Cuando termine, ábrelo y pulsa
+**Arrancar**. Los jugadores se conectan a la IP de tu equipo y al puerto elegido; si juegan desde fuera de tu red,
+abre ese puerto en tu router.
+
+**Dejarlo en marcha:** `setsid nohup ./run.sh > manager.log 2>&1 &`. **Actualizar:** `git pull` y reinicia el gestor
+(los cambios de `app.py` no se aplican hasta reiniciar; tus servidores y datos no se tocan).
+
+**Si algo falla:** el servidor no arranca → pestaña **Logs** (lo más común es una versión de Java que no corresponde);
+no ves tus servidores → `SERVERS_DIR` apunta a otra carpeta (el arranque imprime cuál usa); el puerto 8765 está
+ocupado → `MANAGER_PORT=8800 ./run.sh`.
+
+La guía completa, con la configuración opcional y cómo recuperar el acceso de administrador, está en
+[docs/instalacion.md](docs/instalacion.md). La edición Pro se instala aparte, sobre esta; su manual vive en el
+repositorio `modnex-pro`.
 
 ## Configuración
 
