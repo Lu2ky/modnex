@@ -1,6 +1,6 @@
 """Prueba de extremo a extremo del gestor real, sobre instancias aisladas (puertos 8821/8822).
 Uso: python3 tests/e2e_core.py"""
-import json, os, shutil, subprocess, sys, tempfile, time, urllib.error, urllib.request
+import io, json, os, shutil, zipfile, subprocess, sys, tempfile, time, urllib.error, urllib.request
 from pathlib import Path
 
 CORE = Path(__file__).resolve().parent.parent
@@ -22,6 +22,15 @@ class Client:
     def req(self, method, path, body=None):
         data = json.dumps(body).encode() if body is not None else (b"{}" if method == "POST" else None)
         r = urllib.request.Request(self.base + path, data=data, method=method, headers={"Content-Type": "application/json"})
+        try:
+            with self.op.open(r, timeout=60) as resp: return resp.status, json.loads(resp.read() or b"{}")
+        except urllib.error.HTTPError as e:
+            try: return e.code, json.loads(e.read())
+            except Exception: return e.code, {}
+
+    def upload(self, path, fname, data):
+        """Subida en bruto (el cuerpo no es JSON): el nombre va en X-Filename."""
+        r = urllib.request.Request(self.base + path, data=data, method="POST", headers={"X-Filename": fname, "Content-Type": "application/octet-stream"})
         try:
             with self.op.open(r, timeout=60) as resp: return resp.status, json.loads(resp.read() or b"{}")
         except urllib.error.HTTPError as e:
@@ -137,6 +146,30 @@ def main():
         check("estadísticas: 1 h 30 de Ana", s == 200 and d["players"][0]["name"] == "Ana" and d["players"][0]["seconds"] == 5400, d)
         s, u = c.req("POST", "/api/users", {"username": "bob", "password": "bobpass123"})
         b = Client(8822); b.login("bob", "bobpass123")
+        def jar(*names):
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w") as z:
+                for n in names: z.writestr(n, "x")
+            return buf.getvalue()
+        up = "/api/servers/fake/mod_upload"
+        c.req("POST", f"/api/users/{u['id']}/permissions", {"server": "fake", "mods": True})
+        st, d = b.upload(up, "propio.jar", jar("META-INF/neoforge.mods.toml"))
+        check("subir un mod propio es solo para administradores, aunque tengas el permiso de mods", st == 403, (st, d))
+        st, d = c.upload(up, "propio.jar", jar("META-INF/neoforge.mods.toml"))
+        check("el administrador sube un mod propio", st == 200 and d.get("uploaded") == "propio.jar" and (tmp / "srv" / "fake" / "mods" / "propio.jar").is_file(), (st, d))
+        st, d = c.upload(up, "propio.jar", jar("META-INF/neoforge.mods.toml"))
+        check("no pisa un mod con el mismo nombre", st == 400 and "ya hay" in d.get("error", ""), (st, d))
+        st, d = c.upload(up, "fabric.jar", jar("fabric.mod.json"))
+        check("un mod de otro cargador se rechaza diciendo cuál es", st == 400 and "Fabric" in d.get("error", ""), (st, d))
+        st, d = c.upload(up, "raro.jar", b"no soy un zip")
+        check("un archivo que no es un jar se rechaza", st == 400, (st, d))
+        st, d = c.upload(up, "../fuera.jar", jar("META-INF/neoforge.mods.toml"))
+        check("un nombre con ruta no escapa de la carpeta de mods", (st == 200 and d.get("uploaded") == "fuera.jar") or st == 400, (st, d))
+        check("no queda ningún .part en la carpeta de mods", not list((tmp / "srv" / "fake" / "mods").glob("*.part")))
+        check("el archivo con ruta no salió de la carpeta del servidor", not (tmp / "srv" / "fuera.jar").exists() and not (tmp / "fuera.jar").exists())
+        s2, ms = c.req("GET", "/api/servers/fake/mods")
+        check("el mod subido aparece en la lista de mods", s2 == 200 and any(m.get("file") == "propio.jar" for m in ms), (s2, str(ms)[:200]))
+        for extra in ("propio.jar", "fuera.jar"): (tmp / "srv" / "fake" / "mods" / extra).unlink(missing_ok=True)   # el servidor de pruebas queda como estaba
         c.req("POST", f"/api/users/{u['id']}/permissions", {"server": "fake", "logs": True})
         check("sin permiso Jugadores: estadísticas -> 403", b.req("GET", "/api/servers/fake/player_stats")[0] == 403)
         c.req("POST", f"/api/users/{u['id']}/permissions", {"server": "fake", "logs": True, "players": True})
