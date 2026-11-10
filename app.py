@@ -35,10 +35,24 @@ import release
 import templates
 import modpacks
 
-SERVERS_DIR = Path(os.environ.get("SERVERS_DIR", "/home/luky/servers")).resolve()
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 CONFIG_FILE = HERE / "config.json"
+
+
+def _servers_dir():
+    """Carpeta de los servidores: variable SERVERS_DIR, o «servers_dir» de config.json, o «servers» junto al proyecto."""
+    v = os.environ.get("SERVERS_DIR")
+    if not v:
+        try:
+            v = json.loads(CONFIG_FILE.read_text()).get("servers_dir")
+        except (OSError, ValueError, AttributeError):
+            v = None
+    return Path(v or HERE / "servers").expanduser().resolve()
+
+
+SERVERS_DIR = _servers_dir()
+templates.RUNTIME_JAVA = SERVERS_DIR / ".runtime" / "java21" / "bin" / "java"
 PORT = int(os.environ.get("MANAGER_PORT", "8765"))
 COOKIE = "mgr_session"
 UA = "cobblemon-server-manager/1.0 (local)"
@@ -2651,6 +2665,7 @@ def _plugin_ctx():
 
 def main():
     cfg = ensure_config()
+    SERVERS_DIR.mkdir(parents=True, exist_ok=True)
     db.init()
     plugins.load(_plugin_ctx(), cfg)
     if db.bootstrap_admin(cfg["access_token"]):
