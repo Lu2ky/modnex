@@ -82,7 +82,7 @@ function openDialog(html, wide = false) {
   const d = document.createElement('dialog');
   if (wide) d.className = 'wide';
   d.innerHTML = html;
-  d.addEventListener('close', () => { if (d.querySelector('[data-user]')) state.draft = null; d.remove(); });
+  d.addEventListener('close', () => { if (d.querySelector('[data-user]')) state.draft = null; d.inert = true; setTimeout(() => d.remove(), 160); });  // deja que acabe la salida de 120 ms
   document.body.append(d);
   d.showModal();
   return d;
@@ -110,6 +110,19 @@ const ledClass = (s) => {
   if (state.starting[s.name] && state.starting[s.name] > Date.now()) return 'starting';
   return '';
 };
+// Al repintar con innerHTML los LED se recrean ya en su color final y su transición nunca arranca:
+// se recuerda la clase anterior y se vuelve a poner la nueva tras forzar un reflujo.
+function setHTMLKeepLeds(el, html) {
+  const prev = {};
+  $$('.led[data-led]', el).forEach((l) => { prev[l.dataset.led] = l.className; });
+  el.innerHTML = html;
+  $$('.led[data-led]', el).forEach((l) => {
+    const old = prev[l.dataset.led];
+    if (old && old !== l.className) { const now = l.className; l.className = old; void l.offsetWidth; l.className = now; }
+  });
+}
+// Entrada escalonada de una lista solo en su primera carga (ver .rows.enter en el CSS).
+const enterOnce = (el) => { if (!el) return; el.classList.add('enter'); setTimeout(() => el.classList.remove('enter'), 700); };
 const clearTimers = () => { state.timers.forEach(clearInterval); state.timers = []; };
 const every = (ms, fn) => state.timers.push(setInterval(() => { if (!document.hidden) fn(); }, ms));
 
@@ -178,7 +191,7 @@ function sideHTML() {
       <span class="tile sm">${srvIcon(s.icon, 34)}</span>
       <span class="srv-name">${esc(s.display_name)}</span>
       <span class="srv-meta"><span class="srv-state">${({ on: 'en marcha', starting: 'arrancando', error: 'error', '': 'parado' })[ledClass(s)]}</span></span>
-      <span class="led ${ledClass(s)}" aria-hidden="true"></span>
+      <span class="led ${ledClass(s)}" data-led="side:${esc(s.name)}" aria-hidden="true"></span>
     </a>`).join('') || '<p class="muted pad">Sin servidores asignados.</p>';
   const admin = isAdmin() ? `
     <p class="side-title">Administración</p>
@@ -205,7 +218,7 @@ function sideHTML() {
 function renderShell() {
   $('#app').innerHTML = `<div class="shell"><aside class="side" id="side"></aside><main class="main" id="main" tabindex="-1"></main></div>`;
 }
-function renderSide() { const s = $('#side'); if (s) s.innerHTML = sideHTML(); }
+function renderSide() { const s = $('#side'); if (s) setHTMLKeepLeds(s, sideHTML()); }
 
 function renderMain() {
   clearTimers();
@@ -237,7 +250,7 @@ async function refreshServers() {
     state.servers.forEach((s) => { if (s.status.running) { delete state.starting[s.name]; delete state.ledError[s.name]; } });
     renderSide();
     const s = current();
-    if (s && $('#srvHead')) $('#srvHead').innerHTML = headHTML(s);
+    if (s && $('#srvHead')) setHTMLKeepLeds($('#srvHead'), headHTML(s));
   } catch (e) { fail(e); }
 }
 
@@ -271,7 +284,7 @@ function headHTML(s) {
     <span class="tile lg">${srvIcon(s.icon, 52)}</span>
     <div class="head-text">
       <h1>${esc(s.display_name)}</h1>
-      <p class="muted"><span class="led ${ledClass(s)}" aria-hidden="true"></span>${run ? 'En marcha' : state.starting[s.name] > Date.now() ? 'Arrancando…' : 'Parado'} · ${s.mods} mods${mem}${s.display_name !== s.name ? ` · carpeta ${esc(s.name)}` : ''}</p>
+      <p class="muted"><span class="led ${ledClass(s)}" data-led="head" aria-hidden="true"></span>${run ? 'En marcha' : state.starting[s.name] > Date.now() ? 'Arrancando…' : 'Parado'} · ${s.mods} mods${mem}${s.display_name !== s.name ? ` · carpeta ${esc(s.name)}` : ''}</p>
     </div>
     <div class="head-actions">${ctl}</div>`;
 }
@@ -327,7 +340,7 @@ function railHTML(s, m) {
   return `
     <section class="rail-block">
       <h2 class="rail-title">Estado</h2>
-      <p class="rail-big"><span class="led ${ledClass(s)}" aria-hidden="true"></span>${run ? 'En marcha' : state.starting[s.name] > Date.now() ? 'Arrancando…' : 'Parado'}</p>
+      <p class="rail-big"><span class="led ${ledClass(s)}" data-led="rail" aria-hidden="true"></span>${run ? 'En marcha' : state.starting[s.name] > Date.now() ? 'Arrancando…' : 'Parado'}</p>
       ${run ? `<p class="rail-sub">Activo desde hace ${fmtUp(m.uptime_s)}</p>` : ''}
     </section>
     <section class="rail-block">
@@ -353,7 +366,7 @@ async function loadRail(s) {
     const m = await api(`/api/servers/${encodeURIComponent(s.name)}/metrics`);
     state.metrics[s.name] = m;
     const core = $('#railCore');
-    if (core) core.innerHTML = railHTML(s, m);
+    if (core) setHTMLKeepLeds(core, railHTML(s, m));
   } catch (e) { /* el riel se queda con el último dato */ }
 }
 function mountRail(s) {
@@ -538,6 +551,7 @@ function paintMods() {
         <div class="rows" id="modList"></div>
       </div>
       <aside class="split-detail" id="modDetail" aria-live="polite"></aside></div>`;
+    enterOnce($('#modList'));
   }
   $('#modFilters').innerHTML = modFilters(mods).map(([id, t, n]) => `<button type="button" class="filter${state.modFilter === id ? ' on' : ''}" data-action="mod-filter" data-filter="${id}">${t} <span class="filter-n">${n}</span></button>`).join('');
   const list = mods.filter(modMatches);
@@ -1284,6 +1298,7 @@ async function renderUsers(selectId) {
         <span class="grow"><strong>${esc(u.username)}</strong>
           <span class="muted small block">${u.is_admin ? 'Administrador: acceso total' : n ? `Acceso a ${n} ${n === 1 ? 'servidor' : 'servidores'}` : 'Sin acceso a ningún servidor'}${u.active ? '' : ' · desactivado'}</span></span></button>`;
     }).join('')}</div>`;
+    enterOnce($('#usersBody .rows'));
     const pick = users.find((u) => u.id === selectId);
     if (pick) mountUserEditor(pick);
     else $('#userPane').innerHTML = `<div class="detail-empty"><h2>${users.length} ${users.length === 1 ? 'usuario' : 'usuarios'}</h2>

@@ -9,6 +9,7 @@
   --mono: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
   --r: 8px;
   --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-out: var(--ease);   /* alias: lo usan led-alert, row-in y log-in */
   color-scheme: dark;
 }
 [data-theme="dark"] {
@@ -105,7 +106,7 @@ label input, label select { font-weight: 400; color: var(--text); }
 .tile { display: grid; place-items: center; background: var(--tile); border-radius: 8px; padding: 6px; flex: none; }
 .tile.sm { padding: 4px; border-radius: 6px; }
 .tile.lg { padding: 10px; border-radius: 12px; }
-.led { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); opacity: .55; display: inline-block; margin-right: 6px; flex: none; transition: background-color 200ms, opacity 200ms; }
+.led { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); opacity: .55; display: inline-block; margin-right: 6px; flex: none; transition: background-color 200ms var(--ease), opacity 200ms var(--ease); }
 .srv-item .led { margin: 0; }
 .led.on { background: var(--ok); opacity: 1; }
 .main { padding: 28px 36px 60px; max-width: 1480px; width: 100%; }
@@ -191,6 +192,11 @@ label input, label select { font-weight: 400; color: var(--text); }
 /* ---------- diálogos ---------- */
 dialog { color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 0; width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); animation: pop 180ms var(--ease); }
 dialog::backdrop { background: rgba(5, 9, 14, .55); animation: fade 180ms ease-out; }
+/* salida: el mismo gesto que la entrada pero más corto; si el navegador no soporta allow-discrete, se cierra de golpe como antes */
+dialog { transition: opacity 120ms var(--ease), transform 120ms var(--ease), display 120ms allow-discrete, overlay 120ms allow-discrete; }
+dialog:not([open]) { opacity: 0; transform: scale(0.98); }
+dialog::backdrop { transition: background-color 120ms var(--ease), display 120ms allow-discrete, overlay 120ms allow-discrete; }
+dialog:not([open])::backdrop { background-color: rgba(5, 9, 14, 0); }
 @keyframes pop { from { opacity: 0; transform: scale(0.97); } }
 @keyframes fade { from { opacity: 0; } }
 .dlg { padding: 20px 22px; display: grid; gap: 12px; }
@@ -204,7 +210,7 @@ dialog::backdrop { background: rgba(5, 9, 14, .55); animation: fade 180ms ease-o
 .toast { pointer-events: auto; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--r); padding: 10px 14px; box-shadow: 0 6px 24px rgba(0, 0, 0, .25); animation: toast-in 200ms var(--ease); }
 .toast.ok { border-left-color: var(--ok); }
 .toast.error { border-left-color: var(--bad); }
-.toast.out { opacity: 0; transform: translateY(6px); transition: opacity 150ms ease-in, transform 150ms ease-in; }
+.toast.out { opacity: 0; transform: translateY(8px); transition: opacity 150ms var(--ease), transform 150ms var(--ease); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 
 /* ---------- adaptable ---------- */
@@ -222,9 +228,7 @@ dialog::backdrop { background: rgba(5, 9, 14, .55); animation: fade 180ms ease-o
   .head-actions { width: 100%; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
-  .btn:active { transform: none; }
+}
 }
 
 /* ---------- paleta de los iconos pixel-art (las letras coinciden con icons.js) ---------- */
@@ -294,7 +298,14 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface2);
 @keyframes led-alert { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--bad) 60%, transparent); } 60% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: none; } }
 
 /* ---------- entradas escalonadas y tarjetas (solo transform/opacity) ---------- */
-.rows > * { animation: row-in 260ms var(--ease-out) both; animation-delay: calc(min(var(--n, 0), 10) * 35ms); }
+/* Entrada escalonada solo en la primera carga de una lista (JS pone .enter y lo quita a los 700 ms):
+   así no se repite al buscar, filtrar ni al refrescar. Solo se animan las 10 primeras filas, las visibles. */
+.rows.enter > * { animation: row-in 260ms var(--ease-out) both; }
+.rows.enter > :nth-child(2) { animation-delay: 35ms; } .rows.enter > :nth-child(3) { animation-delay: 70ms; }
+.rows.enter > :nth-child(4) { animation-delay: 105ms; } .rows.enter > :nth-child(5) { animation-delay: 140ms; }
+.rows.enter > :nth-child(6) { animation-delay: 175ms; } .rows.enter > :nth-child(7) { animation-delay: 210ms; }
+.rows.enter > :nth-child(8) { animation-delay: 245ms; } .rows.enter > :nth-child(9) { animation-delay: 280ms; }
+.rows.enter > :nth-child(10) { animation-delay: 315ms; } .rows.enter > :nth-child(n+11) { animation: none; }
 @keyframes row-in { from { opacity: 0; transform: translateY(6px); } }
 .result, .row-item { transition: background-color 160ms ease, border-color 160ms ease; }
 .result:hover, .row-item:hover { background: var(--surface2); }
@@ -655,3 +666,19 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface2);
 .summary.solo { grid-template-columns: minmax(0, 1fr); max-width: 980px; }
 [data-theme="light"] .log .info { color: #2a3441; }
 [data-theme="light"] .log .debug { color: var(--muted); }
+
+/* feedback de pulsación en controles pequeños (los botones ya lo tenían) */
+.filter, .seg-btn, .pname { transition: color 120ms, border-color 120ms, background-color 120ms, transform 120ms var(--ease); }
+.filter:active, .seg-btn:active, .pname:active { transform: scale(0.97); }
+
+/* Al final del archivo para ganar a las reglas que anula */
+@media (prefers-reduced-motion: reduce) {
+  /* se conservan los fundidos que ayudan a entender; se quitan desplazamientos, escalas y pulsos */
+  dialog { animation: fade 120ms ease-out; }
+  dialog:not([open]) { transform: none; }
+  .toast { animation: fade 150ms ease-out; }
+  .toast.out { transform: none; }
+  .rows.enter > * { animation-name: fade; }
+  .led.starting, .led.error, .progress-steps li[data-state="run"]::before, .bar.on::after { animation: none; }
+  .bar.on::after { width: 100%; opacity: .5; }
+  .btn:active, .filter:active, .seg-btn:active, .pname:active { transform: none; }
