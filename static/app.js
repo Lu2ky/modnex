@@ -694,10 +694,9 @@ function finderResultsHTML(kind) {
   return `<div class="rows">${f.results.map((h) => `
     <div class="result" data-kind="${kind}" data-id="${esc(h.id)}" data-slug="${esc(h.slug)}" data-source="${esc(h.source)}">
       ${h.icon ? `<img src="${esc(h.icon)}" alt="" loading="lazy">` : '<span class="img-ph"></span>'}
-      <div class="grow"><strong>${esc(h.name)}</strong>${(kind === 'mod' || kind === 'plugin') && instKey(h) ? ' <span class="chip live inst">Instalado</span>' : ''} <span class="muted small">${fmtNum(h.downloads)} descargas</span>
+      <div class="grow"><strong><a class="result-link" href="#/m/${esc(h.source)}/${esc(h.id)}">${esc(h.name)}</a></strong>${(kind === 'mod' || kind === 'plugin') && instKey(h) ? ' <span class="chip live inst">Instalado</span>' : ''} <span class="muted small">${fmtNum(h.downloads)} descargas</span>
         <div class="muted small">${esc(h.summary)}</div>
         <div class="files" data-files></div></div>
-      <a class="btn sm" href="#/m/${esc(h.source)}/${esc(h.id)}">Ficha</a>
       <button class="btn sm" data-action="finder-files">Ver versiones</button>
     </div>`).join('')}</div>`;
 }
