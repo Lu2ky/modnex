@@ -1,4 +1,3 @@
-@font-face { font-family: "MCPixel"; src: url(/assets/fonts/minecraft.woff) format("woff"); font-weight: 400; font-display: block; }
 @font-face { font-family: "Inter"; src: url(/assets/fonts/Inter.ttf) format("truetype"); font-weight: 100 900; font-display: swap; }
 
 :root {
@@ -6,7 +5,7 @@
   --brand-mint: #59f8b8; --brand-violet: #9a80f3; --brand-deep: #0da673;
   --brand-grad: linear-gradient(120deg, #59f8b8 0%, #9a80f3 100%);
   --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-pixel: "MCPixel", var(--font);  /* tipografía de Minecraft: solo titulares y marca */
+  --font-pixel: var(--font);  /* tipografía de Minecraft: solo titulares y marca */
   --mono: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
   --r: 8px;
   --ease: cubic-bezier(0.23, 1, 0.32, 1);
@@ -35,7 +34,7 @@
 html, body { margin: 0; }
 body { font: 15px/1.5 var(--font); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
 h1, h2, h3 { margin: 0; line-height: 1.2; }
-h1 { font-size: 24px; font-weight: 400; letter-spacing: 0; font-family: var(--font-pixel); line-height: 1.25; }
+h1 { font-size: 24px; font-weight: 650; letter-spacing: 0; font-family: var(--font-pixel); line-height: 1.25; }
 h2 { font-size: 17px; font-weight: 600; }
 h3 { font-size: 14px; font-weight: 600; margin: 18px 0 8px; }
 a { color: var(--accent); }
@@ -87,7 +86,7 @@ label input, label select { font-weight: 400; color: var(--text); }
 .login-card { width: min(380px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 28px; display: grid; gap: 14px; }
 .login-card h1 { font-size: 24px; }
 .brand { display: flex; align-items: center; gap: 10px; font-family: var(--font); font-size: 18px; letter-spacing: 0.04em; }
-.brand span, .side .brand span { font-family: var(--font-pixel); font-size: 16px; font-weight: 400; letter-spacing: 0; }
+.brand span, .side .brand span { font-family: var(--font-pixel); font-size: 16px; font-weight: 650; letter-spacing: 0; }
 .brand.big { font-size: 24px; margin-bottom: 4px; }
 
 /* ---------- carcasa ---------- */
@@ -453,4 +452,4 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface2);
 .progress-steps li[data-state="run"]::before { background: var(--brand-grad); }
 
 /* titulares en tipografía de Minecraft: tamaños múltiplos de 8 px (celda de la fuente) */
-.panel h2, .danger-zone h2 { font-family: var(--font-pixel); font-weight: 400; font-size: 16px; letter-spacing: 0; }
+.panel h2, .danger-zone h2 { font-family: var(--font-pixel); font-weight: 650; font-size: 16px; letter-spacing: 0; }

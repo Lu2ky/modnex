@@ -1,11 +1,10 @@
 /* Landing pública. Paleta de la especificación; Inter; duraciones 120–450 ms. */
-@font-face { font-family: "MCPixel"; src: url(/assets/fonts/minecraft.woff) format("woff"); font-weight: 400; font-display: block; }
 @font-face { font-family: "Inter"; src: url(/assets/fonts/Inter.ttf) format("truetype"); font-weight: 100 900; font-display: swap; }
 
 :root {
   --bg: #111318; --surface: #1b2029; --elevated: #272e3a; --border: #3b4655;
   --primary: #55d68b; --primary-ink: #04160d; --primary-hover: #6ce09b;
-  --font-pixel: "MCPixel", "Inter", sans-serif;
+  --font-pixel: "Inter", system-ui, sans-serif;
   --brand-mint: #59f8b8; --brand-violet: #9a80f3; --brand-deep: #0da673;
   --brand-grad: linear-gradient(120deg, #59f8b8 0%, #9a80f3 100%);
   --violet: #a78bfa; --accent: #42c6d9; --warn: #f0b85a; --error: #f16b72;
@@ -20,8 +19,8 @@
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 h1, h2, h3 { margin: 0; line-height: 1.15; letter-spacing: -0.02em; font-weight: 650; }
-h1 { font-family: var(--font-pixel); font-weight: 400; letter-spacing: 0; line-height: 1.15; font-size: clamp(40px, 6vw, 64px); }
-h2 { font-family: var(--font-pixel); font-weight: 400; letter-spacing: 0; line-height: 1.2; font-size: clamp(32px, 4vw, 40px); text-wrap: balance; }
+h1 { font-family: var(--font-pixel); font-weight: 650; letter-spacing: 0; line-height: 1.15; font-size: clamp(40px, 6vw, 64px); }
+h2 { font-family: var(--font-pixel); font-weight: 650; letter-spacing: 0; line-height: 1.2; font-size: clamp(32px, 4vw, 40px); text-wrap: balance; }
 h3 { font-size: 1.3rem; letter-spacing: -0.01em; line-height: 1.25; }
 p { margin: 0; }
 a { color: inherit; }
@@ -212,7 +211,7 @@ a { color: inherit; }
 
 /* logo Modnex (PNG con fondo transparente, pensado para fondo oscuro) */
 .brand-img { height: 28px; width: auto; display: block; }
-.brand { font-family: var(--font-pixel); font-weight: 400; font-size: 16px; letter-spacing: 0; }
+.brand { font-family: var(--font-pixel); font-weight: 650; font-size: 16px; letter-spacing: 0; }
 .top .brand-img { filter: drop-shadow(0 0 10px rgb(85 214 139 / 0.25)); }
 
 .demo-pause { font: inherit; font-size: 0.85rem; font-weight: 600; color: var(--muted); background: transparent; border: 1px solid var(--line, var(--border)); border-radius: 8px; padding: 6px 12px; margin-left: auto; cursor: pointer; }
@@ -222,7 +221,7 @@ a { color: inherit; }
 .proof { max-width: 1240px; margin: 96px auto 0; padding: 0 32px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .proof-item { padding: 30px 24px 30px 0; }
 .proof-item + .proof-item { border-left: 1px solid var(--border); padding-left: 24px; }
-.proof-item b { display: block; font-family: var(--font-pixel); font-weight: 400; font-size: 56px; line-height: 1; color: var(--primary); margin-bottom: 14px; }
+.proof-item b { display: block; font-family: var(--font-pixel); font-weight: 650; font-size: 56px; line-height: 1; color: var(--primary); margin-bottom: 14px; }
 .proof-item span { font-size: 0.95rem; color: var(--muted); }
 
 /* ---------- mosaico de características ---------- */
@@ -311,10 +310,7 @@ table.compare td:last-child { color: var(--text); }
 .shot figcaption { padding: 14px 6px 4px; }
 
 /* ---------- botón del cierre centrado (sin icono, el padding es simétrico) ---------- */
-.cta .btn.xl { padding: 0 34px; }
 
-/* ---------- cursor de espada de diamante (punta en la esquina superior derecha) ---------- */
-html, body, a, button, summary, .btn, [role="tab"] { cursor: url(/assets/cursors/diamond-sword.png) 0 0, auto; }
 
 /* ---------- galerías: una captura por tarjeta, clic para pasar ---------- */
 .gallery { display: grid; gap: 14px; }
@@ -337,10 +333,9 @@ html, body, a, button, summary, .btn, [role="tab"] { cursor: url(/assets/cursors
 .gallery-dot:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .gallery-slide { transition: none; } }
 
-/* ---------- overlay del portal del Nether: textura de bloque animada, como en el juego (2,85 s) ---------- */
-.portal-veil { position: fixed; inset: 0; z-index: 200; pointer-events: none; overflow: hidden; opacity: 0; background: #14061f; transition: opacity 2850ms var(--ease-in-out); }
-.portal-veil.on { opacity: 1; }
-.portal-veil::before { content: ""; position: absolute; inset: 0; background: url(/assets/textures/nether-portal.png) repeat 0 0 / 128px 4096px; image-rendering: pixelated; opacity: 0.8; }
-.portal-veil.on::before { animation: portal-flow 1600ms steps(32, end) infinite; }
-@keyframes portal-flow { from { background-position: 0 0; } to { background-position: 0 -4096px; } }
-@media (prefers-reduced-motion: reduce) { .portal-veil { display: none; } }
+
+/* botón de compra pendiente de tienda: visible, pero no clicable */
+.btn[aria-disabled="true"] { opacity: 0.55; pointer-events: none; }
+
+/* botones grandes sin icono: texto centrado en vertical y horizontal */
+.btn.xl:not(:has(.btn-icon)) { padding: 0 32px; align-items: center; }
