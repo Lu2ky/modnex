@@ -28,6 +28,7 @@ from pathlib import Path
 
 import autofilter
 import db
+import plugins
 import release
 import templates
 import modpacks
@@ -169,6 +170,7 @@ def start(name, _auto=False):
         PROCS[name] = proc
     (p / ".manager.pid").write_text(str(proc.pid))
     threading.Thread(target=_supervise, args=(name, proc, offset), daemon=True).start()
+    plugins.emit("server_started", name)
 
 
 def _supervise(name, proc, offset):
@@ -179,6 +181,7 @@ def _supervise(name, proc, offset):
             PROCS.pop(name, None)
     if name in STOPPING:
         STOPPING.discard(name)
+        plugins.emit("server_stopped", name, "usuario")
         return
     p = server_path(name)
     try:
@@ -187,11 +190,16 @@ def _supervise(name, proc, offset):
             text = f.read().decode("utf-8", "ignore")
     except OSError:
         return
-    if rc == 0 or "Done (" in autofilter.clean(text):
-        return  # arrancó (o se paró bien): nada que filtrar
+    if rc == 0:
+        plugins.emit("server_stopped", name, "salida normal")
+        return
+    if "Done (" in autofilter.clean(text):
+        plugins.emit("server_crashed", name, "cayó mientras estaba en marcha")
+        return  # arrancó: no es un fallo de arranque que filtrar
     cands, ambiguous = autofilter.diagnose(text, p / "mods")
     if not cands:
         db.audit("sistema", name, "arranque fallido", "sin mod de cliente identificado en la traza")
+        plugins.emit("server_crashed", name, "arranque fallido")
         return
     if ambiguous:
         db.audit("sistema", name, "arranque fallido", "varios candidatos, revisar a mano: " + ", ".join(j for j, _ in cands))
@@ -2056,6 +2064,13 @@ class Handler(BaseHTTPRequestHandler):
             if method == "GET" and m and m.group(1) in ASSETS:
                 return self._send(200, (STATIC / m.group(1)).read_bytes(), ASSETS[m.group(1)])
 
+            mpl = re.fullmatch(r"/plugin/([A-Za-z0-9_.-]{1,60})", path)
+            if method == "GET" and mpl:
+                a = plugins.asset(mpl.group(1))
+                if not a or not a[0].is_file():
+                    return self._send(404, {"error": "no encontrado"})
+                return self._send(200, a[0].read_bytes(), a[1])
+
             mp = re.fullmatch(r"/packs/([A-Za-z0-9_-]{10,40})/([^/]+)", path)
             if method == "GET" and mp:
                 return self._serve_pack(mp.group(1), urllib.parse.unquote(mp.group(2)))
@@ -2212,10 +2227,16 @@ class Handler(BaseHTTPRequestHandler):
                     db.audit(user, None, "detener descarga pública")
                     return self._send(200, {"ok": True})
 
+            if method == "GET" and path == "/api/plugins":
+                return self._send(200, plugins.info())
+
             # acciones por servidor
             ms = re.fullmatch(r"/api/servers/([^/]+)/([a-z_]+)", path)
             if ms:
                 name, action = ms.groups()
+                pr = plugins.dispatch(method, user, name, action, q, self._body)
+                if pr is not None:
+                    return self._send(pr[0], pr[1])
                 if method == "GET":
                     if action == "log":
                         self._need(user, name, "logs")
@@ -2366,9 +2387,19 @@ class Handler(BaseHTTPRequestHandler):
         self._route("POST")
 
 
+def _plugin_ctx():
+    """Lo que el núcleo ofrece a un plugin: lo justo para actuar sobre servidores y datos propios."""
+    import types
+    return types.SimpleNamespace(
+        here=HERE, servers_dir=SERVERS_DIR, server_path=server_path, status=status, start=start, stop=stop,
+        send_command=send_command, read_log=read_log, audit=db.audit, can=db.can, db_run=db.run,
+        db_connect=db._connect, config=load_config, list_servers=list_servers)
+
+
 def main():
     cfg = ensure_config()
     db.init()
+    plugins.load(_plugin_ctx(), cfg)
     if db.bootstrap_admin(cfg["access_token"]):
         print("Usuario inicial 'admin' creado: su contraseña es el access_token de config.json. "
               "Cámbiala desde el panel.", flush=True)
