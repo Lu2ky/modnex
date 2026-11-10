@@ -35,6 +35,7 @@ class PluginAPI:
         self.assets = {}
         self.pages = []            # [{"id","label","admin"}] entradas de la barra lateral
         self.global_routes = {}    # (METHOD, acción) -> fn(ctx, user, q, body) -> (status, dict)
+        self.rails = []            # [{"id","label"}] bloques del riel de estado de un servidor
         self.client_includes = []  # fn(ctx, name, rows) -> nombres de archivo que el cliente debe llevar siempre
         self.second_factors = []   # fn(ctx, user, body, remote, ip) -> None | (status, dict[, contar_fallo])
 
@@ -44,9 +45,10 @@ class PluginAPI:
             return fn
         return deco
 
-    def tab(self, tab_id, label, admin=True, perm=None):
-        """perm: permiso por servidor que basta para ver la pestaña (además de ser admin); "*" = cualquiera."""
-        self.tabs.append({"id": tab_id, "label": label, "admin": bool(admin), "perm": perm})
+    def tab(self, tab_id, label, admin=True, perm=None, group=None):
+        """perm: permiso por servidor que basta para ver la pestaña (además de ser admin); "*" = cualquiera.
+        group: sección del panel donde se agrupa (operar, contenido, distribuir, proteger); sin grupo va a «Más»."""
+        self.tabs.append({"id": tab_id, "label": label, "admin": bool(admin), "perm": perm, "group": group})
 
     def page(self, page_id, label, admin=False):
         """Página propia en la barra lateral (#/p/<id>); la interfaz llama a ModnexPlugins[id].renderPage."""
@@ -58,6 +60,10 @@ class PluginAPI:
             self.global_routes[(method.upper(), action)] = fn
             return fn
         return deco
+
+    def rail(self, rail_id, label):
+        """Bloque en el riel de estado de la derecha. La interfaz llama a ModnexPlugins[id].renderRail(el, server)."""
+        self.rails.append({"id": rail_id, "label": label})
 
     def client_include(self, fn):
         """Mods que el cliente generado debe incluir siempre (p. ej. el que lo sincroniza con el servidor)."""
@@ -114,7 +120,7 @@ def load(ctx, config):
 
 
 def info():
-    return {"edition": "pro" if API else "free", "tabs": API.tabs if API else [], "pages": API.pages if API else [],
+    return {"edition": "pro" if API else "free", "tabs": API.tabs if API else [], "pages": API.pages if API else [], "rails": API.rails if API else [],
             "scripts": API.scripts if API else [], "error": LOAD_ERROR}
 
 

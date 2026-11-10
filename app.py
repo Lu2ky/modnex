@@ -266,6 +266,53 @@ def send_command(name, cmd):
     proc.stdin.flush()
 
 
+_JOIN_RE = re.compile(r"\]: (\w{1,16}) joined the game")
+_LEAVE_RE = re.compile(r"\]: (\w{1,16}) left the game")
+_START_RE = re.compile(r"Starting minecraft server|Starting Minecraft server|Loading Minecraft \d")
+
+
+def live_metrics(name):
+    """Estado en vivo para el panel: memoria y tiempo de actividad del proceso, jugadores según el registro
+    (sin enviar comandos a la consola) y recuento de avisos y errores recientes."""
+    p = server_path(name)
+    st = status(name)
+    out = {"running": st["running"], "uptime_s": None, "rss_mb": None, "players": [], "max_players": None,
+           "warn": 0, "error": 0, "disk_free_gb": round(shutil.disk_usage(p).free / 2**30, 1)}
+    pid = st.get("pid")
+    if st["running"] and pid:
+        try:
+            for line in Path(f"/proc/{pid}/status").read_text().splitlines():
+                if line.startswith("VmRSS:"):
+                    out["rss_mb"] = int(line.split()[1]) // 1024
+            fields = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()
+            since_boot = float(Path("/proc/uptime").read_text().split()[0])
+            out["uptime_s"] = max(0, int(since_boot - int(fields[19]) / os.sysconf("SC_CLK_TCK")))
+        except (OSError, ValueError, IndexError):
+            pass
+    try:
+        for line in (p / "server.properties").read_text().splitlines():
+            if line.startswith("max-players="):
+                out["max_players"] = int(line.split("=", 1)[1])
+    except (OSError, ValueError):
+        pass
+    online = []
+    for line in read_log(name, 1500).splitlines():
+        if _START_RE.search(line):
+            online = []
+        m = _JOIN_RE.search(line)
+        if m and m.group(1) not in online:
+            online.append(m.group(1))
+        m = _LEAVE_RE.search(line)
+        if m and m.group(1) in online:
+            online.remove(m.group(1))
+    if st["running"]:
+        out["players"] = online
+    recent = read_log(name, 400)
+    out["warn"] = len(re.findall(r"\bWARN\b", recent))
+    out["error"] = len(re.findall(r"\b(?:ERROR|FATAL)\b", recent))
+    return out
+
+
 def read_log(name, lines=200):
     p = server_path(name)
     f = p / "logs" / "latest.log"
@@ -2339,6 +2386,10 @@ class Handler(BaseHTTPRequestHandler):
                 if pr is not None:
                     return self._send(pr[0], pr[1])
                 if method == "GET":
+                    if action == "metrics":
+                        if not any(db.can(user, name, perm) for perm in db.PERMS):
+                            raise PermissionError("no tienes permiso para esto")
+                        return self._send(200, live_metrics(name))
                     if action == "log":
                         self._need(user, name, "logs")
                         return self._send(200, {"log": read_log(name, int(q.get("lines", 200)))})

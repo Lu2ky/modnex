@@ -21,7 +21,8 @@ def register(api):
 |---|---|
 | `route(method, action)` | Ruta por servidor: `/api/servers/<nombre>/<acción>`. La función recibe `(ctx, user, servidor, q, body)` y devuelve `(status, dict)`. |
 | `global_route(method, action)` | Ruta que no es de un servidor: `/api/pro/<acción>`. Exige sesión; la autorización la decide el plugin. Recibe `(ctx, user, q, body)`. |
-| `tab(id, label, admin=True, perm=None)` | Pestaña en la página de un servidor. `perm` es el permiso por servidor que basta para verla; `"*"` significa cualquiera. |
+| `tab(id, label, admin=True, perm=None, group=None)` | Pestaña en la página de un servidor. `perm` es el permiso por servidor que basta para verla; `"*"` significa cualquiera. `group` la coloca en una sección del panel: `operar`, `contenido`, `distribuir` o `proteger` (sin grupo va a «Más»). |
+| `rail(id, label)` | Bloque en el riel de estado de la derecha de cada servidor. La interfaz llama a `ModnexPlugins[id].renderRail(el, server)`. |
 | `page(id, label, admin=False)` | Entrada en la barra lateral (`#/p/<id>`). La interfaz llama a `ModnexPlugins[id].renderPage(el)`. |
 | `add_schema(sql)` | Tablas propias del plugin, creadas al cargarse. |
 | `on(event)` | Se suscribe a un evento (ver abajo). |
@@ -31,6 +32,12 @@ def register(api):
 
 Las rutas de servidor solo se despachan para servidores que el usuario puede ver. Las rutas globales
 reciben `user=None` si no hay sesión; compruébalo.
+
+## Datos en vivo del núcleo
+
+`GET /api/servers/<nombre>/metrics` devuelve, para quien tenga algún permiso en ese servidor, el estado en vivo que pinta el riel:
+`running`, `uptime_s`, `rss_mb`, `players` (según el registro, sin enviar comandos a la consola), `max_players`,
+`warn` y `error` (recuento en las últimas líneas) y `disk_free_gb`.
 
 ## Eventos
 
