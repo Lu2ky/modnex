@@ -25,3 +25,4 @@ bin/
 .impeccable/mocks/
 .impeccable/review/
 backups/
+sandbox/
