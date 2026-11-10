@@ -1,5 +1,5 @@
 /* Landing pública. Paleta de la especificación; Inter; duraciones 120–450 ms. */
-@font-face { font-family: "Inter"; src: url(/assets/fonts/Inter.ttf) format("truetype"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Inter"; src: url(fonts/Inter.ttf) format("truetype"); font-weight: 100 900; font-display: swap; }
 
 :root {
   --bg: #111318; --surface: #1b2029; --elevated: #272e3a; --border: #3b4655;
@@ -394,3 +394,9 @@ table.compare td:last-child { color: var(--text); }
 ::-webkit-scrollbar-thumb:hover { border-width: 3px; background-image: linear-gradient(180deg, rgb(89 248 184 / 0.9), rgb(154 128 243 / 0.9)); }
 ::-webkit-scrollbar-thumb:horizontal:hover { background-image: linear-gradient(90deg, rgb(89 248 184 / 0.9), rgb(154 128 243 / 0.9)); }
 ::-webkit-scrollbar-thumb:active { background-image: linear-gradient(180deg, #59f8b8, #9a80f3); }
+
+/* marca de GitHub en los botones «Ir al proyecto» */
+.btn .gh-mark { width: 1.15em; height: 1.15em; flex: none; }
+.btn.xl .btn-icon .gh-mark { width: 30px; height: 30px; }
+.btn.sm { gap: 8px; }
+.waitlist[hidden] { display: none; }

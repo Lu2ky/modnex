@@ -2086,9 +2086,7 @@ ASSETS = {"style.css": "text/css; charset=utf-8", "app.js": "text/javascript; ch
           "icons.js": "text/javascript; charset=utf-8", "theme.js": "text/javascript; charset=utf-8",
           "fonts/Inter.ttf": "font/ttf",
           "brand/modnex-mark.png": "image/png", "brand/modnex-logo.png": "image/png",
-          "shots/wizard-tipo.png": "image/png", "shots/wizard-modpack.png": "image/png", "shots/panel-mods.png": "image/png", "shots/panel-cliente.png": "image/png", "shots/panel-propiedades.png": "image/png",
-          **{f"brand/servers/{n}.png": "image/png" for n in db.ICONS},
-          "landing.css": "text/css; charset=utf-8", "landing.js": "text/javascript; charset=utf-8"}
+          **{f"brand/servers/{n}.png": "image/png" for n in db.ICONS}}
 CSP = ("default-src 'self'; img-src 'self' data: https:; style-src 'self'; script-src 'self'; "
        "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 MAX_DATAPACK = 256 * 1024 * 1024
@@ -2254,7 +2252,8 @@ class Handler(BaseHTTPRequestHandler):
         path = u.path
         try:
             if method == "GET" and path == "/":
-                return self._send(200, (STATIC / "landing.html").read_bytes(), "text/html; charset=utf-8")
+                # La landing pública es un sitio estático aparte (carpeta landing/). El gestor solo sirve el panel.
+                return self._send(302, b"", "text/plain; charset=utf-8", headers={"Location": "/app"})
             if method == "GET" and path in ("/app", "/app/"):
                 return self._send(200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
             m = re.fullmatch(r"/assets/([A-Za-z0-9_./-]+)", path)

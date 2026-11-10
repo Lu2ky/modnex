@@ -178,17 +178,23 @@
   });
 })();
 
-// Lista de espera de Pro: envía el correo al gestor y muestra el resultado sin recargar.
+// Lista de espera de Pro: envía el correo al servidor indicado y muestra el resultado sin recargar.
 (function () {
   var form = document.getElementById('waitlist');
   if (!form) return;
+  // La lista de espera necesita un servidor que reciba los correos. Esta landing es estática: si no se indica
+  // uno en <meta name="modnex-waitlist" content="https://…/api/waitlist">, el formulario no se muestra.
+  var meta = document.querySelector('meta[name="modnex-waitlist"]');
+  var endpoint = meta && meta.getAttribute('content');
+  if (!endpoint) return;
+  form.hidden = false;
   var msg = form.querySelector('.wl-msg'), btn = form.querySelector('button');
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     var email = form.email.value.trim();
     if (!form.email.checkValidity() || !email) { msg.textContent = 'Escribe un correo válido.'; msg.className = 'wl-msg bad'; return; }
     btn.disabled = true; msg.textContent = 'Enviando…'; msg.className = 'wl-msg';
-    fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email }) })
+    fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email }) })
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (r) {
         if (r.ok) { msg.textContent = 'Listo. Te avisaremos cuando salga Pro.'; msg.className = 'wl-msg ok'; form.email.value = ''; }
