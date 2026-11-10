@@ -268,6 +268,8 @@ function renderServer() {
   const core = { logs: tabLogs, mods: tabMods, datapacks: tabDatapacks, textures: tabTextures, players: tabPlayers, client: tabClient, props: tabProps, settings: tabSettings };
   if (core[tab]) core[tab](s);
   else renderPluginTab(tab.replace(/^x-/, ''), s);
+  const onTab = $('.tab.on');  // con muchas pestañas, la activa puede quedar fuera de la vista
+  if (onTab && onTab.scrollIntoView) onTab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 /* --- Logs --- */
