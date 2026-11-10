@@ -339,3 +339,11 @@ table.compare td:last-child { color: var(--text); }
 
 /* botones grandes sin icono: texto centrado en vertical y horizontal */
 .btn.xl:not(:has(.btn-icon)) { padding: 0 32px; align-items: center; }
+
+/* tarjeta de licencias: marco de bloques al estilo de las ventanas del juego (dibujado aquí, sin texturas de Minecraft) */
+.pro-card { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: center; background: var(--surface); padding: 32px; margin: 0 4px; border-radius: 4px; box-shadow: 0 -4px 0 0 var(--border), 0 4px 0 0 var(--border), -4px 0 0 0 var(--border), 4px 0 0 0 var(--border), 0 -8px 0 0 var(--bg), 0 8px 0 0 var(--bg), -8px 0 0 0 var(--bg), 8px 0 0 0 var(--bg); }
+.pro-icon { display: grid; place-items: center; width: 96px; height: 96px; background: var(--elevated); box-shadow: inset -4px -4px 0 0 var(--border), inset 4px 4px 0 0 rgb(255 255 255 / 0.05); }
+.pro-icon .px { width: 64px; height: 64px; image-rendering: pixelated; }
+.pro-body h2 { margin-bottom: 10px; }
+.pro-body .lead { margin: 0 0 22px; }
+@media (max-width: 640px) { .pro-card { grid-template-columns: 1fr; padding: 24px; } .pro-icon { width: 72px; height: 72px; } }
