@@ -168,8 +168,13 @@ function route() {
 
 function sideHTML() {
   const v = state.view;
-  const items = state.servers.map((s) => `
-    <a class="srv-item${v.kind === 'server' && v.name === s.name ? ' on' : ''}" href="#/s/${encodeURIComponent(s.name)}">
+  // Los servidores con `parent` cuelgan de su padre si el usuario también lo ve; si no, van sueltos.
+  const names = new Set(state.servers.map((s) => s.name));
+  const isChild = (s) => s.parent && names.has(s.parent);
+  const ordered = [];
+  state.servers.filter((s) => !isChild(s)).forEach((s) => { ordered.push(s); state.servers.filter((c) => c.parent === s.name).forEach((c) => ordered.push(c)); });
+  const items = ordered.map((s) => `
+    <a class="srv-item${isChild(s) ? ' child' : ''}${v.kind === 'server' && v.name === s.name ? ' on' : ''}" href="#/s/${encodeURIComponent(s.name)}">
       <span class="tile sm">${srvIcon(s.icon, 34)}</span>
       <span class="srv-name">${esc(s.display_name)}</span>
       <span class="srv-meta"><span class="srv-state">${({ on: 'en marcha', starting: 'arrancando', error: 'error', '': 'parado' })[ledClass(s)]}</span></span>
