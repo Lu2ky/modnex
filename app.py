@@ -1987,6 +1987,25 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("cuerpo demasiado grande")
         return json.loads(self.rfile.read(n) or b"{}")
 
+    def _peer_loopback(self):
+        return self.client_address[0] in ("127.0.0.1", "::1")
+
+    def _client_ip(self):
+        """IP real del cliente. Las cabeceras de un túnel solo se creen si la conexión llega desde esta
+        misma máquina (el túnel conecta por loopback); desde la red local se ignoran, así no se pueden falsificar."""
+        if self._peer_loopback():
+            for h in ("Cf-Connecting-Ip", "X-Forwarded-For"):
+                v = (self.headers.get(h) or "").split(",")[0].strip()
+                if v:
+                    return v[:64]
+        return self.client_address[0]
+
+    def _via_tunnel(self):
+        return self._peer_loopback() and bool(self.headers.get("Cf-Connecting-Ip") or self.headers.get("X-Forwarded-For"))
+
+    def _https(self):
+        return self._peer_loopback() and (self.headers.get("X-Forwarded-Proto") or "").lower() == "https"
+
     def _same_origin(self):
         origin = self.headers.get("Origin")
         return origin is None or urllib.parse.urlparse(origin).netloc == self.headers.get("Host", "")
@@ -1999,7 +2018,8 @@ class Handler(BaseHTTPRequestHandler):
         return None
 
     def _cookie_header(self, token, max_age):
-        return {"Set-Cookie": f"{COOKIE}={urllib.parse.quote(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age={max_age}"}
+        secure = "; Secure" if self._https() else ""
+        return {"Set-Cookie": f"{COOKIE}={urllib.parse.quote(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age={max_age}{secure}"}
 
     def _serve_pack(self, token, fname):
         row = db.pack_lookup(token, fname)
@@ -2076,7 +2096,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._serve_pack(mp.group(1), urllib.parse.unquote(mp.group(2)))
 
             if method == "POST" and path == "/api/waitlist":
-                if not db.waitlist_rate_ok(self.client_address[0]):
+                if not db.waitlist_rate_ok(self._client_ip()):
                     return self._send(429, {"error": "demasiados intentos; prueba más tarde"})
                 try:
                     db.waitlist_add(self._body().get("email", ""))
@@ -2086,11 +2106,16 @@ class Handler(BaseHTTPRequestHandler):
             if method == "POST" and path == "/api/login":
                 b = self._body()
                 try:
-                    user = db.authenticate(b.get("username", ""), b.get("password", ""), self.client_address[0])
+                    user = db.authenticate(b.get("username", ""), b.get("password", ""), self._client_ip())
                 except PermissionError as e:
                     return self._send(429, {"error": str(e)})
                 if not user:
                     return self._send(401, {"error": "usuario o contraseña incorrectos"})
+                sf = plugins.second_factor(user, b, self._via_tunnel(), self._client_ip())
+                if sf:
+                    if len(sf) > 2 and sf[2]:
+                        db.register_fail(self._client_ip())
+                    return self._send(sf[0], sf[1])
                 token = db.create_session(user["id"])
                 db.audit(user, None, "login")
                 return self._send(200, {"user": user}, headers=self._cookie_header(token, db.SESSION_TTL))
@@ -2239,6 +2264,11 @@ class Handler(BaseHTTPRequestHandler):
 
             if method == "GET" and path == "/api/plugins":
                 return self._send(200, plugins.info())
+            mg = re.fullmatch(r"/api/pro/([a-z0-9_]+)", path)
+            if mg:
+                gr = plugins.dispatch_global(method, user, mg.group(1), q, self._body)
+                if gr is not None:
+                    return self._send(gr[0], gr[1])
 
             # acciones por servidor
             ms = re.fullmatch(r"/api/servers/([^/]+)/([a-z_]+)", path)
@@ -2405,7 +2435,7 @@ def _plugin_ctx():
         send_command=send_command, read_log=read_log, audit=db.audit, can=db.can, db_run=db.run,
         db_connect=db._connect, config=load_config, list_servers=list_servers,
         search=search, compat_for=compat_for, server_versions=server_versions, user_perms=db.user_perms,
-        identify_mods=identify_mods, java_bin=templates._java, download=modpacks._download)
+        identify_mods=identify_mods, java_bin=templates._java, download=modpacks._download, port=PORT)
 
 
 def main():

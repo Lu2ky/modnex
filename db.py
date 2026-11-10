@@ -207,6 +207,11 @@ def login_blocked(ip):
         return bool(rec and rec[2] > time.time())
 
 
+def register_fail(ip):
+    """Cuenta un intento fallido de la IP (la usan los plugins para un segundo factor erróneo)."""
+    _register_fail(ip)
+
+
 def _register_fail(ip):
     now = time.time()
     with _FAILS_LOCK:

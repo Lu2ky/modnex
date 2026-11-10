@@ -14,7 +14,7 @@ const fmtLeft = (ts) => {
 };
 
 class ApiError extends Error {
-  constructor(message, status) { super(message); this.status = status; }
+  constructor(message, status, data) { super(message); this.status = status; this.data = data || {}; }
 }
 
 async function api(path, { method = 'GET', body } = {}) {
@@ -27,7 +27,7 @@ async function api(path, { method = 'GET', body } = {}) {
     renderLogin();
     throw new ApiError('Sesión caducada', 401);
   }
-  if (!r.ok) throw new ApiError(data.error || `Error ${r.status}`, r.status);
+  if (!r.ok) throw new ApiError(data.error || `Error ${r.status}`, r.status, data);
   return data;
 }
 
@@ -123,6 +123,7 @@ function renderLogin() {
         <h1>Entrar al panel</h1>
         <label>Usuario<input name="username" autocomplete="username" required autofocus></label>
         <label>Contraseña<input name="password" type="password" autocomplete="current-password" required></label>
+        <label id="otpRow" hidden>Código de verificación<input name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="20" placeholder="123456 o un código de recuperación"></label>
         <p class="form-error" id="loginError" role="alert"></p>
         <button class="btn primary" type="submit">Entrar</button>
       </form>
@@ -133,9 +134,15 @@ async function doLogin(form) {
   const err = $('#loginError');
   err.textContent = '';
   try {
-    await api('/api/login', { method: 'POST', body: { username: form.username.value.trim(), password: form.password.value } });
+    const body = { username: form.username.value.trim(), password: form.password.value };
+    if (!$('#otpRow').hidden) body.otp = form.otp.value.trim();
+    await api('/api/login', { method: 'POST', body });
     await boot();
-  } catch (e) { err.textContent = e.message; form.password.value = ''; form.password.focus(); }
+  } catch (e) {
+    err.textContent = e.message;
+    if (e.data && e.data.need_otp) { $('#otpRow').hidden = false; form.otp.value = ''; form.otp.focus(); return; }  // falta el segundo factor
+    form.password.value = ''; if (!$('#otpRow').hidden) form.otp.value = ''; form.password.focus();
+  }
 }
 
 /* ---------- carcasa y navegación ---------- */
@@ -143,6 +150,7 @@ function parseHash() {
   const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   if (parts[0] === 'users' && isAdmin()) return { kind: 'users' };
   if (parts[0] === 'audit' && isAdmin()) return { kind: 'audit' };
+  if (parts[0] === 'p' && parts[1]) return { kind: 'plugin', id: parts[1] };
   if (parts[0] === 'm' && parts[1] && parts[2]) return { kind: 'mod', source: parts[1], id: decodeURIComponent(parts[2]) };
   if (parts[0] === 's' && parts[1]) return { kind: 'server', name: decodeURIComponent(parts[1]), tab: parts[2] };
   return { kind: 'auto' };
@@ -171,11 +179,13 @@ function sideHTML() {
     <p class="side-title">Administración</p>
     <a class="nav-item${v.kind === 'users' ? ' on' : ''}" href="#/users">Usuarios y permisos</a>
     <a class="nav-item${v.kind === 'audit' ? ' on' : ''}" href="#/audit">Actividad</a>` : '';
+  const pages = ((state.plugins && state.plugins.pages) || []).filter((p) => !p.admin || isAdmin())
+    .map((p) => `<a class="nav-item${v.kind === 'plugin' && v.id === p.id ? ' on' : ''}" href="#/p/${esc(p.id)}">${esc(p.label)}</a>`).join('');
   const light = document.documentElement.dataset.theme === 'light';
   return `
     <div class="brand"><img class="brand-img" src="/assets/brand/modnex-mark.png" alt="" width="34" height="28"><span>MODNEX</span></div>
     <nav class="side-nav" aria-label="Servidores">
-      <p class="side-title">Servidores</p>${isAdmin() ? '<button class="btn sm new-srv" data-action="new-server">+ Nuevo servidor</button>' : ''}${items}${admin}
+      <p class="side-title">Servidores</p>${isAdmin() ? '<button class="btn sm new-srv" data-action="new-server">+ Nuevo servidor</button>' : ''}${items}${admin}${pages ? `<p class="side-title">Cuenta</p>${pages}` : ''}
     </nav>
     <div class="side-foot">
       <div class="who"><strong>${esc(state.me.username)}</strong><span class="muted">${isAdmin() ? 'Administrador' : 'Usuario'}</span></div>
@@ -200,6 +210,14 @@ function renderMain() {
   if (v.kind === 'users') return renderUsers();
   if (v.kind === 'audit') return renderAudit();
   if (v.kind === 'mod') return renderModPage();
+  if (v.kind === 'plugin') {
+    const plug = window.ModnexPlugins && window.ModnexPlugins[v.id];
+    const meta = ((state.plugins && state.plugins.pages) || []).find((p) => p.id === v.id);
+    const body = $('#main');
+    if (!plug || typeof plug.renderPage !== 'function' || !meta || (meta.admin && !isAdmin())) { body.innerHTML = '<div class="empty"><h1>Esta sección no está disponible</h1></div>'; return; }
+    try { plug.renderPage(body); } catch (e) { body.innerHTML = `<p class="muted">No se pudo mostrar esta sección: ${esc(e.message)}</p>`; }
+    return;
+  }
   $('#main').innerHTML = `
     <div class="empty">
       <h1>No tienes servidores asignados</h1>
