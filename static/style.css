@@ -671,6 +671,13 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface2);
 .filter, .seg-btn, .pname { transition: color 120ms, border-color 120ms, background-color 120ms, transform 120ms var(--ease); }
 .filter:active, .seg-btn:active, .pname:active { transform: scale(0.97); }
 
+/* Barra de secciones y pestañas: sin barras de desplazamiento visibles. La línea base se pinta con una sombra
+   interior (no con borde y margen negativo, que desbordaba 1 px en vertical y hacía aparecer la barra). */
+.groups { border-bottom: 0; box-shadow: inset 0 -1px 0 var(--line); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.groups .group { margin-bottom: 0; }
+.srv-layout > .tabs { overflow-y: hidden; scrollbar-width: none; }
+.groups::-webkit-scrollbar, .srv-layout > .tabs::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
 /* Al final del archivo para ganar a las reglas que anula */
 @media (prefers-reduced-motion: reduce) {
   /* se conservan los fundidos que ayudan a entender; se quitan desplazamientos, escalas y pulsos */
