@@ -228,9 +228,6 @@ dialog:not([open])::backdrop { background-color: rgba(5, 9, 14, 0); }
   .head-actions { width: 100%; }
 }
 
-}
-}
-
 /* ---------- paleta de los iconos pixel-art (las letras coinciden con icons.js) ---------- */
 .px .k { fill: #121820; } .px .r { fill: #e8473d; } .px .w { fill: #f4f6f8; } .px .y { fill: #f4c542; }
 .px .o { fill: #e9822b; } .px .b { fill: #3a74d6; } .px .c { fill: #59d3e0; } .px .n { fill: #b07a45; }
@@ -677,6 +674,32 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface2);
 .groups .group { margin-bottom: 0; }
 .srv-layout > .tabs { overflow-y: hidden; scrollbar-width: none; }
 .groups::-webkit-scrollbar, .srv-layout > .tabs::-webkit-scrollbar { display: none; width: 0; height: 0; }
+/* ---------- barra de secciones: indicador deslizante ---------- */
+.groups, .srv-layout > .tabs { position: relative; }
+.ink { position: absolute; pointer-events: none; transition: transform 240ms var(--ease), width 240ms var(--ease); transform: translateX(var(--x, 0)); width: var(--w, 0); }
+.ink.no-anim { transition: none; }
+.groups .ink { left: 0; bottom: 0; height: 2px; background: var(--accent); border-radius: 2px 2px 0 0; }
+.srv-layout > .tabs .ink { left: 0; top: 0; bottom: 0; border-radius: 99px; background: var(--surface2); box-shadow: inset 0 0 0 1px var(--line); z-index: 0; }
+.srv-layout > .tabs .tab { position: relative; z-index: 1; }
+/* el color de la activa pasa a ser lo único que marca el texto; el fondo y la raya los dibuja el indicador */
+.group.on { border-bottom-color: transparent; }
+.srv-layout > .tabs .tab.on { background: transparent; box-shadow: none; }
+.srv-layout > .tabs .tab:hover { background: transparent; color: var(--text); }
+.srv-layout > .tabs .tab { transition: color 160ms var(--ease); }
+
+/* ---------- descubrir mods: etiquetas, páginas y «Instalado» ---------- */
+.tagbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 2px; }
+.tagbar-title { margin-right: 4px; }
+.filter.clear { border-style: dashed; }
+.pager { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; margin: 18px 0 6px; }
+.page { font: inherit; font-size: 14px; font-weight: 550; min-width: 36px; padding: 5px 10px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); cursor: pointer; font-variant-numeric: tabular-nums; transition: border-color 120ms, background-color 120ms, transform 120ms var(--ease); }
+.page:hover:not(:disabled):not(.on) { border-color: var(--accent); }
+.page:active:not(:disabled) { transform: scale(0.97); }
+.page.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.page:disabled { opacity: .45; cursor: not-allowed; }
+.page-gap { color: var(--muted); padding: 0 2px; }
+.pager-info { text-align: center; margin: 0 0 8px; }
+.chip.inst { margin-left: 4px; }
 
 /* Al final del archivo para ganar a las reglas que anula */
 @media (prefers-reduced-motion: reduce) {
@@ -688,4 +711,6 @@ code { font-family: var(--mono); font-size: 0.92em; background: var(--surface2);
   .rows.enter > * { animation-name: fade; }
   .led.starting, .led.error, .progress-steps li[data-state="run"]::before, .bar.on::after { animation: none; }
   .bar.on::after { width: 100%; opacity: .5; }
-  .btn:active, .filter:active, .seg-btn:active, .pname:active { transform: none; }
+  .btn:active, .filter:active, .seg-btn:active, .pname:active, .page:active { transform: none; }
+  .ink { transition: none; }
+}

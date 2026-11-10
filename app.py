@@ -384,6 +384,36 @@ def _mod_path(name, file):
     return p
 
 
+INSTALLED_CACHE = {}   # servidor -> (momento, índice); caduca a los 60 s o al cambiar los mods
+INSTALLED_TTL = 60
+
+
+def _invalidate_installed(name):
+    INSTALLED_CACHE.pop(name, None)
+
+
+def installed_index(name, loader="neoforge", version="1.21.1"):
+    """Qué proyectos hay instalados, para marcar «Instalado» al descubrir mods.
+    `projects` mezcla `proveedor:id` y `slug:nombre` (el slug une Modrinth y CurseForge); `versions` da la versión
+    instalada de cada proyecto. Se cachea 60 s porque identificar los mods consulta a los proveedores."""
+    hit = INSTALLED_CACHE.get(name)
+    if hit and time.time() - hit[0] < INSTALLED_TTL:
+        return hit[1]
+    projects, versions = [], {}
+    for r in identify_mods(name, loader, version):
+        if not r["enabled"]:
+            continue
+        if r["project_id"]:
+            projects.append(f"{r['source']}:{r['project_id']}")
+            if r["installed"]:
+                versions[f"{r['source']}:{r['project_id']}"] = r["installed"]
+        if r["slug"]:
+            projects.append(f"slug:{r['slug'].lower()}")
+    idx = {"projects": sorted(set(projects)), "versions": versions}
+    INSTALLED_CACHE[name] = (time.time(), idx)
+    return idx
+
+
 def toggle_mod(name, file):
     p = _mod_path(name, file)
     if p.name.endswith(".disabled"):
@@ -463,7 +493,49 @@ def compat_for(server, kind):
     return templates.loader_of(tpl), kind
 
 
-def search(source, q, loader, version, kind="mod", sort="auto", side="server"):
+PER_PAGE = 24
+MAX_PAGE = 50
+TAG_RE = re.compile(r"[a-z0-9][a-z0-9\-]{0,29}")
+TAG_LABELS = {"adventure": "Aventura", "cursed": "Maldito", "decoration": "Decoración", "economy": "Economía", "equipment": "Equipamiento",
+              "food": "Comida", "game-mechanics": "Mecánicas", "library": "Librería", "magic": "Magia", "management": "Administración",
+              "minigame": "Minijuego", "mobs": "Criaturas", "optimization": "Optimización", "social": "Social", "storage": "Almacenamiento",
+              "technology": "Tecnología", "transportation": "Transporte", "utility": "Utilidad", "worldgen": "Generación de mundo",
+              "combat": "Combate", "themed": "Temático", "tweaks": "Ajustes", "realistic": "Realista", "simplistic": "Sencillo",
+              "modded": "Para mods", "vanilla-like": "Estilo vainilla", "challenging": "Desafiante", "kitchen-sink": "De todo",
+              "lightweight": "Ligero", "multiplayer": "Multijugador", "quests": "Misiones", "exploration": "Exploración",
+              "fantasy": "Fantasía", "survival": "Supervivencia", "technology-fallback": "Tecnología", "chat": "Chat", "mechanics": "Mecánicas",
+              "world-management": "Gestión del mundo", "gameplay": "Jugabilidad", "worldgen-fallback": "Mundo", "transport": "Transporte"}
+_TAG_CACHE = {"at": 0, "rows": []}
+
+
+def category_tags(kind):
+    """Etiquetas de Modrinth para un tipo de contenido: [{name, label}]. Se cachean 6 h; si Modrinth falla, lista vacía."""
+    if time.time() - _TAG_CACHE["at"] > 6 * 3600 or not _TAG_CACHE["rows"]:
+        try:
+            _TAG_CACHE["rows"] = http_json("https://api.modrinth.com/v2/tag/category")
+            _TAG_CACHE["at"] = time.time()
+        except Exception:  # noqa: BLE001 - sin etiquetas el filtro simplemente no se ofrece
+            return []
+    want = KINDS[kind]["mr_type"]
+    out = []
+    for r in _TAG_CACHE["rows"]:
+        if r.get("project_type") == want and r.get("header") == "categories" and TAG_RE.fullmatch(str(r.get("name", ""))):
+            out.append({"name": r["name"], "label": TAG_LABELS.get(r["name"], r["name"].replace("-", " ").capitalize())})
+    return sorted(out, key=lambda t: t["label"].lower())
+
+
+def search(source, q, loader, version, kind="mod", sort="auto", side="server", page=1, tags=(), paged=False):
+    """Busca contenido. Con `paged` devuelve {items, total, page, pages, per_page}; si no, solo la lista (la usan los plugins)."""
+    page = max(1, min(int(page or 1), MAX_PAGE))
+    tags = [t for t in dict.fromkeys(tags or ()) if TAG_RE.fullmatch(t)][:6]
+    res = _search(source, q, loader, version, kind, sort, side, page, tags)
+    if not paged:
+        return res["items"]
+    total = max(res["total"], len(res["items"]))
+    return {"items": res["items"], "total": total, "page": page, "per_page": PER_PAGE, "pages": max(1, -(-total // PER_PAGE))}
+
+
+def _search(source, q, loader, version, kind, sort, side, page, tags):
     if kind not in KINDS:
         raise ValueError("tipo de contenido no válido")
     if kind == "mod" and loader not in CF_LOADER_TYPE:
@@ -473,7 +545,8 @@ def search(source, q, loader, version, kind="mod", sort="auto", side="server"):
         sort = "relevance" if q else "downloads"
     if source == "modrinth":
         facets = [[f"project_type:{KINDS[kind]['mr_type']}"], [f"versions:{version}"]]
-        params = {"query": q, "limit": 24, "index": sort if sort in MR_SORTS else "downloads"}
+        params = {"query": q, "limit": PER_PAGE, "offset": (page - 1) * PER_PAGE, "index": sort if sort in MR_SORTS else "downloads"}
+        facets.extend([f"categories:{t}"] for t in tags)   # cada etiqueta restringe más (Y, no O)
         if kind == "mod":
             facets.append([f"categories:{loader}"])
             if side in SIDE_FILTERS:
@@ -487,19 +560,21 @@ def search(source, q, loader, version, kind="mod", sort="auto", side="server"):
                  for h in d["hits"]]
         if q:
             items.sort(key=lambda it: _match_score(q, it))  # estable: conserva el orden de Modrinth
-        return items
+        return {"items": items, "total": int(d.get("total_hits", len(items)))}
     if source == "curseforge":
         key = load_cf_key()
         if not key:
             raise RuntimeError("falta la API key de CurseForge (config.json o CURSEFORGE_API_KEY)")
-        params = {"gameId": 432, "classId": KINDS[kind]["cf_class"], "gameVersion": version, "pageSize": 50,
-                  "sortField": CF_SORTS.get(sort, 6), "sortOrder": "desc"}
+        params = {"gameId": 432, "classId": KINDS[kind]["cf_class"], "gameVersion": version, "pageSize": PER_PAGE,
+                  "index": (page - 1) * PER_PAGE, "sortField": CF_SORTS.get(sort, 6), "sortOrder": "desc"}
         if q:
             params["searchFilter"] = q
         if kind == "mod":
             params["modLoaderType"] = CF_LOADER_TYPE[loader]
-        data = http_json("https://api.curseforge.com/v1/mods/search?" + urllib.parse.urlencode(params),
-                         headers={"x-api-key": key})["data"]
+        resp = http_json("https://api.curseforge.com/v1/mods/search?" + urllib.parse.urlencode(params),
+                         headers={"x-api-key": key})
+        data = resp["data"]
+        total = int((resp.get("pagination") or {}).get("totalCount", len(data)))
         if kind == "mod" and side in SIDE_FILTERS:
             data = [m for m in data if not _cf_client_only(m, version)]
         items = [{"source": "curseforge", "id": str(m["id"]), "slug": m["slug"], "name": m["name"],
@@ -511,7 +586,7 @@ def search(source, q, loader, version, kind="mod", sort="auto", side="server"):
             items.sort(key=lambda it: _match_score(q, it))  # estable: conserva el orden por popularidad
             good = [it for it in items if _match_score(q, it) < 3]
             items = good if len(good) >= 3 else items
-        return items[:24]
+        return {"items": items[:PER_PAGE], "total": total}
     raise ValueError("fuente no válida")
 
 
@@ -594,6 +669,7 @@ def install(server_name, url, filename, sha1, kind="mod"):
             tmp.unlink(missing_ok=True)
             raise ValueError("el archivo descargado no es un datapack válido (falta pack.mcmeta)")
     tmp.replace(dest_dir / fname)
+    _invalidate_installed(server_name)
     return fname
 
 
@@ -2262,9 +2338,18 @@ class Handler(BaseHTTPRequestHandler):
                     loader, kind = compat_for(sv, kind)
                     kind = kind if kind in KINDS else "mod"
                 if path == "/api/search":
-                    return self._send(200, search(q.get("source", "modrinth"), q.get("q", ""), loader, version, kind,
-                                                  q.get("sort", "auto"), q.get("side", "server")))
+                    paged = "page" in q
+                    res = search(q.get("source", "modrinth"), q.get("q", ""), loader, version, kind, q.get("sort", "auto"), q.get("side", "server"),
+                                 int(q.get("page", 1) or 1), [t for t in q.get("tags", "").split(",") if t], paged)
+                    return self._send(200, res)
                 return self._send(200, mod_files(q["source"], q["project"], q.get("slug", ""), loader, version, kind))
+            if method == "GET" and path == "/api/tags":
+                kind = q.get("kind", "mod")
+                if kind not in KINDS:
+                    raise ValueError("tipo de contenido no válido")
+                if not db.can_any(user, KINDS[kind]["perm"]):
+                    raise PermissionError("no tienes permiso para este contenido")
+                return self._send(200, category_tags(kind))
             if method == "GET" and path == "/api/templates":
                 return self._send(200, [{"id": k, "label": v["label"], "kind": v["kind"], "desc": v["desc"],
                                          "perf": templates.perf_list(k)} for k, v in templates.TEMPLATES.items()])
@@ -2390,6 +2475,9 @@ class Handler(BaseHTTPRequestHandler):
                         if not any(db.can(user, name, perm) for perm in db.PERMS):
                             raise PermissionError("no tienes permiso para esto")
                         return self._send(200, live_metrics(name))
+                    if action == "installed":
+                        self._need(user, name, "mods")
+                        return self._send(200, installed_index(name, q.get("loader", "neoforge"), q.get("version", "1.21.1")))
                     if action == "log":
                         self._need(user, name, "logs")
                         return self._send(200, {"log": read_log(name, int(q.get("lines", 200)))})
@@ -2459,15 +2547,18 @@ class Handler(BaseHTTPRequestHandler):
                     elif action == "mod_toggle":
                         self._need(user, name, "mods")
                         new = toggle_mod(name, b["file"])
+                        _invalidate_installed(name)
                         db.audit(user, name, "activar/desactivar mod", new)
                         return self._send(200, {"file": new})
                     elif action == "mod_delete":
                         self._need(user, name, "mods")
                         delete_mod(name, b["file"])
+                        _invalidate_installed(name)
                         db.audit(user, name, "borrar mod", b["file"])
                     elif action == "mod_update":
                         self._need(user, name, "mods")
                         new = update_mod(name, b["file"], b.get("loader", "neoforge"), b.get("version", "1.21.1"))
+                        _invalidate_installed(name)
                         db.audit(user, name, "actualizar mod", new)
                         return self._send(200, {"installed": new})
                     elif action == "datapack_delete":
