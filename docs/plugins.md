@@ -1,14 +1,12 @@
 # API de plugins
 
-El núcleo no contiene código de Pro ni depende de él. `plugins.py` carga de forma opcional un
-paquete Python con una función `register(api)` y le ofrece la API de abajo. Si el paquete no existe,
-o falla al cargarse, el núcleo sigue funcionando como edición gratuita (`GET /api/plugins` devuelve
-`edition: "free"` y el motivo del fallo en `error`).
+`plugins.py` carga el paquete `features/` y le ofrece la API de abajo. Cada pestaña de servidor (copias, servidor de
+pruebas, seguridad…) es un plugin; si el paquete falla al cargarse, el núcleo sigue funcionando sin ellas y
+`GET /api/plugins` devuelve el motivo en `error`.
 
 ## Cargar un plugin
 
-El paquete se busca en `MODNEX_PRO_PATH` o en `pro_path` de `config.json`. Debe poder importarse como
-`modnex_pro` y exponer:
+El paquete `features` expone:
 
 ```python
 def register(api):
@@ -20,7 +18,7 @@ def register(api):
 | Método | Para qué |
 |---|---|
 | `route(method, action)` | Ruta por servidor: `/api/servers/<nombre>/<acción>`. La función recibe `(ctx, user, servidor, q, body)` y devuelve `(status, dict)`. |
-| `global_route(method, action)` | Ruta que no es de un servidor: `/api/pro/<acción>`. Exige sesión; la autorización la decide el plugin. Recibe `(ctx, user, q, body)`. |
+| `global_route(method, action)` | Ruta que no es de un servidor: `/api/features/<acción>`. Exige sesión; la autorización la decide el plugin. Recibe `(ctx, user, q, body)`. |
 | `tab(id, label, admin=True, perm=None, group=None)` | Pestaña en la página de un servidor. `perm` es el permiso por servidor que basta para verla; `"*"` significa cualquiera. `group` la coloca en una sección del panel: `operar`, `contenido`, `distribuir` o `proteger` (sin grupo va a «Más»). |
 | `rail(id, label)` | Bloque en el riel de estado de la derecha de cada servidor. La interfaz llama a `ModnexPlugins[id].renderRail(el, server)`. |
 | `page(id, label, admin=False)` | Entrada en la barra lateral (`#/p/<id>`). La interfaz llama a `ModnexPlugins[id].renderPage(el)`. |
@@ -28,7 +26,7 @@ def register(api):
 | `on(event)` | Se suscribe a un evento (ver abajo). |
 | `asset(nombre, ruta, mime, script=False)` | Archivo estático servido en `/plugin/<nombre>`. Con `script=True` el panel lo carga. |
 | `second_factor(fn)` | Comprobación extra tras acertar la contraseña. Recibe `(ctx, user, body, remote, ip)`; `None` deja pasar y `(status, dict[, contar_fallo])` rechaza. |
-| `extra(id, label, desc, install, loaders=None)` | Opción extra del asistente de creación (se marca como de pago). `install(ctx, nombre)` devuelve el archivo instalado; `ctx.install_modrinth(nombre, slug, loaders, prefix)` baja la última versión estable de Modrinth. |
+| `extra(id, label, desc, install, loaders=None)` | Opción extra del asistente de creación. `install(ctx, nombre)` devuelve el archivo instalado; `ctx.install_modrinth(nombre, slug, loaders, prefix)` baja la última versión estable de Modrinth. |
 | `client_include(fn)` | Mods que el cliente generado debe llevar siempre. Recibe `(ctx, name, rows)` y devuelve nombres de archivo. |
 
 Las rutas de servidor solo se despachan para servidores que el usuario puede ver. Las rutas globales

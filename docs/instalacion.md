@@ -1,4 +1,4 @@
-# Instalación de Modnex (edición gratuita)
+# Instalación de Modnex
 
 Modnex es un programa de Python que corre en tu propio equipo y se usa desde el navegador. No instala
 dependencias: usa solo la biblioteca estándar de Python y SQLite.
@@ -117,9 +117,3 @@ Reinicia el gestor después: los cambios de `app.py` no se aplican hasta reinici
 | No veo mis servidores | `SERVERS_DIR` apunta a otra carpeta. Comprueba la línea «Gestor en … (servidores en …)» que imprime el arranque. |
 | Olvidé la contraseña del admin | El administrador inicial solo se crea con la base de datos vacía. Si no tienes otros usuarios que conservar, para el gestor, mueve `manager.db` a otro sitio y arráncalo: vuelve a crear `admin` con el `access_token` de `config.json`. Se pierden usuarios, permisos y registro de actividad; los servidores no se tocan. |
 | El puerto 8765 está ocupado | Cámbialo con `MANAGER_PORT=8800 ./run.sh`. |
-
-## Edición Pro
-
-Las copias de seguridad con historial, las tareas programadas, el servidor de pruebas, la sincronización
-de clientes y el 2FA son de pago y viven en otro repositorio. Se instalan aparte, sobre esta instalación:
-ver el manual del repositorio `modnex-pro`.

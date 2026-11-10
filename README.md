@@ -7,11 +7,11 @@ del propio servidor.
 
 Solo usa la biblioteca estándar de Python (`http.server` + SQLite). No hay que instalar dependencias.
 
-> Estado: uso personal y en desarrollo. Mira [LICENSING.md](LICENSING.md) para saber qué es libre y
-> qué es de pago, [PRODUCT.md](PRODUCT.md) / [DESIGN.md](DESIGN.md) para el producto y el diseño, y la carpeta
-> [docs/](docs/) para la API HTTP y la API de plugins.
+> Estado: proyecto personal en desarrollo, todo bajo licencia libre (AGPL-3.0, ver [LICENSING.md](LICENSING.md)).
+> [PRODUCT.md](PRODUCT.md) y [DESIGN.md](DESIGN.md) explican el producto y el diseño; la carpeta [docs/](docs/) trae la guía
+> de instalación, el detalle de cada función, la API HTTP y la API de plugins.
 
-## Qué hace (edición gratuita)
+## Qué hace
 
 - **Servidores:** plantillas Vanilla, Fabric, NeoForge, Forge y Paper, o desde un modpack de
   Modrinth o CurseForge. Arranque, parada, consola, registros y memoria.
@@ -19,8 +19,8 @@ Solo usa la biblioteca estándar de Python (`http.server` + SQLite). No hay que 
   dependencias, marca «Instalado» en lo que ya tiene el servidor, comprobación de compatibilidad con la versión
   del servidor y filtro automático de mods que solo sirven en el cliente.
 - **Jugadores:** lista blanca, operadores, expulsiones, bloqueos y mensajes.
-- **Extras al crear un servidor:** AutoModpack, para que los jugadores reciban los mods al entrar (opcional,
-  desmarcado por defecto; el cliente generado lo lleva siempre).
+- **Extras al crear un servidor:** AutoModpack, para que los jugadores reciban los mods al entrar, y el perfilador
+  spark. Son opcionales y vienen desmarcados; el cliente generado lleva siempre AutoModpack.
 - **Cliente:** genera un modpack (`.mrpack` o `.zip`) con los mods que los jugadores necesitan y lo
   reparte con un enlace de descarga temporal.
 - **Usuarios y permisos por servidor:** logs, mods, datapacks, texturas, jugadores, control
@@ -30,9 +30,15 @@ Solo usa la biblioteca estándar de Python (`http.server` + SQLite). No hay que 
 - **Landing aparte** (`landing/`): sitio estático que presenta el proyecto; no forma parte del panel (ver su
   [README](landing/README.md)). En `/` el gestor solo redirige al panel.
 
-La edición **Pro** añade copias de seguridad, tareas programadas, actualización segura de mods,
-servidor de pruebas, pruebas de AutoModpack en una copia aislada, el perfilador spark como extra, 2FA y acceso remoto. Vive en otro repositorio
-(`modnex-pro`) y se carga como plugin; sin él, todo lo anterior funciona igual.
+Además, cada servidor tiene estas pestañas (detalle en [docs/funciones.md](docs/funciones.md)):
+
+- **Copias de seguridad** con historial en árbol (ramas al restaurar), tareas programadas y reglas de ciclo de vida.
+- **Actualizar mods** de forma segura: prueba las actualizaciones en un entorno aislado y aplica solo las que arrancan.
+- **Servidor de pruebas** hijo, con sus propios mods, que se fusiona con el real.
+- **Sincronización** de clientes con AutoModpack, probada en una copia aislada.
+- **Diagnóstico** de crashes, **avisos** a Discord, **estadísticas** de jugadores y **propuestas** de mods.
+- **Seguridad:** verificación en dos pasos con código QR y acceso remoto por túnel (Cloudflare o ngrok) para usuarios
+  que no son administradores.
 
 ## Instalación
 
@@ -86,8 +92,7 @@ no ves tus servidores → `SERVERS_DIR` apunta a otra carpeta (el arranque impri
 ocupado → `MANAGER_PORT=8800 ./run.sh`.
 
 La guía completa, con la configuración opcional y cómo recuperar el acceso de administrador, está en
-[docs/instalacion.md](docs/instalacion.md). La edición Pro se instala aparte, sobre esta; su manual vive en el
-repositorio `modnex-pro`.
+[docs/instalacion.md](docs/instalacion.md).
 
 ## Configuración
 
@@ -99,7 +104,10 @@ repositorio `modnex-pro`.
 | `curseforge_api_key` | Opcional. Activa la búsqueda y descarga de CurseForge. |
 | `bind` | Dirección en la que escucha. Por defecto `0.0.0.0`. |
 | `admin_remote` | Con `true`, los administradores también pueden entrar desde fuera de la red local. No recomendado. |
-| `pro_path`, `pro_dev` | Ruta del paquete Pro y activación de desarrollo (ver [LICENSING.md](LICENSING.md)). |
+| `servers_dir` | Carpeta de los servidores (ver abajo). |
+| `backup_dir`, `sandbox_dir` | Dónde se guardan las copias y los entornos de prueba. |
+| `remote_2fa` | Con `false`, los usuarios no necesitan 2FA para entrar por el túnel. |
+| `cloudflared_path`, `ngrok_path` | Rutas de los túneles, si no están en `bin/` o en el `PATH`. |
 
 Variables de entorno (tienen prioridad sobre `config.json`):
 
@@ -110,7 +118,8 @@ Variables de entorno (tienen prioridad sobre `config.json`):
 | `MANAGER_BIND` | `0.0.0.0` |
 | `MANAGER_DB` | `manager.db` junto a `app.py` |
 | `CURSEFORGE_API_KEY` | vacía |
-| `MODNEX_PRO_PATH` | ruta del paquete Pro, si lo usas |
+| `MODNEX_CONFIG` | Ruta del `config.json` (por defecto, junto a `app.py`) |
+| `MODNEX_BACKUP_DIR`, `MODNEX_CLOUDFLARED`, `MODNEX_NGROK` | Sustituyen a `backup_dir`, `cloudflared_path` y `ngrok_path` |
 
 El panel está en `http://127.0.0.1:8765/app` (la raíz `/` redirige ahí).
 
@@ -122,12 +131,14 @@ Cada subcarpeta de `SERVERS_DIR` con `start.sh`, `run.sh` o `mods/` es un servid
 | Archivo | Responsabilidad |
 |---|---|
 | `app.py` | Servidor HTTP, rutas, arranque de servidores, mods, cliente y plugins. |
-| `db.py` | SQLite: usuarios, sesiones, permisos, auditoría y lista de espera. |
+| `db.py` | SQLite: usuarios, sesiones, permisos y auditoría. |
 | `templates.py` | Plantillas de servidor (Vanilla, Fabric, NeoForge, Forge, Paper) y Java. |
 | `modpacks.py` | Importación de modpacks de Modrinth y CurseForge. |
 | `release.py` | Enlace de descarga temporal del cliente. |
 | `autofilter.py` | Detección de mods que solo funcionan en el cliente. |
-| `plugins.py` | Carga opcional de plugins ([docs/plugins.md](docs/plugins.md)). |
+| `plugins.py` | API de plugins ([docs/plugins.md](docs/plugins.md)). |
+| `features/` | Las pestañas de cada servidor (copias, pruebas, seguridad…), cargadas como plugins. |
+| `tests/` | Pruebas unitarias y de extremo a extremo. |
 | `static/` | Panel (`index.html`, `app.js`, `style.css`) y landing. |
 | `landing/` | Landing pública: sitio estático autónomo, separado del panel. |
 | `docs/` | Documentación: [API HTTP](docs/api.md) y [API de plugins](docs/plugins.md). |
@@ -145,24 +156,23 @@ Cada subcarpeta de `SERVERS_DIR` con `start.sh`, `run.sh` o `mods/` es un servid
 - Los permisos se aplican en el servidor, no solo en la interfaz.
 - **Los administradores solo entran desde este equipo o la red local.** El núcleo lo comprueba en cada
   petición (login y sesión), también si la petición llega por un túnel. Detalles y cómo relajarlo en
-  la documentación de Pro; la clave es `admin_remote` en `config.json`.
+  [docs/funciones.md](docs/funciones.md); la clave es `admin_remote` en `config.json`.
 
 ## Datos que genera
 
-`config.json`, `manager.db`, `manager.log`, `releases/` (clientes generados), `backups/` y `sandbox/`
-(solo con Pro), `bin/` (binarios descargados). Todos están en `.gitignore`.
+`config.json`, `manager.db`, `manager.log`, `servers/`, `releases/` (clientes generados), `backups/`, `sandbox/` y
+`bin/` (binarios descargados). Todos están en `.gitignore`.
 
 ## Contribuir
 
 - `main` está protegida: no se sube directamente. Cada cambio va en su propia rama (`feat/…` o `fix/…`) y entra
   por un pull request; un cambio por rama y un commit por cambio, con un mensaje que diga qué cambia, por qué y
   cómo se verificó.
-- Este repositorio **todavía no incluye pruebas automáticas**: las del gestor (unitarias, de API y de navegador)
-  viven hoy en el repositorio de Pro, que es privado. Hasta que se publiquen, verifica a mano lo que toques y
-  describe en el pull request cómo lo comprobaste.
+- Pruebas: `python3 -I -m unittest discover -s tests` (unitarias, sin red) y los `tests/e2e_*.py` (extremo a extremo
+  sobre instancias aisladas; `e2e_ui.py` necesita Playwright). Ejecútalas antes de abrir el pull request.
 - El panel no admite estilos ni scripts en línea (política de seguridad de contenido): usa clases CSS y archivos.
 - No incluyas secretos (`config.json`, claves de API, tokens).
 
 ## Licencia
 
-Núcleo bajo GNU AGPL-3.0 ([LICENSE](LICENSE)). El paquete Pro es propietario.
+GNU AGPL-3.0 ([LICENSE](LICENSE)). Mira [LICENSING.md](LICENSING.md) para los componentes de terceros.

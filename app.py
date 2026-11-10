@@ -37,7 +37,7 @@ import modpacks
 
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
-CONFIG_FILE = HERE / "config.json"
+CONFIG_FILE = Path(os.environ.get("MODNEX_CONFIG") or HERE / "config.json")
 
 
 def _servers_dir():
@@ -2290,14 +2290,6 @@ class Handler(BaseHTTPRequestHandler):
             if method == "GET" and mp:
                 return self._serve_pack(mp.group(1), urllib.parse.unquote(mp.group(2)))
 
-            if method == "POST" and path == "/api/waitlist":
-                if not db.waitlist_rate_ok(self._client_ip()):
-                    return self._send(429, {"error": "demasiados intentos; prueba más tarde"})
-                try:
-                    db.waitlist_add(self._body().get("email", ""))
-                except ValueError as e:
-                    return self._send(400, {"error": str(e)})
-                return self._send(200, {"ok": True})  # misma respuesta para correos nuevos y repetidos
             if method == "POST" and path == "/api/login":
                 b = self._body()
                 try:
@@ -2424,7 +2416,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, {"installed": fname})
 
             # administración
-            if path == "/api/users" or path.startswith("/api/users/") or path in ("/api/audit", "/api/share", "/api/share_stop", "/api/waitlist"):
+            if path == "/api/users" or path.startswith("/api/users/") or path in ("/api/audit", "/api/share", "/api/share_stop"):
                 self._need_admin(user)
                 if method == "GET" and path == "/api/users":
                     return self._send(200, db.list_users())
@@ -2464,8 +2456,6 @@ class Handler(BaseHTTPRequestHandler):
                         db.set_permissions(uid, b["server"], {k: bool(b.get(k)) for k in db.PERMS})
                         db.audit(user, b["server"], "permisos", f"{target['username']}: {b}")
                     return self._send(200, {"ok": True})
-                if method == "GET" and path == "/api/waitlist":
-                    return self._send(200, [dict(r) for r in db.waitlist_list()])
                 if method == "GET" and path == "/api/audit":
                     return self._send(200, db.recent_audit(int(q.get("limit", 100))))
                 if method == "GET" and path == "/api/share":
@@ -2477,7 +2467,7 @@ class Handler(BaseHTTPRequestHandler):
 
             if method == "GET" and path == "/api/plugins":
                 return self._send(200, plugins.info())
-            mg = re.fullmatch(r"/api/pro/([a-z0-9_]+)", path)
+            mg = re.fullmatch(r"/api/features/([a-z0-9_]+)", path)
             if mg:
                 gr = plugins.dispatch_global(method, user, mg.group(1), q, self._body)
                 if gr is not None:
