@@ -2,7 +2,7 @@ from unittest import mock
 import base64, os, sqlite3, stat, sys, tempfile, time, types, unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from features import remote, security as S
+from modnex.features import remote, security as S
 
 RFC_SECRET = base64.b32encode(b"12345678901234567890").decode()   # secreto de prueba del RFC 6238 (SHA-1)
 

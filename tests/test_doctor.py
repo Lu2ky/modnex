@@ -1,7 +1,7 @@
 import sys, unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from features import doctor
+from modnex.features import doctor
 
 
 def ids(t):

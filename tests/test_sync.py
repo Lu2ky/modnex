@@ -2,7 +2,7 @@ import json, sys, tempfile, time, types, unittest
 from pathlib import Path
 from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from features import safeupdate as su, sync
+from modnex.features import safeupdate as su, sync
 
 FP = "ab" * 32
 FAKE = r'''#!/usr/bin/env bash

@@ -11,7 +11,9 @@ import time
 from contextlib import closing
 from pathlib import Path
 
-DB_FILE = Path(os.environ.get("MANAGER_DB") or Path(__file__).resolve().parent / "manager.db")
+from modnex import config
+
+DB_FILE = Path(os.environ.get("MANAGER_DB") or config.HERE / "manager.db")
 SESSION_TTL = 30 * 24 * 3600
 PBKDF2_ITERS = 200_000
 PERMS = ("logs", "mods", "datapacks", "textures", "players", "control")

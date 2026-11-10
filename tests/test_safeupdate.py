@@ -1,7 +1,7 @@
 import itertools, os, stat, sys, tempfile, time, types, unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from features import safeupdate as su
+from modnex.features import safeupdate as su
 
 
 def tester(bad=(), pairs=(), named=False):
@@ -170,7 +170,7 @@ class PipelineTests(unittest.TestCase):
 
 
 def backups_list(ctx):
-    from features import backups
+    from modnex.features import backups
     return backups.list_backups(ctx, "s")
 
 

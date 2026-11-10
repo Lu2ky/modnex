@@ -2,7 +2,7 @@
 import json, sys, tempfile, unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from features import backups
+from modnex.features import backups
 from test_backups import make_ctx, fill
 
 

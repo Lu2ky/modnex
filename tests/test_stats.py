@@ -1,7 +1,7 @@
 import datetime as dt, gzip, sys, tempfile, unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from features import stats
+from modnex.features import stats
 
 D = dt.date(2026, 11, 9)
 

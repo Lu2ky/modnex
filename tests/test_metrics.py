@@ -6,7 +6,7 @@ CORE = Path(__file__).resolve().parent.parent
 _tmp = tempfile.mkdtemp(prefix="modnex-metrics-")
 os.environ.setdefault("MANAGER_DB", str(Path(_tmp) / "db.db")); os.environ.setdefault("SERVERS_DIR", _tmp)
 sys.path.insert(0, str(CORE))
-import app
+from modnex.services import servers as app
 
 
 class MetricsTests(unittest.TestCase):

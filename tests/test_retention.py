@@ -2,7 +2,7 @@ import json, os, sqlite3, sys, tempfile, threading, time, types, unittest
 from pathlib import Path
 from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from features import backups, retention as R, scheduler
+from modnex.features import backups, retention as R, scheduler
 
 NOW = 1_800_000_000
 DAY = 86400
