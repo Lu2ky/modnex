@@ -9,7 +9,7 @@ Solo usa la biblioteca estándar de Python (`http.server` + SQLite). No hay que 
 
 > Estado: proyecto personal en desarrollo, todo bajo licencia libre (AGPL-3.0, ver [LICENSING.md](LICENSING.md)).
 > [PRODUCT.md](PRODUCT.md) y [DESIGN.md](DESIGN.md) explican el producto y el diseño; la carpeta [docs/](docs/) trae la guía
-> de instalación, el detalle de cada función, la API HTTP y la API de plugins.
+> de instalación, el detalle de cada función, la arquitectura, la API HTTP y la API de plugins.
 
 ## Qué hace
 
@@ -47,7 +47,7 @@ estándar de Python y SQLite.
 
 **Necesitas**
 
-- Python 3 reciente (probado con 3.14): `python3 --version`.
+- Python 3.12 o superior (probado con 3.12, 3.13 y 3.14): `python3 --version`.
 - Java para los servidores: 21 para Minecraft 1.20.5 o posterior, 17 de 1.18 a 1.20.4. Compruébalo con `java -version`. Si hay un Java en
   `.runtime/java21` dentro de la carpeta de los servidores, el gestor usa ese.
 - Git, solo para descargar el proyecto (también sirve el `.zip` de GitHub).
@@ -128,21 +128,22 @@ Cada subcarpeta de `SERVERS_DIR` con `start.sh`, `run.sh` o `mods/` es un servid
 
 ## Estructura
 
-| Archivo | Responsabilidad |
+El código vive en el paquete `modnex`, en capas (web → servicios → infraestructura). Resumen; la explicación completa y
+los patrones de diseño aplicados están en [docs/arquitectura.md](docs/arquitectura.md).
+
+| Ruta | Responsabilidad |
 |---|---|
-| `app.py` | Servidor HTTP, rutas, arranque de servidores, mods, cliente y plugins. |
-| `db.py` | SQLite: usuarios, sesiones, permisos y auditoría. |
-| `templates.py` | Plantillas de servidor (Vanilla, Fabric, NeoForge, Forge, Paper) y Java. |
-| `modpacks.py` | Importación de modpacks de Modrinth y CurseForge. |
-| `release.py` | Enlace de descarga temporal del cliente. |
-| `autofilter.py` | Detección de mods que solo funcionan en el cliente. |
-| `plugins.py` | API de plugins ([docs/plugins.md](docs/plugins.md)). |
-| `features/` | Las pestañas de cada servidor (copias, pruebas, seguridad…), cargadas como plugins. |
-| `tests/` | Pruebas unitarias y de extremo a extremo. |
-| `static/` | Panel (`index.html`, `app.js`, `style.css`) y landing. |
+| `app.py` | Punto de entrada (`python3 app.py`). |
+| `modnex/web/` | Capa HTTP: manejador, tabla de rutas (`router.py`, `routes/`), política de acceso y errores. |
+| `modnex/services/` | Lógica de la aplicación: servidores, mods, catálogo, cliente, plantillas, modpacks, releases... |
+| `modnex/infra/` | Adaptadores: SQLite, HTTP con circuit breaker, procesos. |
+| `modnex/features/` | Funciones por servidor (copias, servidor de pruebas, seguridad...), cargadas como plugins ([docs/plugins.md](docs/plugins.md)). |
+| `modnex/composition.py` | Raíz de composición: lo que reciben los plugins y el arranque. |
+| `static/` | Panel (`index.html`, `app.js`, `style.css`). |
 | `landing/` | Landing pública: sitio estático autónomo, separado del panel. |
-| `docs/` | Documentación: [API HTTP](docs/api.md) y [API de plugins](docs/plugins.md). |
-| `tools/make_scene.py` | Genera la ilustración de la landing. |
+| `tests/` | Pruebas unitarias y de extremo a extremo. |
+| `docs/` | Instalación, funciones, arquitectura, API HTTP y API de plugins. |
+| `tools/` | Utilidades de desarrollo (generador de iconos de servidor). |
 
 ## Seguridad
 
