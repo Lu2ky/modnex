@@ -2403,7 +2403,8 @@ def _plugin_ctx():
     return types.SimpleNamespace(
         here=HERE, servers_dir=SERVERS_DIR, server_path=server_path, status=status, start=start, stop=stop,
         send_command=send_command, read_log=read_log, audit=db.audit, can=db.can, db_run=db.run,
-        db_connect=db._connect, config=load_config, list_servers=list_servers)
+        db_connect=db._connect, config=load_config, list_servers=list_servers,
+        search=search, compat_for=compat_for, server_versions=server_versions, user_perms=db.user_perms)
 
 
 def main():

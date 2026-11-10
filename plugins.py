@@ -41,7 +41,7 @@ class PluginAPI:
         return deco
 
     def tab(self, tab_id, label, admin=True, perm=None):
-        """perm: permiso por servidor que basta para ver la pestaña (además de ser admin)."""
+        """perm: permiso por servidor que basta para ver la pestaña (además de ser admin); "*" = cualquiera."""
         self.tabs.append({"id": tab_id, "label": label, "admin": bool(admin), "perm": perm})
 
     def add_schema(self, sql):
