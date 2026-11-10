@@ -21,20 +21,19 @@ git clone https://github.com/Lu2ky/modnex.git
 cd modnex
 ```
 
-## 2. Elegir dónde viven los servidores
+## 2. Elegir dónde viven los servidores (opcional)
 
-Cada subcarpeta de `SERVERS_DIR` que tenga `start.sh`, `run.sh` o una carpeta `mods/` es un servidor.
-El valor por defecto es una ruta fija del autor (`/home/luky/servers`), así que **en tu equipo debes
-indicar la tuya**:
+Cada subcarpeta de la carpeta de servidores que tenga `start.sh`, `run.sh` o una carpeta `mods/` es un servidor.
+Por defecto es `servers/` junto al proyecto y se crea sola en el primer arranque, así que puedes saltarte este paso.
+
+Para usar otra carpeta, por ejemplo una donde ya tienes servidores de Minecraft, hay dos formas:
 
 ```bash
-mkdir -p ~/minecraft-servers
-export SERVERS_DIR=~/minecraft-servers
+export SERVERS_DIR=~/minecraft-servers     # variable de entorno (añádela a ~/.bashrc o ~/.zshrc)
 ```
 
-Para no repetirlo en cada arranque, añade esa línea a tu `~/.bashrc` o `~/.zshrc`.
-
-Si ya tienes servidores de Minecraft en una carpeta, apunta `SERVERS_DIR` a ella: el gestor los detecta.
+o la clave `"servers_dir": "/ruta/a/tus/servidores"` en `config.json`. La variable tiene prioridad sobre `config.json`.
+Si ya tienes servidores en esa carpeta, el gestor los detecta.
 
 ## 3. Arrancar
 
@@ -70,13 +69,14 @@ tienes que abrir ese puerto en tu router o usar un servicio de túnel; el gestor
 |---|---|
 | `curseforge_api_key` | Activa la búsqueda y descarga de CurseForge. Se consigue gratis en la consola de desarrolladores de CurseForge. |
 | `bind` | Dirección en la que escucha el panel. Por defecto `0.0.0.0` (toda la red local). |
+| `servers_dir` | Carpeta de los servidores (ver arriba). |
 | `admin_remote` | Con `true`, los administradores pueden entrar desde fuera de tu red. No recomendado. |
 
 Variables de entorno (tienen prioridad sobre `config.json`):
 
 | Variable | Valor por defecto |
 |---|---|
-| `SERVERS_DIR` | `/home/luky/servers` |
+| `SERVERS_DIR` | `servers/` junto al proyecto (o `servers_dir` de `config.json`) |
 | `MANAGER_PORT` | `8765` |
 | `MANAGER_BIND` | `0.0.0.0` |
 | `MANAGER_DB` | `manager.db` junto a `app.py` |
