@@ -21,7 +21,8 @@ CDN = "cdn.modrinth.com"
 SAFE_TOKEN = re.compile(r"[A-Za-z0-9._\-]{1,40}")
 TEST_XMX_MB = 4096
 JOBS = {}
-FP_RE = re.compile(r"Certificate fingerprint:\s*([0-9a-f]{64})")
+# AutoModpack 4.x escribe «Certificate fingerprint: …» y 5.x «AutoModpack host certificate fingerprint: …»
+FP_RE = re.compile(r"certificate fingerprint:\s*([0-9a-f]{64})", re.I)
 CONFIG_KEYS = ("modpackHost", "autoExcludeServerSideMods", "requireAutoModpackOnClient", "bindPort", "syncedFiles", "allowEditsInFiles")
 
 

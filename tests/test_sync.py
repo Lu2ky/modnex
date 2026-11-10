@@ -123,6 +123,18 @@ class PipelineTests(unittest.TestCase):
         finally: su._GLOBAL.release()
         self.assertNotEqual(sync.JOBS.get("s", {}).get("state"), "running")
 
+    def test_huella_en_el_formato_de_cada_version_de_automodpack(self):
+        for linea in (f"[00:00:27] [Server thread/WARN] [AutoModpack/]: Certificate fingerprint: {FP}",
+                      f"[10nov2026 15:32:45.489] [Server thread/INFO] [AutoModpack/]: AutoModpack host certificate fingerprint: {FP}",
+                      f"AUTOMODPACK HOST CERTIFICATE FINGERPRINT:   {FP.upper().lower()}"):
+            self.assertEqual(sync.FP_RE.findall(linea), [FP], linea)
+        self.assertEqual(sync.FP_RE.findall("certificate fingerprint: abc123"), [], "una huella tiene 64 caracteres hexadecimales")
+
+    def test_huella_real_con_automodpack_5_en_latest_log(self):
+        (self.srv / "logs").mkdir(exist_ok=True)
+        (self.srv / "logs" / "latest.log").write_text(f"x\n[AutoModpack/]: AutoModpack host certificate fingerprint: {FP}\ny\n")
+        self.assertEqual(sync.real_fingerprint(self.ctx, "s"), FP)
+
     def test_huella_real_se_lee_del_log_del_servidor_real(self):
         (self.srv / "logs").mkdir(); (self.srv / "logs" / "latest.log").write_text(f"x\nCertificate fingerprint: {FP}\n")
         self.assertEqual(sync.real_fingerprint(self.ctx, "s"), FP)
