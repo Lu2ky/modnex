@@ -226,6 +226,7 @@ function tabsFor(s) {
   if (s.permissions.textures) t.push({ id: 'textures', label: 'Texturas' });
   if (s.permissions.players) t.push({ id: 'players', label: 'Jugadores' });
   if (isAdmin()) t.push({ id: 'client', label: 'Cliente' }, { id: 'props', label: 'Propiedades' }, { id: 'settings', label: 'Ajustes' });
+  for (const p of (state.plugins && state.plugins.tabs) || []) if (!p.admin || isAdmin()) t.push({ id: 'x-' + p.id, label: p.label });
   return t;
 }
 
@@ -264,7 +265,9 @@ function renderServer() {
       ${tabs.map((t) => `<a class="tab${t.id === tab ? ' on' : ''}" href="#/s/${encodeURIComponent(s.name)}/${t.id}" ${t.id === tab ? 'aria-current="page"' : ''}>${t.label}</a>`).join('')}
     </nav>
     <section class="tab-body" id="tabBody"></section>`;
-  ({ logs: tabLogs, mods: tabMods, datapacks: tabDatapacks, textures: tabTextures, players: tabPlayers, client: tabClient, props: tabProps, settings: tabSettings })[tab](s);
+  const core = { logs: tabLogs, mods: tabMods, datapacks: tabDatapacks, textures: tabTextures, players: tabPlayers, client: tabClient, props: tabProps, settings: tabSettings };
+  if (core[tab]) core[tab](s);
+  else renderPluginTab(tab.replace(/^x-/, ''), s);
 }
 
 /* --- Logs --- */
@@ -1508,11 +1511,31 @@ document.addEventListener('cancel', (e) => {
 }, true);
 
 /* ---------- arranque ---------- */
+// --- Plugins (edición Pro): el panel solo sabe cargar scripts y pintar sus pestañas ---
+window.ModnexPlugins = window.ModnexPlugins || {};
+function renderPluginTab(id, s) {
+  const plug = window.ModnexPlugins[id];
+  const body = $('#tabBody');
+  if (!plug || typeof plug.render !== 'function') { body.innerHTML = '<p class="muted">Esta sección no está disponible.</p>'; return; }
+  try { plug.render(body, s); } catch (e) { body.innerHTML = `<p class="muted">No se pudo mostrar esta sección: ${esc(e.message)}</p>`; }
+}
+async function loadPlugins() {
+  state.plugins = { edition: 'free', tabs: [], scripts: [] };
+  try { state.plugins = await api('/api/plugins'); } catch { return; }
+  window.Modnex = { api, esc, $, toast, askConfirm, isAdmin, current, state };
+  await Promise.all((state.plugins.scripts || []).map((src) => new Promise((ok) => {
+    const el = document.createElement('script');
+    el.src = src; el.onload = ok; el.onerror = ok;
+    document.head.appendChild(el);
+  })));
+}
+
 async function boot() {
   try {
     const me = await api('/api/me');
     state.me = me.user; state.icons = me.icons;
     state.servers = await api('/api/servers');
+    await loadPlugins();
   } catch (e) { return; }
   renderShell();
   route();
