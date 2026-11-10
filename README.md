@@ -18,6 +18,8 @@ Solo usa la biblioteca estándar de Python (`http.server` + SQLite). No hay que 
   dependencias, marca «Instalado» en lo que ya tiene el servidor, comprobación de compatibilidad con la versión
   del servidor y filtro automático de mods que solo sirven en el cliente.
 - **Jugadores:** lista blanca, operadores, expulsiones, bloqueos y mensajes.
+- **Extras al crear un servidor:** AutoModpack, para que los jugadores reciban los mods al entrar (opcional,
+  desmarcado por defecto; el cliente generado lo lleva siempre).
 - **Cliente:** genera un modpack (`.mrpack` o `.zip`) con los mods que los jugadores necesitan y lo
   reparte con un enlace de descarga temporal.
 - **Usuarios y permisos por servidor:** logs, mods, datapacks, texturas, jugadores, control
@@ -27,7 +29,7 @@ Solo usa la biblioteca estándar de Python (`http.server` + SQLite). No hay que 
 - **Landing pública** en `/` con lista de espera.
 
 La edición **Pro** añade copias de seguridad, tareas programadas, actualización segura de mods,
-servidor de pruebas, sincronización de clientes, 2FA y acceso remoto. Vive en otro repositorio
+servidor de pruebas, pruebas de AutoModpack en una copia aislada, el perfilador spark como extra, 2FA y acceso remoto. Vive en otro repositorio
 (`modnex-pro`) y se carga como plugin; sin él, todo lo anterior funciona igual.
 
 ## Arrancar

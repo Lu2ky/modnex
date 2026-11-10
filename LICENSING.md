@@ -8,7 +8,7 @@ El código de este repositorio es software libre bajo la GNU Affero General Publ
 Cualquiera puede usarlo, estudiarlo, modificarlo y redistribuirlo, siempre bajo esa licencia,
 incluido ofrecerlo como servicio en red (la AGPL obliga a publicar esos cambios).
 
-Incluye: crear y arrancar servidores, plantillas, instalación de mods y plugins con sus dependencias,
+Incluye: crear y arrancar servidores, plantillas, el extra opcional AutoModpack al crearlos, instalación de mods y plugins con sus dependencias,
 modpacks, generación del cliente, consola, logs, propiedades de `server.properties`, releases con
 enlace temporal y el filtro de mods de cliente.
 
@@ -29,7 +29,7 @@ Sin el paquete, o si falla al cargarse, el núcleo funciona como edición gratui
 
 - **Ya está en el paquete Pro:** copias de seguridad y versiones, tareas programadas, diagnóstico de
   crashes, avisos a Discord, estadísticas de jugadores, propuestas de mods, actualización segura de
-  mods, servidor de pruebas, sincronización de clientes con AutoModpack, verificación en dos pasos y
+  mods, servidor de pruebas, pruebas de AutoModpack en una copia aislada, el extra spark, verificación en dos pasos y
   acceso remoto.
 - **Todavía está en el núcleo y hay que moverlo:** la gestión de permisos por usuario y servidor
   (`db.py`, `app.py`). Hasta entonces, la edición gratuita incluye usuarios y permisos.

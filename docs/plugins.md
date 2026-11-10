@@ -28,6 +28,7 @@ def register(api):
 | `on(event)` | Se suscribe a un evento (ver abajo). |
 | `asset(nombre, ruta, mime, script=False)` | Archivo estático servido en `/plugin/<nombre>`. Con `script=True` el panel lo carga. |
 | `second_factor(fn)` | Comprobación extra tras acertar la contraseña. Recibe `(ctx, user, body, remote, ip)`; `None` deja pasar y `(status, dict[, contar_fallo])` rechaza. |
+| `extra(id, label, desc, install, loaders=None)` | Opción extra del asistente de creación (se marca como de pago). `install(ctx, nombre)` devuelve el archivo instalado; `ctx.install_modrinth(nombre, slug, loaders, prefix)` baja la última versión estable de Modrinth. |
 | `client_include(fn)` | Mods que el cliente generado debe llevar siempre. Recibe `(ctx, name, rows)` y devuelve nombres de archivo. |
 
 Las rutas de servidor solo se despachan para servidores que el usuario puede ver. Las rutas globales
