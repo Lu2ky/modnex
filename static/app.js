@@ -320,11 +320,48 @@ function renderServer() {
       </nav>` : ''}
       <section class="tab-body" id="tabBody"></section>
     </div>`;
+  placeInk($('.groups'), 'groups', 'all');
+  placeInk($('.srv-layout > .tabs'), 'tabs', activeGroup);
   const core = { summary: tabSummary, logs: tabLogs, mods: tabMods, datapacks: tabDatapacks, textures: tabTextures, players: tabPlayers, client: tabClient, props: tabProps, settings: tabSettings };
   if (core[tab]) core[tab](s);
   else renderPluginTab(tab.replace(/^x-/, ''), s);
   mountRail(s);
 }
+
+/* --- Indicador de selección que se desliza entre secciones y pestañas ---
+   La barra se repinta entera en cada navegación, así que se recuerda dónde estaba el indicador y se anima desde ahí.
+   Se mueve con transform/width (CSS), y las medidas se escriben con la API de estilos (no con atributos style). */
+state.ink = {};
+function placeInk(nav, kind, key) {
+  if (!nav) return;
+  const active = $('.on', nav);
+  if (!active) return;
+  const ink = document.createElement('span');
+  ink.className = 'ink'; ink.setAttribute('aria-hidden', 'true');
+  nav.append(ink);
+  const set = (x, w) => { ink.style.setProperty('--x', `${x}px`); ink.style.setProperty('--w', `${w}px`); };
+  const x = active.offsetLeft, w = active.offsetWidth, prev = state.ink[kind];
+  ink.classList.add('no-anim');
+  set(prev && prev.key === key ? prev.x : x, prev && prev.key === key ? prev.w : w);   // parte de donde estaba (si era el mismo conjunto)
+  void ink.offsetWidth;                                                              // fija la posición inicial sin transición
+  ink.classList.remove('no-anim');
+  set(x, w);
+  state.ink[kind] = { key, x, w };
+  nav.dataset.ink = kind;
+}
+// Si cambia el ancho (fuente cargada, ventana), el indicador se recoloca sin animar.
+function resyncInk() {
+  $$('[data-ink]').forEach((nav) => {
+    const ink = $('.ink', nav), active = $('.on', nav);
+    if (!ink || !active) return;
+    ink.classList.add('no-anim');
+    ink.style.setProperty('--x', `${active.offsetLeft}px`); ink.style.setProperty('--w', `${active.offsetWidth}px`);
+    void ink.offsetWidth; ink.classList.remove('no-anim');
+    const k = nav.dataset.ink; if (state.ink[k]) { state.ink[k].x = active.offsetLeft; state.ink[k].w = active.offsetWidth; }
+  });
+}
+window.addEventListener('resize', resyncInk);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(resyncInk);
 
 /* --- Riel de estado (derecha): datos en vivo del servidor --- */
 state.metrics = {};
@@ -591,7 +628,12 @@ const KIND = {
 };
 const SORTS = [['auto', 'Automático'], ['downloads', 'Más descargados'], ['relevance', 'Relevancia'], ['updated', 'Actualizados'], ['newest', 'Nuevos']];
 const SIDES = [['server', 'Para servidor'], ['required', 'Solo los que exigen servidor'], ['all', 'Todos']];
-const newFinder = () => ({ source: 'modrinth', q: '', sort: 'auto', side: 'server', results: null, error: null, loaded: false });
+const newFinder = () => ({ source: 'modrinth', q: '', sort: 'auto', side: 'server', results: null, error: null, loaded: false, page: 1, pages: 1, total: 0, tags: [] });
+state.tagList = {};                       // kind -> [{name, label}] (etiquetas de Modrinth)
+state.installed = { server: null, at: 0, projects: new Set(), versions: {} };   // índice de lo ya instalado en el servidor actual
+const INSTALLED_TTL_MS = 60000;
+const instKey = (h) => (state.installed.projects.has(`${h.source}:${h.id}`) || (h.slug && state.installed.projects.has(`slug:${String(h.slug).toLowerCase()}`)));
+const instVersion = (source, id) => state.installed.versions[`${source}:${id}`];
 state.finder = { mod: newFinder(), plugin: newFinder(), datapack: newFinder(), resourcepack: newFinder() };
 const opts = (list, cur) => list.map(([v, l]) => `<option value="${v}"${cur === v ? ' selected' : ''}>${l}</option>`).join('');
 
@@ -610,9 +652,37 @@ function finderHTML(kind) {
         ${kind === 'mod' ? `<select name="side" aria-label="Compatibilidad con servidor">${opts(SIDES, f.side)}</select>` : ''}
         <select name="sort" aria-label="Orden">${opts(SORTS, f.sort)}</select>
       </div>
+      <div class="tagbar" id="tags-${kind}" role="group" aria-label="Filtrar por etiqueta">${tagbarHTML(kind)}</div>
     </form>
     <div class="bar" aria-hidden="true"></div>
-    <div id="results-${kind}">${finderResultsHTML(kind)}</div>`;
+    <div id="results-${kind}">${finderResultsHTML(kind)}</div>
+    <div id="pager-${kind}">${pagerHTML(kind)}</div>`;
+}
+
+function tagbarHTML(kind) {
+  const f = state.finder[kind], list = state.tagList[kind];
+  if (f.source !== 'modrinth') return '<span class="muted small">El filtro por etiqueta solo está disponible con Modrinth.</span>';
+  if (!list) return '<span class="muted small">Cargando etiquetas…</span>';
+  if (!list.length) return '';
+  return `<span class="tagbar-title muted small">Etiquetas</span>${list.map((t) => `<button type="button" class="filter${f.tags.includes(t.name) ? ' on' : ''}" data-action="finder-tag" data-kind="${kind}" data-tag="${esc(t.name)}" aria-pressed="${f.tags.includes(t.name)}">${esc(t.label)}</button>`).join('')}${f.tags.length ? `<button type="button" class="filter clear" data-action="finder-tag-clear" data-kind="${kind}">Quitar filtros</button>` : ''}`;
+}
+async function loadTags(kind) {
+  if (state.tagList[kind]) return;
+  try { state.tagList[kind] = await api(`/api/tags?kind=${kind}`); } catch (e) { state.tagList[kind] = []; }
+  const box = $(`#tags-${kind}`); if (box) box.innerHTML = tagbarHTML(kind);
+}
+
+// Páginas: ventana de números alrededor de la actual, con la primera y la última siempre a mano.
+function pagerHTML(kind) {
+  const f = state.finder[kind];
+  if (!f.results || f.pages <= 1) return f.results && f.total ? `<p class="muted small pager-info">${fmtNum(f.total)} ${f.total === 1 ? 'resultado' : 'resultados'}</p>` : '';
+  const nums = [];
+  for (let n = 1; n <= f.pages; n++) if (n === 1 || n === f.pages || Math.abs(n - f.page) <= 2) nums.push(n);
+  const btn = (n, label, extra = '') => `<button type="button" class="page${n === f.page ? ' on' : ''}" data-action="finder-page" data-kind="${kind}" data-page="${n}" ${n === f.page ? 'aria-current="page"' : ''} ${extra}>${label}</button>`;
+  const items = nums.map((n, i) => (i && n - nums[i - 1] > 1 ? '<span class="page-gap" aria-hidden="true">…</span>' : '') + btn(n, n)).join('');
+  return `<nav class="pager" aria-label="Páginas de resultados">
+      ${btn(f.page - 1, 'Anterior', f.page <= 1 ? 'disabled' : '')}${items}${btn(f.page + 1, 'Siguiente', f.page >= f.pages ? 'disabled' : '')}
+    </nav><p class="muted small pager-info">Página ${f.page} de ${f.pages} · ${fmtNum(f.total)} resultados</p>`;
 }
 
 function finderResultsHTML(kind) {
@@ -624,7 +694,7 @@ function finderResultsHTML(kind) {
   return `<div class="rows">${f.results.map((h) => `
     <div class="result" data-kind="${kind}" data-id="${esc(h.id)}" data-slug="${esc(h.slug)}" data-source="${esc(h.source)}">
       ${h.icon ? `<img src="${esc(h.icon)}" alt="" loading="lazy">` : '<span class="img-ph"></span>'}
-      <div class="grow"><strong>${esc(h.name)}</strong> <span class="muted small">${fmtNum(h.downloads)} descargas</span>
+      <div class="grow"><strong>${esc(h.name)}</strong>${(kind === 'mod' || kind === 'plugin') && instKey(h) ? ' <span class="chip live inst">Instalado</span>' : ''} <span class="muted small">${fmtNum(h.downloads)} descargas</span>
         <div class="muted small">${esc(h.summary)}</div>
         <div class="files" data-files></div></div>
       <a class="btn sm" href="#/m/${esc(h.source)}/${esc(h.id)}">Ficha</a>
@@ -664,28 +734,68 @@ function depsDialog(btn, plan) {
 function mountFinder(kind, host) {
   host.dataset.finderHost = kind;
   host.innerHTML = finderHTML(kind);
+  loadTags(kind);
+  ensureInstalled(kind);
   if (!state.finder[kind].loaded) runFinder(kind, $('form[data-finder]', host));  // al abrir: lo más descargado
 }
 
-async function runFinder(kind, form) {
+// Qué hay ya instalado en este servidor: tarda (identifica los mods), así que se pide aparte y se marcan los resultados al llegar.
+async function ensureInstalled(kind) {
+  if ((kind !== 'mod' && kind !== 'plugin') || state.view.kind !== 'server') return;
+  const name = state.view.name, st = state.installed;
+  if (st.server === name && Date.now() - st.at < INSTALLED_TTL_MS) return markInstalledInDom(kind);
+  try {
+    const q = new URLSearchParams({ loader: state.loader, version: state.version });
+    const idx = await api(`/api/servers/${encodeURIComponent(name)}/installed?${q}`);
+    if (state.view.kind !== 'server' || state.view.name !== name) return;
+    state.installed = { server: name, at: Date.now(), projects: new Set(idx.projects), versions: idx.versions || {} };
+    markInstalledInDom(kind);
+  } catch (e) { /* sin el índice simplemente no se marca nada */ }
+}
+function markInstalledInDom(kind) {
+  $$(`#results-${kind} .result`).forEach((card) => {
+    const h = { source: card.dataset.source, id: card.dataset.id, slug: card.dataset.slug };
+    const has = $('.inst', card);
+    if (instKey(h) && !has) $('strong', card).insertAdjacentHTML('afterend', ' <span class="chip live inst">Instalado</span>');
+  });
+}
+function rememberInstalled(source, project, slug, version) {
+  const st = state.installed;
+  if (st.server !== state.view.name) return;
+  st.projects.add(`${source}:${project}`);
+  if (slug) st.projects.add(`slug:${String(slug).toLowerCase()}`);
+  if (version) st.versions[`${source}:${project}`] = version;
+  st.at = Date.now();
+  markInstalledInDom(state.view.kind === 'server' && state.modsPane === 'add' ? 'mod' : 'mod');
+  markInstalledInDom('plugin');
+}
+
+async function runFinder(kind, form, page = 1) {
   const f = state.finder[kind];
+  if (form.source.value !== f.source) { f.tags = []; }   // las etiquetas son de Modrinth
   f.source = form.source.value; f.q = form.q.value.trim(); f.sort = form.sort.value;
   if (form.side) f.side = form.side.value;
   if (form.loader) { state.loader = form.loader.value; localStorage.setItem('loader', state.loader); }
   state.version = form.version.value.trim() || '1.21.1'; localStorage.setItem('version', state.version);
-  f.error = null; f.results = null;
+  f.error = null; f.results = null; f.page = page;
   const host = form.closest('[data-finder-host]'), bar = $('.bar', host);
   bar.classList.add('on');
   $(`#results-${kind}`).innerHTML = finderResultsHTML(kind);
+  $(`#pager-${kind}`).innerHTML = '';
+  const tg = $(`#tags-${kind}`); if (tg) tg.innerHTML = tagbarHTML(kind);
   try {
-    f.results = await api('/api/search?' + new URLSearchParams({
-      kind, source: f.source, q: f.q, sort: f.sort, side: f.side, loader: state.loader, version: state.version,
+    const d = await api('/api/search?' + new URLSearchParams({
+      kind, source: f.source, q: f.q, sort: f.sort, side: f.side, loader: state.loader, version: state.version, page,
+      ...(f.source === 'modrinth' && f.tags.length ? { tags: f.tags.join(',') } : {}),
       ...(state.view.kind === 'server' ? { server: state.view.name } : {}) }));
+    f.results = d.items; f.total = d.total; f.pages = d.pages; f.page = d.page;
   } catch (e) { f.error = e.message; }
   f.loaded = true;
   bar.classList.remove('on');
   const box = $(`#results-${kind}`);
   if (box) box.innerHTML = finderResultsHTML(kind);
+  const pg = $(`#pager-${kind}`); if (pg) pg.innerHTML = pagerHTML(kind);
+  loadTags(kind); ensureInstalled(kind);
 }
 
 /* --- Datapacks --- */
@@ -1398,6 +1508,8 @@ async function startInstall(server, el) {
     const r = await api('/api/install', { method: 'POST', body: { server: server, kind, url: el.dataset.url, filename: el.dataset.name, sha1: el.dataset.sha1 || null } });
     toast(`Instalado ${r.installed}. Reinicia el servidor para cargarlo.`, 'ok');
     el.textContent = 'Instalado';
+    const card = el.closest('.result');
+    if (card && (kind === 'mod' || kind === 'plugin')) rememberInstalled(el.dataset.source, el.dataset.project, card.dataset.slug, $('.file span', el.closest('.file'))?.textContent);
     refreshServers();
   } catch (e) { fail(e); busy(el, false); el.textContent = 'Instalar'; }
 }
@@ -1408,6 +1520,17 @@ const sPath = (suffix) => `/api/servers/${encodeURIComponent(sName())}/${suffix}
 const busy = (el, on) => { el.disabled = on; };
 
 const actions = {
+  'finder-tag'(el) {
+    const f = state.finder[el.dataset.kind], t = el.dataset.tag;
+    f.tags = f.tags.includes(t) ? f.tags.filter((x) => x !== t) : [...f.tags, t];
+    runFinder(el.dataset.kind, $(`form[data-finder="${el.dataset.kind}"]`));
+  },
+  'finder-tag-clear'(el) { state.finder[el.dataset.kind].tags = []; runFinder(el.dataset.kind, $(`form[data-finder="${el.dataset.kind}"]`)); },
+  'finder-page'(el) {
+    const kind = el.dataset.kind, form = $(`form[data-finder="${kind}"]`);
+    runFinder(kind, form, Number(el.dataset.page));
+    const top = $(`#results-${kind}`); if (top && top.scrollIntoView) top.scrollIntoView({ block: 'start', behavior: 'auto' });
+  },
   'pl-select'(el) { state.plSel = state.plSel === el.dataset.player ? null : el.dataset.player; paintPlayers(); },
   'mod-select'(el) { state.modSel = state.modSel === el.dataset.file ? null : el.dataset.file; paintMods(); },
   'mod-filter'(el) { state.modFilter = el.dataset.filter; paintMods(); },
@@ -1454,13 +1577,16 @@ const actions = {
     ({ mods: tabMods, dp: tabDatapacks, tex: tabTextures })[el.dataset.scope](current());
   },
   async 'mod-toggle'(el) {
+    state.installed.at = 0;
     try { await api(sPath('mod_toggle'), { method: 'POST', body: { file: el.dataset.file } }); loadInstalled(current()); } catch (e) { fail(e); }
   },
   async 'mod-delete'(el) {
+    state.installed.at = 0;
     if (!(await askConfirm('¿Borrar este mod?', `${el.dataset.file} se elimina de la carpeta mods/. No se puede deshacer.`, { confirmLabel: 'Borrar mod', danger: true }))) return;
     try { await api(sPath('mod_delete'), { method: 'POST', body: { file: el.dataset.file } }); toast('Mod borrado', 'ok'); loadInstalled(current()); refreshServers(); } catch (e) { fail(e); }
   },
   async 'mod-update'(el) {
+    state.installed.at = 0;
     busy(el, true); el.textContent = 'Actualizando…';
     try {
       const r = await api(sPath('mod_update'), { method: 'POST', body: { file: el.dataset.file, loader: state.loader, version: state.version } });
@@ -1481,7 +1607,9 @@ const actions = {
         const act = !f.url ? (f.page ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(f.page)}">Descargar a mano</a>` : '')
           : kind === 'resourcepack'
             ? `<button class="btn sm" data-action="pack-use-remote" data-url="${esc(f.url)}" data-sha1="${esc(f.sha1 || '')}">Usar en el servidor</button>`
-            : `<button class="btn sm" data-action="finder-install" data-kind="${kind}" data-source="${esc(card.dataset.source)}" data-project="${esc(card.dataset.id)}" data-vid="${esc(f.id)}" data-url="${esc(f.url)}" data-name="${esc(f.filename)}" data-sha1="${esc(f.sha1 || '')}">Instalar</button>`;
+            : (kind === 'mod' || kind === 'plugin') && instVersion(card.dataset.source, card.dataset.id) === f.version
+              ? '<button class="btn sm" disabled>Instalado</button>'
+              : `<button class="btn sm" data-action="finder-install" data-kind="${kind}" data-source="${esc(card.dataset.source)}" data-project="${esc(card.dataset.id)}" data-vid="${esc(f.id)}" data-url="${esc(f.url)}" data-name="${esc(f.filename)}" data-sha1="${esc(f.sha1 || '')}">Instalar</button>`;
         return `<div class="file"><span>${esc(f.version)}</span><span class="muted small">${esc(f.date)} · ${esc(f.filename)}</span>${act}</div>`;
       }).join('') || '<span class="muted small">Sin versiones para esta combinación.</span>';
     } catch (e) { fail(e); }
@@ -1704,7 +1832,11 @@ document.addEventListener('submit', async (e) => {
         actions.close();
         if (good) toast(`Instalado${good === 1 ? '' : 's'} ${good} ${good === 1 ? 'mod' : 'mods'}. Reinicia el servidor para cargarlos.`, 'ok');
         bad.forEach((r) => toast(`${r.file}: ${r.error}`, 'error'));
-        if (good && state.depsBtn) { state.depsBtn.textContent = 'Instalado'; state.depsBtn.disabled = true; }
+        if (good && state.depsBtn) {
+          state.depsBtn.textContent = 'Instalado'; state.depsBtn.disabled = true;
+          const card = state.depsBtn.closest('.result');
+          if (card) rememberInstalled(state.depsBtn.dataset.source, state.depsBtn.dataset.project, card.dataset.slug, $('.file span', state.depsBtn.closest('.file'))?.textContent);
+        }
         refreshServers();
       } catch (er) { btn.disabled = false; btn.textContent = 'Instalar seleccionados'; throw er; }
       return;

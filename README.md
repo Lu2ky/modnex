@@ -14,8 +14,9 @@ Solo usa la biblioteca estándar de Python (`http.server` + SQLite). No hay que 
 
 - **Servidores:** plantillas Vanilla, Fabric, NeoForge, Forge y Paper, o desde un modpack de
   Modrinth o CurseForge. Arranque, parada, consola, registros y memoria.
-- **Mods, plugins y datapacks:** búsqueda, instalación con dependencias, comprobación de
-  compatibilidad con la versión del servidor y filtro automático de mods que solo sirven en el cliente.
+- **Mods, plugins y datapacks:** búsqueda con páginas y filtro por etiqueta (Modrinth), instalación con
+  dependencias, marca «Instalado» en lo que ya tiene el servidor, comprobación de compatibilidad con la versión
+  del servidor y filtro automático de mods que solo sirven en el cliente.
 - **Jugadores:** lista blanca, operadores, expulsiones, bloqueos y mensajes.
 - **Cliente:** genera un modpack (`.mrpack` o `.zip`) con los mods que los jugadores necesitan y lo
   reparte con un enlace de descarga temporal.
