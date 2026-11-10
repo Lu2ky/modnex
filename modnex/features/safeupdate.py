@@ -5,7 +5,6 @@ actualizaciones aplicadas. Si falla, se busca qué actualización lo rompe (prim
 log, y después dividiendo en grupos). Solo se aplican al servidor real las que arrancan bien.
 El servidor real debe estar parado durante la prueba: comparte memoria y puertos con el entorno.
 """
-import json
 import os
 import re
 import shutil
