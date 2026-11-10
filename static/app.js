@@ -1209,7 +1209,9 @@ const SRV_STEPS = ['Preparando la carpeta', 'Descargando e instalando el servido
 
 async function openNewServer() {
   let tpls;
+  let extras = [];
   try { tpls = await api('/api/templates'); } catch (e) { return fail(e); }
+  try { extras = await api('/api/extras'); } catch (e) { extras = []; }   // un gestor sin reiniciar aún no tiene la ruta
   const d = openDialog(`
     <form class="dlg wizard" id="wizardForm" aria-labelledby="wizTitle">
       <header><h2 id="wizTitle">Nuevo servidor</h2><button class="btn ghost sm" type="button" data-action="close">Cerrar</button></header>
@@ -1258,6 +1260,13 @@ async function openNewServer() {
             <span class="muted small block" id="wizPerfDesc"></span></span></label>
         <ul class="preset-list" id="wizPerfList"></ul>
       </fieldset>
+      <fieldset class="preset" id="wizExtras" hidden>
+        <legend>Extras opcionales</legend>
+        ${extras.map((x) => `<label class="check" data-extra="${esc(x.id)}" data-loaders="${esc((x.loaders || []).join(','))}">
+          <input type="checkbox" name="extra" value="${esc(x.id)}">
+          <span><strong>${esc(x.label)}</strong>${x.pro ? ' <span class="chip live">Pro</span>' : ''}
+            <span class="muted small block">${esc(x.desc)}</span></span></label>`).join('')}
+      </fieldset>
       <label class="check"><input type="checkbox" name="accept_eula" required> Acepto el <a href="https://www.minecraft.net/eula" target="_blank" rel="noopener">EULA de Minecraft</a></label>
       <p class="form-error" role="alert"></p>
       <div id="wizProgress" class="srv-progress" hidden></div>
@@ -1274,6 +1283,15 @@ async function openNewServer() {
     $('#wizPerf', d).hidden = list.length === 0;
     $('#wizPerfDesc', d).textContent = list.length ? `${list.length} mods de optimización que se instalan por defecto. Puedes quitar la casilla.` : '';
     $('#wizPerfList', d).innerHTML = list.map((m) => `<li><strong>${esc(m.title)}</strong> <span class="muted small">${esc(m.desc)}</span></li>`).join('');
+    // Extras: solo los que valen para el cargador elegido (un modpack es NeoForge). Al ocultarse, se desmarcan.
+    const loader = isMp ? 'neoforge' : (t && t.loader) || '';
+    let shown = 0;
+    d.querySelectorAll('#wizExtras [data-extra]').forEach((lb) => {
+      const ok = !lb.dataset.loaders || lb.dataset.loaders.split(',').includes(loader);
+      lb.hidden = !ok; shown += ok ? 1 : 0;
+      if (!ok) lb.querySelector('input').checked = false;
+    });
+    $('#wizExtras', d).hidden = shown === 0;
   };
   form.template.forEach((r) => r.addEventListener('change', showPerf));
   showPerf();
@@ -1334,7 +1352,7 @@ async function createModpackFromForm(f) {
   const body = {
     source: f.mp_name.dataset.source, project: f.mp_name.dataset.id, version: f.mp_version.value, include_client: f.mp_client.checked,
     name: f.name.value.trim(), display_name: f.display_name.value.trim(), memory: f.memory.value,
-    port: f.port.value ? Number(f.port.value) : null, accept_eula: f.accept_eula.checked,
+    port: f.port.value ? Number(f.port.value) : null, accept_eula: f.accept_eula.checked, extras: pickedExtras(f),
   };
   btn.disabled = true; btn.textContent = 'Creando…';
   let job;
@@ -1342,6 +1360,8 @@ async function createModpackFromForm(f) {
   catch (e) { btn.disabled = false; btn.textContent = 'Crear servidor'; err.textContent = e.message; return; }
   return followJob(f, job, body.name);
 }
+
+const pickedExtras = (f) => [...f.querySelectorAll('input[name=extra]:checked')].filter((i) => !i.closest('[hidden]')).map((i) => i.value);
 
 async function createServerFromForm(f) {
   if (f.template.value === 'modpack') return createModpackFromForm(f);
@@ -1354,7 +1374,7 @@ async function createTemplateServerFromForm(f) {
   const body = {
     template: f.template.value, mc: f.mc.value, memory: f.memory.value, name: f.name.value.trim(),
     display_name: f.display_name.value.trim(), port: f.port.value ? Number(f.port.value) : null, accept_eula: f.accept_eula.checked,
-    perf: !!(f.perf && !f.perf.closest('[hidden]') && f.perf.checked),
+    perf: !!(f.perf && !f.perf.closest('[hidden]') && f.perf.checked), extras: pickedExtras(f),
   };
   btn.disabled = true; btn.textContent = 'Creando…';
   let job;

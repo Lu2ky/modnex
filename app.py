@@ -29,6 +29,7 @@ from pathlib import Path
 
 import autofilter
 import db
+import extras
 import plugins
 import release
 import templates
@@ -2027,10 +2028,12 @@ def create_server(user, b):
     loader_version = b.get("loader_version") or None
     if loader_version is not None and not re.fullmatch(r"[0-9A-Za-z._+-]{1,40}", str(loader_version)):
         raise ValueError("versión del loader no válida")
+    wanted = extras.validate(b.get("extras"), templates.loader_of(template) or template)   # Vanilla no tiene cargador
 
     def on_done(n):
         db.sync_servers([n])
         db.audit(user, n, "crear servidor", f"{template} {mc}")
+        extras.run(_plugin_ctx(), n, wanted, user)
         plugins.emit("server_created", n)
 
     perf = b.get("perf", True) is not False
@@ -2068,10 +2071,12 @@ def create_modpack_server(user, b):
         if port in used:
             raise ValueError(f"el puerto {port} ya lo usa otro servidor")
     display = str(b.get("display_name") or "").strip()[:40]
+    wanted = extras.validate(b.get("extras"))   # el cargador de un modpack se sabe al instalarlo: si no encaja, se omite
 
     def on_done(n):
         db.sync_servers([n])
         db.audit(user, n, "crear servidor desde modpack", f"{source}:{project}:{version_id}")
+        extras.run(_plugin_ctx(), n, wanted, user)
         plugins.emit("server_created", n)
 
     job = modpacks.start_job(SERVERS_DIR, name, source, project, version_id, memory, port, display,
@@ -2350,8 +2355,10 @@ class Handler(BaseHTTPRequestHandler):
                     raise PermissionError("no tienes permiso para este contenido")
                 return self._send(200, category_tags(kind))
             if method == "GET" and path == "/api/templates":
-                return self._send(200, [{"id": k, "label": v["label"], "kind": v["kind"], "desc": v["desc"],
+                return self._send(200, [{"id": k, "label": v["label"], "kind": v["kind"], "desc": v["desc"], "loader": v["loader"],
                                          "perf": templates.perf_list(k)} for k, v in templates.TEMPLATES.items()])
+            if method == "GET" and path == "/api/extras":
+                return self._send(200, extras.listing())
             if method == "GET" and path == "/api/templates/versions":
                 self._need_admin(user)
                 return self._send(200, {"versions": templates.versions(q.get("template", ""))})
@@ -2632,12 +2639,14 @@ class Handler(BaseHTTPRequestHandler):
 def _plugin_ctx():
     """Lo que el núcleo ofrece a un plugin: lo justo para actuar sobre servidores y datos propios."""
     import types
-    return types.SimpleNamespace(
+    ctx = types.SimpleNamespace(
         here=HERE, servers_dir=SERVERS_DIR, server_path=server_path, status=status, start=start, stop=stop,
         send_command=send_command, read_log=read_log, audit=db.audit, can=db.can, db_run=db.run,
         db_connect=db._connect, config=load_config, list_servers=list_servers,
         search=search, compat_for=compat_for, server_versions=server_versions, user_perms=db.user_perms,
         identify_mods=identify_mods, java_bin=templates._java, download=modpacks._download, port=PORT)
+    ctx.install_modrinth = lambda name, slug, loaders=None, prefix=None: extras.install_modrinth(ctx, name, slug, loaders, prefix)
+    return ctx
 
 
 def main():

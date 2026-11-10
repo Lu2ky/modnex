@@ -19,6 +19,8 @@ import threading
 import traceback
 from pathlib import Path
 
+import extras
+
 API = None          # PluginAPI activa, o None en la edición gratuita
 LOAD_ERROR = None   # motivo por el que no se cargó, si falló (no si simplemente no existe)
 
@@ -69,6 +71,12 @@ class PluginAPI:
         """Mods que el cliente generado debe incluir siempre (p. ej. el que lo sincroniza con el servidor)."""
         self.client_includes.append(fn)
         return fn
+
+    def extra(self, extra_id, label, desc, install, loaders=None):
+        """Opción extra del asistente de creación de servidores (solo existe mientras el plugin esté cargado).
+        install(ctx, nombre) -> archivo instalado o None; puede lanzar extras.ExtraUnavailable con el motivo.
+        loaders: cargadores donde tiene sentido (None = cualquiera). Se marca como de pago en el panel."""
+        extras.register(extra_id, label, desc, install, loaders=loaders, pro=True)
 
     def second_factor(self, fn):
         """Comprobación adicional tras acertar la contraseña. Devuelve None para dejar pasar."""
@@ -126,7 +134,8 @@ def info():
 
 def client_must_include(name, rows):
     """Archivos de `rows` que un plugin exige en el cliente. Un plugin roto no impide generar el cliente."""
-    out = []
+    # AutoModpack es del núcleo: el cliente que sincroniza con el servidor debe llevarlo siempre
+    out = [f for f in rows if f.lower().startswith("automodpack") and f.lower().endswith(".jar")]
     if not API:
         return out
     for fn in API.client_includes:
