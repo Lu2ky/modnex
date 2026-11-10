@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS servers (
   name TEXT PRIMARY KEY,
   display_name TEXT,
-  icon TEXT NOT NULL DEFAULT 'pokeball');
+  icon TEXT NOT NULL DEFAULT 'vanilla');
 CREATE TABLE IF NOT EXISTS permissions (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   server_name TEXT NOT NULL REFERENCES servers(name) ON DELETE CASCADE,

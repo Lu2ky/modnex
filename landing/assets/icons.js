@@ -39,12 +39,13 @@
   };
 
   const ICONS = {
-    pokeball: Array.from({ length: N }, (_, y) => [...Array(N)].map((_, x) => {
+    // Esfera lisa: contorno, volumen y un brillo. Es el icono por defecto.
+    orb: Array.from({ length: N }, (_, y) => [...Array(N)].map((_, x) => {
       const dx = x - 5.5, dy = y - 5.5, d = Math.hypot(dx, dy);
       if (d > 5.9) return '.';
-      if (d < 2.2) return d > 1.5 ? 'k' : 'w';
-      if (d > 4.9 || Math.abs(dy) < 0.8) return 'k';
-      return dy < 0 ? 'r' : 'w';
+      if (d > 4.9) return 'k';
+      if (dx < -1.2 && dy < -1.2 && d > 1.6 && d < 3.6) return 'w';
+      return dx + dy > 2.2 ? 'b' : 'c';
     }).join('')),
 
     pickaxe: hand([
@@ -58,14 +59,6 @@
     shield: shape(
       (x, y) => Math.abs(x - 5.5) <= (y <= 6 ? 5.5 : 5.5 - (y - 6) * 1.12) && y <= 11,
       (x, y) => (x === 5 || x === 6 ? 'w' : x < 5 ? 'b' : 'v')),
-
-    creeper: shape(() => true, (x, y) => {
-      const eye = (y === 3 || y === 4) && ((x >= 2 && x <= 3) || (x >= 8 && x <= 9));
-      const mouth = (y === 5 && x >= 5 && x <= 6) || ((y === 6 || y === 7) && x >= 4 && x <= 7) ||
-        (y === 8 && (x === 4 || x === 7));
-      if (eye || mouth) return 'k';
-      return (x * 7 + y * 13) % 5 === 0 ? 'd' : 'l';
-    }),
 
     heart: hand([
       '............', '.rrrr..rrrr.', 'rpprrrrrrrrr', 'rprrrrrrrrrr', 'rrrrrrrrrrrr', '.rrrrrrrrrr.',
@@ -115,7 +108,7 @@
 
   // Devuelve el SVG del icono (tamaño en px). Cada fila se compacta en tramos del mismo color.
   window.pixelIcon = function (name, size) {
-    const rows = ICONS[name] || ICONS.pokeball;
+    const rows = ICONS[name] || ICONS.orb;
     let rects = '';
     rows.forEach((row, y) => {
       let x = 0;
