@@ -60,7 +60,7 @@ async function openConfigPanel(prompts, modid) {
       <footer class="cfg-foot">
         <span class="cfg-status muted" role="status"></span>
         <label class="cfg-auto"><input type="checkbox" class="cfg-autochk" ${pick.auto ? 'checked' : ''}> Abrir al detectar este mod</label>
-        <form method="dialog" class="cfg-close"><button class="btn" value="cancel">Cerrar</button></form>
+        <button class="btn cfg-close" type="button">Cerrar</button>
         <button class="btn primary cfg-save" type="button" disabled>Guardar cambios</button>
       </footer>
     </div>`, true);
@@ -76,6 +76,7 @@ async function openConfigPanel(prompts, modid) {
   d.querySelector('.cfg-tech').addEventListener('change', (ev) => d.classList.toggle('show-tech', ev.target.checked));
   d.querySelector('.cfg-search').addEventListener('input', (ev) => filterCards(d, ev.target.value));
   d.querySelector('.cfg-save').addEventListener('click', () => saveConfig(d));
+  d.querySelector('.cfg-close').addEventListener('click', () => d.close());
   const body = d.querySelector('.cfg-body');   // una sola vez: los controles se reconstruyen dentro
   body.addEventListener('input', (ev) => d._fields && onInput(d, ev));
   body.addEventListener('change', (ev) => d._fields && onInput(d, ev));
