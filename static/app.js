@@ -236,6 +236,12 @@ function renderShell() {
 function renderSide() {
   const s = $('#side');
   if (!s) return;
+  // Si la barra se repinta a mitad de un salto, el indicador nuevo debe seguir desde donde estaba, no saltar al destino.
+  const old = $('.side-nav .side-ink', s), nav = $('.side-nav', s);
+  if (old && nav) {
+    const r = old.getBoundingClientRect(), n = nav.getBoundingClientRect();
+    if (r.height > 0) state.sideInk = { y: r.top - n.top, h: r.height };
+  }
   setHTMLKeepLeds(s, sideHTML());
   placeSideInk();
 }
