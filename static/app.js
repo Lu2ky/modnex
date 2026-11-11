@@ -341,8 +341,16 @@ function renderServer() {
   placeInk($('.groups'), 'groups', 'all');
   placeInk($('.srv-layout > .tabs'), 'tabs', activeGroup);
   const core = { summary: tabSummary, logs: tabLogs, mods: tabMods, datapacks: tabDatapacks, textures: tabTextures, players: tabPlayers, client: tabClient, props: tabProps, settings: tabSettings };
+  // Solo al cambiar de sección se construye el contenido por etapas; las actualizaciones automáticas no lo repiten.
+  const key = `${s.name}/${tab}`;
+  const fresh = state.builtKey !== key;
+  state.builtKey = key;
   if (core[tab]) core[tab](s);
   else renderPluginTab(tab.replace(/^x-/, ''), s);
+  if (fresh) {
+    const body = $('#tabBody');
+    if (body) { body.dataset.build = ''; clearTimeout(state.buildTimer); state.buildTimer = setTimeout(() => delete body.dataset.build, 1500); }
+  }
   mountRail(s);
 }
 
