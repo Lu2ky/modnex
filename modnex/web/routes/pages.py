@@ -7,7 +7,7 @@ from modnex.infra import db
 from modnex.web.router import HANDLED, PASS, Reply, route
 
 ASSETS = {"style.css": "text/css; charset=utf-8", "app.js": "text/javascript; charset=utf-8",
-          "icons.js": "text/javascript; charset=utf-8", "motion.js": "text/javascript; charset=utf-8", "theme.js": "text/javascript; charset=utf-8",
+          "icons.js": "text/javascript; charset=utf-8", "motion.js": "text/javascript; charset=utf-8", "theme.js": "text/javascript; charset=utf-8", "modconfig.js": "text/javascript; charset=utf-8",
           "fonts/Inter.ttf": "font/ttf",
           "brand/modnex-mark.png": "image/png", "brand/modnex-logo.png": "image/png",
           **{f"brand/servers/{n}.png": "image/png" for n in db.ICONS}}

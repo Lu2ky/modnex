@@ -823,3 +823,17 @@ h1 { letter-spacing: -0.012em; }
 .result .btn, .result .files, .result a:not(.result-link) { position: relative; z-index: 1; cursor: default; }
 .result .btn { cursor: pointer; }
 .result .files { cursor: auto; }
+
+/* Panel de configuración de mods */
+.cfg { display: grid; gap: 14px; min-width: min(640px, 90vw); }
+.cfg-head { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.cfg-head h2 { margin: 0; font-size: 1.15rem; }
+.cfg-head select, .cfg-pick select { min-width: 12rem; }
+.cfg-sec { display: grid; gap: 12px; }
+.cfg-sec h3 { margin: 6px 0 0; font-size: .95rem; color: var(--muted); text-transform: none; }
+.cfg-field { display: grid; gap: 4px; }
+.cfg-field textarea, .cfg-field input[type="text"], .cfg-field input[type="number"] { font-family: var(--mono); }
+.cfg-ro { opacity: .8; }
+.cfg-raw { font-family: var(--mono); white-space: pre-wrap; word-break: break-all; }
+.cfg-foot { display: flex; gap: 10px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.cfg-foot .small { margin-right: auto; }

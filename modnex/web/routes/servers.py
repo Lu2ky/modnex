@@ -10,7 +10,9 @@ from modnex.services.catalog import compat_for
 from modnex.services.client import build_client, client_plan
 from modnex.services.datapacks import datapacks_dir, delete_datapack, finish_datapack, list_datapacks
 from modnex.services.identify import identify_mods, update_mod
+from modnex.services.autofilter import modid_map
 from modnex.services.mods import delete_mod, installed_index, toggle_mod
+from modnex.services.modconfig import mods_with_config, read_config, save_config, set_auto
 from modnex.services.players import player_action, players_info
 from modnex.services.properties import properties_view, set_properties
 from modnex.services.resourcepacks import (delete_local_pack, finish_pack_upload, get_resourcepack, list_local_packs, packs_dir,
@@ -195,6 +197,32 @@ def delete(req, name, b):
 
 
 # ---- mods ----
+
+@server_action("GET", "mod_config_prompts", perm="mods")
+def mod_config_prompts(req, name):
+    """Mods instalados que tienen archivos de configuración: el panel se abre para ellos."""
+    jars = modid_map(addons_dir(name))
+    return [dict(m, jar=jars.get(m["modid"], "")) for m in mods_with_config(name, jars)]
+
+
+@server_action("GET", "mod_config_read", perm="mods")
+def mod_config_read(req, name):
+    return read_config(name, req.q.get("file", ""))
+
+
+@server_action("POST", "mod_config_auto", perm="mods")
+def mod_config_auto(req, name, b):
+    set_auto(b.get("modid", ""), bool(b.get("on")))
+    db.audit(req.user, name, "panel de configuración automático", f"{b.get('modid', '')}={bool(b.get('on'))}")
+    return {"ok": True}
+
+
+@server_action("POST", "mod_config_save", perm="mods")
+def mod_config_save(req, name, b):
+    res = save_config(name, b.get("file", ""), updates=b.get("updates"), json_text=b.get("json_text"))
+    if res.get("changed"):
+        db.audit(req.user, name, "cambiar configuración de mod", b.get("file", ""))
+    return res
 
 @server_action("POST", "mod_toggle", perm="mods")
 def mod_toggle(req, name, b):

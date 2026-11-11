@@ -539,7 +539,7 @@ function tabMods(s) {
   if (isAdmin()) panes.push(['upload', 'Subir el mío']);
   $('#tabBody').innerHTML = `${segHTML('mods', panes, pane, plugins ? 'Plugins' : 'Mods')}<div id="modsBody"></div>`;
   if (pane === 'upload' && isAdmin()) return mountUploadMod(s, plugins);
-  pane === 'installed' ? loadInstalled(s) : mountFinder(s.kind === 'plugin' ? 'plugin' : 'mod', $('#modsBody'));
+  pane === 'installed' ? loadInstalled(s, true) : mountFinder(s.kind === 'plugin' ? 'plugin' : 'mod', $('#modsBody'));
 }
 
 // Subir un mod o plugin propio (.jar). Solo administradores: un .jar es código que corre con los permisos del servidor.
@@ -593,6 +593,7 @@ function modDetailHTML(mods) {
       ${m.latest && m.source === 'modrinth' ? `<button class="btn primary" data-action="mod-update" data-file="${esc(m.file)}">Actualizar a ${esc(m.latest)}</button>` : ''}
       ${m.project_id && m.source ? `<a class="btn" href="#/m/${esc(m.source)}/${esc(m.project_id)}">Ver ficha</a>` : ''}
       ${m.source === 'curseforge' && m.slug ? `<a class="btn" target="_blank" rel="noopener" href="https://www.curseforge.com/minecraft/mc-mods/${esc(m.slug)}">Ver en CurseForge</a>` : ''}
+      ${(state.cfgPrompts || []).some((p) => p.jar === m.file) ? `<button class="btn" data-action="mod-config" data-modid="${esc((state.cfgPrompts || []).find((p) => p.jar === m.file).modid)}">Configurar</button>` : ''}
       <button class="btn" data-action="mod-toggle" data-file="${esc(m.file)}">${m.enabled ? 'Desactivar' : 'Activar'}</button>
       <button class="btn danger" data-action="mod-delete" data-file="${esc(m.file)}">Borrar</button>
     </div>`;
@@ -620,7 +621,7 @@ function paintMods() {
     </button>`).join('') || `<p class="muted pad pad-in">${mods.length ? 'Ningún mod coincide con el filtro.' : 'Este servidor no tiene mods.'}</p>`;
   $('#modDetail').innerHTML = modDetailHTML(mods);
 }
-async function loadInstalled(s) {
+async function loadInstalled(s, auto = false) {
   const body = $('#modsBody');
   const seq = ++state.modsSeq;
   // Identificar los mods puede tardar varios segundos. Si mientras tanto se cambió de panel («Añadir mods»),
@@ -629,11 +630,18 @@ async function loadInstalled(s) {
   body.innerHTML = '<p class="muted pad">Identificando mods…</p>';
   try {
     const q = new URLSearchParams({ loader: state.loader, version: state.version });
-    const mods = await api(`/api/servers/${encodeURIComponent(s.name)}/mods?${q}`);
+    const [mods, prompts] = await Promise.all([
+      api(`/api/servers/${encodeURIComponent(s.name)}/mods?${q}`),
+      api(`/api/servers/${encodeURIComponent(s.name)}/mod_config_prompts`).catch(() => []),
+    ]);
     if (stale()) return;
     state.modsData = mods;
+    state.cfgPrompts = prompts;
     if (!mods.some((m) => m.file === state.modSel)) state.modSel = null;
     paintMods();
+    // Cada vez que se entra en «Instalados», los mods con configuración abren su panel.
+    const solos = prompts.filter((p) => p.auto);
+    if (auto && solos.length) openConfigPanel(solos);
   } catch (e) { if (!stale()) body.innerHTML = ''; fail(e); }
 }
 
@@ -1623,6 +1631,8 @@ const actions = {
     state[`${el.dataset.scope}Pane`] = el.dataset.pane;
     ({ mods: tabMods, dp: tabDatapacks, tex: tabTextures })[el.dataset.scope](current());
   },
+  'mod-config'(el) { openConfigPanel(state.cfgPrompts || [], el.dataset.modid); },
+  'cfg-save'(el) { saveConfig(el); },
   async 'mod-toggle'(el) {
     state.installed.at = 0;
     try { await api(sPath('mod_toggle'), { method: 'POST', body: { file: el.dataset.file } }); loadInstalled(current()); } catch (e) { fail(e); }
