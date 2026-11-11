@@ -3,6 +3,7 @@
 import hashlib
 import json
 import re
+import urllib.parse
 import urllib.request
 import zipfile
 
@@ -10,6 +11,10 @@ from modnex.infra import db
 from modnex.services import release
 from modnex.config import HERE
 from modnex.services.properties import read_properties, write_properties
+from modnex.services.packmerge import merge_packs
+
+# Nombre fijo del pack fusionado: se reconstruye cada vez que cambian los packs del servidor.
+UNIFIED = "unificado.zip"
 
 
 def get_resourcepack(name):
@@ -63,7 +68,37 @@ def finish_pack_upload(name, tmp, fname):
     sha1 = hashlib.sha1(tmp.read_bytes()).hexdigest()
     tmp.replace(packs_dir(name) / fname)
     db.pack_add(name, fname, sha1)
+    rebuild_unified(name)
     return sha1
+
+
+def rebuild_unified(name):
+    """Fusiona los packs del servidor (del más antiguo al más nuevo) en UNIFIED.
+
+    Con menos de dos packs no hay nada que fusionar: si existía un unificado, se borra
+    y, si el servidor lo estaba sirviendo, se quita para no apuntar a un archivo inexistente.
+    Si el servidor sirve el unificado, se actualiza solo su SHA-1; la URL no cambia.
+    """
+    d = packs_dir(name)
+    sources = [d / r["filename"] for r in reversed(db.packs_for(name))
+               if r["filename"] != UNIFIED and (d / r["filename"]).is_file()]
+    old = next((r for r in db.packs_for(name) if r["filename"] == UNIFIED), None)
+    serving = bool(old) and old["token"] in get_resourcepack(name)["url"]
+    if len(sources) < 2:
+        if old:
+            (d / UNIFIED).unlink(missing_ok=True)
+            db.pack_delete(name, UNIFIED)
+        if serving:
+            set_resourcepack(name, "", "", False, "")
+        return None
+    report = merge_packs(sources, d / UNIFIED)
+    sha1 = hashlib.sha1((d / UNIFIED).read_bytes()).hexdigest()
+    db.pack_add(name, UNIFIED, sha1)
+    if serving:
+        cur = get_resourcepack(name)
+        base = cur["url"].rsplit("/", 1)[0]
+        set_resourcepack(name, f"{base}/{urllib.parse.quote(UNIFIED)}", sha1, cur["required"], cur["prompt"])
+    return report
 
 
 def delete_local_pack(name, fname):
@@ -77,6 +112,7 @@ def delete_local_pack(name, fname):
     # Si el servidor lo estaba pidiendo a los jugadores, se quita para no apuntar a un archivo borrado.
     if row and row["token"] in get_resourcepack(name)["url"]:
         set_resourcepack(name, "", "", False, "")
+    rebuild_unified(name)
 
 
 def use_local_pack(name, fname, base_url, required, prompt):
