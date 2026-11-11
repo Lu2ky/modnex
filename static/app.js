@@ -233,7 +233,42 @@ function sideHTML() {
 function renderShell() {
   $('#app').innerHTML = `<div class="shell"><aside class="side" id="side"></aside><main class="main" id="main" tabindex="-1"></main></div>`;
 }
-function renderSide() { const s = $('#side'); if (s) setHTMLKeepLeds(s, sideHTML()); }
+function renderSide() {
+  const s = $('#side');
+  if (!s) return;
+  setHTMLKeepLeds(s, sideHTML());
+  placeSideInk();
+}
+
+/* Selección de la barra lateral: un indicador que se desliza hasta el elemento activo (como en las pestañas),
+   y la lista se construye por etapas cuando cambia la selección. */
+state.sideInk = null;
+state.sideKey = null;
+function placeSideInk() {
+  const nav = $('#side .side-nav');
+  if (!nav) return;
+  const active = $('.on', nav);
+  const key = active ? active.getAttribute('href') : null;
+  const fresh = key !== state.sideKey;
+  state.sideKey = key;
+  if (fresh && key !== null) {
+    nav.dataset.build = '';
+    clearTimeout(state.sideBuildTimer);
+    state.sideBuildTimer = setTimeout(() => delete nav.dataset.build, 1300);
+  }
+  if (!active) return;
+  const ink = document.createElement('span');
+  ink.className = 'side-ink'; ink.setAttribute('aria-hidden', 'true');
+  nav.append(ink);          // al final: no cambia el orden de los elementos de la lista
+  const set = (y, h) => { ink.style.setProperty('--y', `${y}px`); ink.style.setProperty('--h', `${h}px`); };
+  const y = active.offsetTop, h = active.offsetHeight, prev = state.sideInk;
+  ink.classList.add('no-anim');
+  set(prev ? prev.y : y, prev ? prev.h : h);     // parte de donde estaba la selección anterior
+  void ink.offsetWidth;
+  ink.classList.remove('no-anim');
+  set(y, h);
+  state.sideInk = { y, h };
+}
 
 function renderMain() {
   clearTimers();

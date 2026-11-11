@@ -967,3 +967,19 @@ h1 { letter-spacing: -0.012em; }
 @media (prefers-reduced-motion: reduce) {
   .tab-body[data-build] > *, .tab-body[data-build] .rows > *, .tab-body[data-build] .table tbody tr { animation: none !important; }
 }
+
+/* Selección de la barra lateral: el fondo activo se desliza entre elementos. */
+.side-nav { position: relative; }
+.side-nav > :not(.side-ink) { position: relative; z-index: 1; }
+.side-nav .side-ink { position: absolute; left: 0; right: 0; top: 0; height: var(--h, 0); transform: translateY(var(--y, 0)); border-radius: var(--r); background: var(--surface); box-shadow: inset 3px 0 0 var(--accent); z-index: 0; pointer-events: none; transition: transform var(--t-move) var(--spring), height var(--t-move) var(--spring); }
+.side-nav .side-ink.no-anim { transition: none; }
+.side-nav .srv-item.on, .side-nav .nav-item.on { background: transparent; box-shadow: none; }
+.side-nav .srv-item.on::before, .side-nav .nav-item.on::before { content: none; }
+.side-nav[data-build] > :not(.side-ink) { animation: build-row 300ms var(--ease) backwards; }
+.side-nav[data-build] > :nth-child(2) { animation-delay: 30ms; }
+.side-nav[data-build] > :nth-child(3) { animation-delay: 60ms; }
+.side-nav[data-build] > :nth-child(4) { animation-delay: 90ms; }
+.side-nav[data-build] > :nth-child(n+5) { animation-delay: 120ms; }
+@media (prefers-reduced-motion: reduce) {
+  .side-nav .side-ink, .side-nav[data-build] > * { transition: none !important; animation: none !important; }
+}
