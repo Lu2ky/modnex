@@ -209,11 +209,23 @@ function sideHTML() {
       <p class="side-title">Servidores</p>${isAdmin() ? '<button class="btn sm new-srv" data-action="new-server">+ Nuevo servidor</button>' : ''}${items}${admin}${pages ? `<p class="side-title">Cuenta</p>${pages}` : ''}
     </nav>
     <div class="side-foot">
-      <div class="who"><strong>${esc(state.me.username)}</strong><span class="muted">${isAdmin() ? 'Administrador' : 'Usuario'}</span></div>
-      <div class="foot-actions">
-        <button class="btn ghost sm" data-action="theme" aria-label="Cambiar tema">${light ? 'Modo oscuro' : 'Modo claro'}</button>
-        <button class="btn ghost sm" data-action="password">Contraseña</button>
-        <button class="btn ghost sm" data-action="logout">Salir</button>
+      <div class="who-card">
+        <span class="avatar" aria-hidden="true">${esc((state.me.username || '?').charAt(0).toUpperCase())}</span>
+        <div class="who"><strong>${esc(state.me.username)}</strong><span class="muted">${isAdmin() ? 'Administrador' : 'Usuario'}</span></div>
+      </div>
+      <div class="foot-icons">
+        <button class="ibtn theme-btn" data-action="theme" aria-label="${light ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}" title="${light ? 'Modo oscuro' : 'Modo claro'}">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <g class="ico-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></g>
+            <g class="ico-moon"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></g>
+          </svg>
+        </button>
+        <button class="ibtn key-btn" data-action="password" aria-label="Cambiar contraseña" title="Contraseña">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg>
+        </button>
+        <button class="ibtn exit-btn" data-action="logout" aria-label="Salir" title="Salir">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path class="ico-arrow" d="M16 17l5-5-5-5M21 12H9"/></svg>
+        </button>
       </div>
     </div>`;
 }
@@ -1591,10 +1603,16 @@ const actions = {
   'mod-filter'(el) { state.modFilter = el.dataset.filter; paintMods(); },
   'log-level'(el) { state.logLevel = el.dataset.level; $$('[data-action=log-level]').forEach((b) => b.classList.toggle('on', b === el)); paintLog(); },
   theme() {
+    // Solo cambia el botón: si se volviera a pintar la barra, la animación de sol y luna no se vería.
     const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
     document.documentElement.dataset.theme = next;
     localStorage.setItem('theme', next);
-    renderSide();
+    const b = document.querySelector('.theme-btn');
+    if (b) {
+      const light = next === 'light';
+      b.setAttribute('aria-label', light ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro');
+      b.title = light ? 'Modo oscuro' : 'Modo claro';
+    }
   },
   async logout() { try { await api('/api/logout', { method: 'POST', body: {} }); } catch { /* ya cerrada */ } state.me = null; renderLogin(); },
   password() {

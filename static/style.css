@@ -911,3 +911,40 @@ h1 { letter-spacing: -0.012em; }
 .ic-json { font-family: var(--mono); font-size: 12px; white-space: pre-wrap; background: var(--surface); border-radius: 8px; padding: 10px; margin: 0; }
 .ic-add { justify-self: start; }
 .ic-chips .cfg-chip-input { min-width: 180px; }
+
+/* Barra lateral: tarjeta de usuario e iconos de pie con animación */
+.who-card { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r); background: var(--surface2); border: 1px solid var(--line); }
+.avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--brand-grad); color: var(--accent-ink); font-weight: 700; font-size: 15px; }
+.who-card .who { padding: 0; min-width: 0; }
+.who-card .who strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.foot-icons { display: flex; gap: 8px; justify-content: space-between; }
+.ibtn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); color: var(--text); cursor: pointer; padding: 0; transition: border-color 160ms var(--ease), background-color 160ms var(--ease), transform 220ms var(--ease); }
+.ibtn:hover { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: var(--surface2); }
+.ibtn:active { transform: scale(0.92); transition-duration: 80ms; }
+.ibtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ico { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+
+/* Sol y luna: al cambiar de tema, el sol gira y se encoge mientras la luna entra girando desde el lado. */
+.theme-btn .ico-sun, .theme-btn .ico-moon { transform-box: view-box; transform-origin: 12px 12px; transition: transform 460ms var(--ease), opacity 300ms var(--ease); }
+.theme-btn .ico-sun { transform: rotate(0deg) scale(1); opacity: 0; }
+.theme-btn .ico-moon { transform: rotate(-60deg) scale(0.4); opacity: 0; }
+[data-theme="light"] .theme-btn .ico-sun { transform: rotate(0deg) scale(1); opacity: 1; }
+[data-theme="light"] .theme-btn .ico-moon { transform: rotate(-60deg) scale(0.4); opacity: 0; }
+[data-theme="dark"] .theme-btn .ico-sun { transform: rotate(180deg) scale(0.4); opacity: 0; }
+[data-theme="dark"] .theme-btn .ico-moon { transform: rotate(0deg) scale(1); opacity: 1; }
+.theme-btn:hover .ico-sun { transform: rotate(45deg) scale(1.08); }
+.theme-btn:hover .ico-moon { transform: rotate(-12deg) scale(1.05); }
+[data-theme="dark"] .theme-btn:hover .ico-sun { transform: rotate(180deg) scale(0.4); }
+[data-theme="light"] .theme-btn:hover .ico-moon { transform: rotate(-60deg) scale(0.4); }
+
+/* Llave: gira un poco al pasar el cursor, como si se fuera a girar en la cerradura. */
+.key-btn svg { transform-origin: 16px 8px; transition: transform 360ms var(--ease); }
+.key-btn:hover svg { transform: rotate(-22deg); }
+
+/* Salir: la flecha se desliza hacia fuera de la puerta. */
+.exit-btn .ico-arrow { transition: transform 300ms var(--ease); }
+.exit-btn:hover .ico-arrow { transform: translateX(3px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ibtn, .theme-btn .ico-sun, .theme-btn .ico-moon, .key-btn svg, .exit-btn .ico-arrow { transition: none !important; }
+}
