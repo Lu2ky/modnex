@@ -81,9 +81,10 @@ async function openConfigPanel(prompts, modid) {
   body.addEventListener('change', (ev) => d._fields && onInput(d, ev));
   body.addEventListener('click', (ev) => d._fields && onClick(d, ev));
   d.addEventListener('click', (ev) => {
-    const pill = ev.target.closest('.cfg-mod');
+    const pill = ev.target.closest('.cfg-mod[data-modid]');
     if (pill) { d.close(); openConfigPanel(prompts, pill.dataset.modid); }
   });
+  if (modid_is_incontrol(pick.modid)) addRulesTabs(d);
   const sel = d.querySelector('.cfg-file');
   if (pick.files.length > 1) {
     sel.innerHTML = pick.files.map((f) => `<option value="${cfgEsc(f)}">${cfgEsc(f)}</option>`).join('');
@@ -92,9 +93,30 @@ async function openConfigPanel(prompts, modid) {
   await loadConfigFile(d, pick.files[0]);
 }
 
+const modid_is_incontrol = (m) => m === 'incontrol';
+
+// Pestañas «Ajustes» y «Reglas» para InControl.
+function addRulesTabs(d) {
+  const head = d.querySelector('.cfg-head');
+  const tabs = document.createElement('div');
+  tabs.className = 'cfg-mods cfg-section-tabs';
+  tabs.setAttribute('role', 'tablist');
+  tabs.innerHTML = '<button type="button" role="tab" class="cfg-mod on" data-tab="settings">Ajustes</button><button type="button" role="tab" class="cfg-mod" data-tab="rules">Reglas</button>';
+  head.append(tabs);
+  tabs.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-tab]'); if (!b) return;
+    tabs.querySelectorAll('[data-tab]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-selected', x === b); });
+    if (b.dataset.tab === 'rules') return openRulesTab(d);
+    d.dataset.tab = 'settings';
+    d.querySelector('.cfg-tools').hidden = false;
+    loadConfigFile(d, d.dataset.file || d._files[0]);
+  });
+}
+
 async function loadConfigFile(d, file) {
   d.dataset.file = file;
   d.querySelector('.cfg-file').value = file;
+  d.dataset.tab = 'settings';
   const body = d.querySelector('.cfg-body');
   body.innerHTML = '<p class="muted pad">Cargando…</p>';
   setStatus(d, '');
@@ -319,6 +341,7 @@ function buildJson(d, r) {
 }
 
 async function saveConfig(d) {
+  if (d.dataset.tab === 'rules') return saveRules(d);
   const file = d.dataset.file;
   let body;
   if (d.dataset.kind === 'toml') {

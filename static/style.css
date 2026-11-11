@@ -888,3 +888,26 @@ h1 { letter-spacing: -0.012em; }
 .cfg-close { margin: 0; }
 .cfg-save:disabled { opacity: .5; cursor: not-allowed; }
 @media (max-width: 640px) { .cfg-grid { grid-template-columns: 1fr; } }
+
+/* Reglas de InControl */
+.ic-files { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.ic-intro p { margin: 0 0 14px; font-size: 13.5px; line-height: 1.5; }
+.ic-list { display: grid; gap: 14px; }
+.ic-rule { background: var(--surface2); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 12px; }
+.ic-rule-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.ic-rule-head h4 { margin: 0; font-size: 15px; font-weight: 650; }
+.ic-rule-tools { display: flex; gap: 12px; align-items: center; }
+.ic-rule-tools .danger { color: var(--bad); }
+.ic-sec { display: grid; gap: 10px; }
+.ic-sec h5 { margin: 0; font-size: 12px; font-weight: 650; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
+.ic-row { display: grid; gap: 6px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.ic-row-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ic-key { font-weight: 600; font-size: 14px; }
+.ic-row select, .ic-row input[type="number"], .ic-row input[type="text"] { width: 100%; }
+.ic-row textarea { width: 100%; font-family: var(--mono); font-size: 12.5px; }
+.ic-row textarea.bad { border-color: var(--bad); }
+.ic-add-row { display: flex; gap: 8px; align-items: center; }
+.ic-add-row select { flex: 1; }
+.ic-json { font-family: var(--mono); font-size: 12px; white-space: pre-wrap; background: var(--surface); border-radius: 8px; padding: 10px; margin: 0; }
+.ic-add { justify-self: start; }
+.ic-chips .cfg-chip-input { min-width: 180px; }

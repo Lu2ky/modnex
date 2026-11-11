@@ -11,6 +11,7 @@ from modnex.services.client import build_client, client_plan
 from modnex.services.datapacks import datapacks_dir, delete_datapack, finish_datapack, list_datapacks
 from modnex.services.identify import identify_mods, update_mod
 from modnex.services.autofilter import modid_map
+from modnex.services.incontrol_rules import read_rules, save_rules
 from modnex.services.mods import delete_mod, installed_index, toggle_mod
 from modnex.services.modconfig import mods_with_config, read_config, save_config, set_auto
 from modnex.services.players import player_action, players_info
@@ -208,6 +209,19 @@ def mod_config_prompts(req, name):
 @server_action("GET", "mod_config_read", perm="mods")
 def mod_config_read(req, name):
     return read_config(name, req.q.get("file", ""))
+
+
+@server_action("GET", "incontrol_rules", perm="mods")
+def incontrol_rules_read(req, name):
+    return read_rules(name, req.q.get("file", ""))
+
+
+@server_action("POST", "incontrol_rules_save", perm="mods")
+def incontrol_rules_write(req, name, b):
+    res = save_rules(name, b.get("file", ""), b.get("rules"))
+    if res.get("changed"):
+        db.audit(req.user, name, "cambiar reglas de InControl", b.get("file", ""))
+    return res
 
 
 @server_action("POST", "mod_config_auto", perm="mods")

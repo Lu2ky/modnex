@@ -158,3 +158,49 @@ class AutoTests(unittest.TestCase):
         with mock.patch.object(mc, "_cfg_dir", lambda name: cfg):
             out = {m["modid"]: m["auto"] for m in mc.mods_with_config("srv", ["incontrol", "ae2", "otro"])}
         self.assertEqual(out, {"ae2": False, "incontrol": True})
+
+
+class IncontrolRulesTests(unittest.TestCase):
+    def setUp(self):
+        import tempfile as _t
+        from modnex.services import incontrol_rules as ir
+        self.ir = ir
+        self.root = Path(_t.mkdtemp())
+        self.dir = self.root / "config" / "incontrol"
+        self.dir.mkdir(parents=True)
+        p = [mock.patch.object(ir, "server_path", lambda name: self.root),
+             mock.patch.object(ir, "HERE", self.root)]
+        for x in p:
+            x.start(); self.addCleanup(x.stop)
+
+    def test_spawn_valida_y_rechaza_claves_desconocidas(self):
+        self.assertEqual(self.ir.validate_file("spawn.json", [{"biome": "minecraft:plains", "result": "allow"}]), [])
+        self.assertTrue(self.ir.validate_file("spawn.json", [{"nope": 1}]))
+
+    def test_spawner_exige_mob_y_dimension(self):
+        p = self.ir.validate_file("spawner.json", [{"conditions": {}}])
+        self.assertTrue(any("mob" in x for x in p)); self.assertTrue(any("dimension" in x for x in p))
+
+    def test_spawner_limita_persecond(self):
+        p = self.ir.validate_file("spawner.json", [{"mob": "minecraft:zombie", "persecond": 2, "conditions": {"dimension": "minecraft:overworld"}}])
+        self.assertTrue(any("persecond" in x for x in p))
+
+    def test_loot_itemcount_formato(self):
+        self.assertEqual(self.ir.validate_file("loot.json", [{"item": "minecraft:diamond", "itemcount": "5/7-10/20-30"}]), [])
+        self.assertTrue(self.ir.validate_file("loot.json", [{"itemcount": "muchos"}]))
+
+    def test_no_guarda_si_hay_errores(self):
+        with self.assertRaises(ValueError):
+            self.ir.save_rules("srv", "spawn.json", [{"result": "tal vez"}])
+        self.assertFalse((self.dir / "spawn.json").exists())
+
+    def test_guarda_con_copia_y_sin_cambios(self):
+        (self.dir / "spawn.json").write_text("[]", encoding="utf-8")
+        r = self.ir.save_rules("srv", "spawn.json", [{"mob": "minecraft:creeper", "result": "deny"}])
+        self.assertTrue(r["changed"])
+        self.assertEqual(len(list((self.root / "backups" / "configs" / "srv").glob("*.bak"))), 1)
+        self.assertFalse(self.ir.save_rules("srv", "spawn.json", [{"mob": "minecraft:creeper", "result": "deny"}])["changed"])
+
+    def test_archivo_no_permitido(self):
+        with self.assertRaises(ValueError):
+            self.ir.read_rules("srv", "../config.json")
