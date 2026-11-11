@@ -6,6 +6,7 @@ Al guardar solo cambia el valor de la línea editada; el resto del archivo queda
 """
 
 import json
+import os
 import re
 import shutil
 import time
@@ -232,7 +233,7 @@ def save_config(name, rel, updates=None, json_text=None):
     return {"changed": True, "backup": f"{rel.replace('/', '__')}.{stamp}.bak"}
 
 
-AUTO_FILE = HERE / "modconfig-auto.json"
+AUTO_FILE = Path(os.environ.get("MODNEX_MODCONFIG_AUTO") or (HERE / "modconfig-auto.json"))
 AUTO_DEFAULT = ["incontrol"]
 
 
