@@ -992,5 +992,5 @@ h1 { letter-spacing: -0.012em; }
   .side-nav .srv-item.on::before, .side-nav .nav-item.on::before { content: none; }
 }
 
-/* Punto del cambio de tema: crece desde el botón (la animación la pone app.js con la API de animaciones). */
-.theme-ripple { position: fixed; border-radius: 50%; pointer-events: none; z-index: 9000; transform: scale(0); will-change: transform, opacity; }
+/* Anillo del cambio de tema: solo un borde que se expande y se desvanece; no cubre el fondo. */
+.theme-ripple { position: fixed; border-radius: 50%; border: 2px solid var(--accent); box-sizing: border-box; pointer-events: none; z-index: 9000; transform: scale(0.1); will-change: transform, opacity; }

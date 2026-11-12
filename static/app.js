@@ -248,24 +248,23 @@ function renderSide() {
 
 /* Selección de la barra lateral: un indicador que se desliza hasta el elemento activo (como en las pestañas),
    y la lista se construye por etapas cuando cambia la selección. */
-// Punto que se expande desde el botón del tema. Usa el color de fondo del tema nuevo.
+// Anillo que se expande desde el botón del tema. No tapa la pantalla: solo es un borde que se desvanece,
+// así el resto de la página sigue visible. El tema cambia al empezar.
 function themeRipple(btn, next, apply) {
+  apply();
   const r0 = btn.getBoundingClientRect();
   const x = r0.left + r0.width / 2, y = r0.top + r0.height / 2;
-  const R = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
-  const probe = document.createElement('div');
-  probe.dataset.theme = next;
-  document.body.append(probe);
-  const bg = getComputedStyle(probe).getPropertyValue('--bg').trim();
-  probe.remove();
-  const dot = document.createElement('div');
-  dot.className = 'theme-ripple';
-  dot.setAttribute('aria-hidden', 'true');
-  Object.assign(dot.style, { left: `${x - R}px`, top: `${y - R}px`, width: `${2 * R}px`, height: `${2 * R}px`, background: bg });
-  document.body.append(dot);
-  const grow = dot.animate([{ transform: 'scale(0)' }, { transform: 'scale(1)' }], { duration: 520, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'forwards' });
-  setTimeout(apply, 380);                       // el tema cambia cuando el punto ya cubre casi todo
-  grow.finished.then(() => dot.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, fill: 'forwards' }).finished).then(() => dot.remove());
+  const R = 150;                                // radio final del anillo, en píxeles
+  const ring = document.createElement('div');
+  ring.className = 'theme-ripple';
+  ring.setAttribute('aria-hidden', 'true');
+  Object.assign(ring.style, { left: `${x - R}px`, top: `${y - R}px`, width: `${2 * R}px`, height: `${2 * R}px` });
+  document.body.append(ring);
+  const anim = ring.animate([
+    { transform: 'scale(0.1)', opacity: 0.9 },
+    { transform: 'scale(1)', opacity: 0 },
+  ], { duration: 640, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'forwards' });
+  anim.finished.then(() => ring.remove());
 }
 
 state.sideInk = null;
