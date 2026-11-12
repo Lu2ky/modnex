@@ -990,10 +990,37 @@ h1 { letter-spacing: -0.012em; }
 ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
 .theme-switching, .theme-switching * { transition: none !important; }
 
-/* Dock de navegación móvil (copiado de Nexo): barra flotante inferior, muesca bajo la selección y burbuja. */
+/* ---- Pantalla «Servidores» y dock de navegación móvil (copiado de Nexo) ---- */
+.top-actions, .dock-only, .dock-ico, .lbl-short, .side-nav .dock-notch, .side-nav .dock-ball { display: none; }
+.servers-home .page-head h1 { margin: 0; font-size: 1.4rem; }
+.srv-cards { display: grid; gap: 10px; }
+.srv-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; color: var(--text); text-decoration: none; transition: border-color 160ms var(--ease), background-color 160ms var(--ease), transform 220ms var(--ease); }
+.srv-card:hover { border-color: color-mix(in srgb, var(--accent) 50%, transparent); background: var(--surface2); }
+.srv-card:active { transform: scale(0.985); transition-duration: 80ms; }
+.srv-card.child { margin-left: 20px; }
+.srv-card-body { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.srv-card-body strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srv-card .led { margin: 0; }
+.servers-home[data-build] .srv-cards > * { animation: build-row 320ms var(--ease) backwards; }
+.servers-home[data-build] .srv-cards > :nth-child(2) { animation-delay: 40ms; }
+.servers-home[data-build] .srv-cards > :nth-child(3) { animation-delay: 80ms; }
+.servers-home[data-build] .srv-cards > :nth-child(4) { animation-delay: 120ms; }
+.servers-home[data-build] .srv-cards > :nth-child(n+5) { animation-delay: 160ms; }
+@media (prefers-reduced-motion: reduce) { .servers-home[data-build] .srv-cards > * { animation: none; } }
+.srv-card-go { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
 @media (max-width: 820px) {
-  .side-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .side-head .side-title { margin: 6px 8px 2px; }
+  /* La rejilla no reparte el espacio sobrante entre la barra superior y el contenido. */
+  .shell { grid-template-rows: auto 1fr; align-content: start; }
+  .side { align-self: start; }
+  /* Barra superior: marca a la izquierda y tema, contraseña y salir a la derecha. */
+  .side { position: sticky; top: 0; z-index: 70; height: auto; flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; background: var(--side); border-right: 0; border-bottom: 1px solid var(--line); overflow: visible; }
+  .side .brand { padding: 0; }
+  .top-actions { display: flex; gap: 8px; }
+  .top-actions .ibtn { width: 38px; height: 38px; }
+  .side-head, .side-foot { display: none; }
+
+  /* Dock inferior flotante con muesca bajo la selección y burbuja. */
   .side-nav {
     position: fixed; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
     z-index: 60; flex: none; flex-direction: row; align-items: stretch; justify-content: space-between; gap: 0;
@@ -1004,25 +1031,29 @@ h1 { letter-spacing: -0.012em; }
   }
   /* Con la muesca dibujada, la barra es sólida (un recorte no se puede hacer sobre un desenfoque). */
   .side-nav.has-notch { padding: 0; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; border-color: transparent; border-radius: 20px; box-shadow: 0 12px 24px -10px rgba(15, 23, 42, 0.28); }
-  .side-nav .dock-notch { display: none; }
   .side-nav.has-notch .dock-notch { display: block; position: absolute; inset: -1px; width: calc(100% + 2px); height: calc(100% + 2px); overflow: visible; pointer-events: none; z-index: 0; }
   .side-nav.has-notch .dock-notch path { fill: var(--side); stroke: var(--line); stroke-width: 1; transform: translate(1px, 1px); }
-  .side-nav .side-title, .side-nav .side-ink { display: none; }
-  .side-nav > .srv-item, .side-nav > .nav-item {
-    position: relative; z-index: 2; flex: 1 1 0; min-width: 0; height: 56px; padding: 6px 4px;
-    flex-direction: column; justify-content: center; gap: 0; text-align: center; font-size: 12px; background: none; box-shadow: none;
+  .side-nav .side-title, .side-nav .side-ink, .side-nav > .srv-item { display: none; }
+  .side-nav[data-build] > * { animation: none !important; }
+  .dock-only { display: flex; }
+  .side-nav > .nav-item {
+    position: relative; z-index: 2; flex: 1 1 0; min-width: 0; height: 56px; padding: 0;
+    flex-direction: column; justify-content: center; align-items: center; gap: 0;
+    background: none; box-shadow: none; color: var(--muted); font-size: 12px;
   }
-  .side-nav > .srv-item .tile, .side-nav > .srv-item .srv-meta, .side-nav > .srv-item .led { display: none; }
-  .side-nav > .srv-item .srv-name { max-width: 100%; font-size: 12px; }
-  .side-nav > .srv-item.on, .side-nav > .nav-item.on { background: none; box-shadow: none; color: var(--accent); font-weight: 650; }
-  .side-nav > .srv-item.on::before, .side-nav > .nav-item.on::before { content: none; }
-  .side-nav .dock-ball { display: none; }
+  .side-nav > .nav-item.on, .side-nav > .nav-item.dock-on { background: none; box-shadow: none; }
+  .side-nav > .nav-item.on::before, .side-nav > .nav-item.dock-on::before { content: none; }
+  .dock-ico { display: block; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    /* Va a la par del viaje de la burbuja (300 ms): el icono termina de subir cuando ella se asienta. */
+    transition: transform 200ms var(--ease), color 160ms ease; }
+  .nav-item .lbl-long { display: none; }
+  /* El icono activo sube hasta la burbuja y su etiqueta queda bajo la muesca. */
+  .nav-item.is-lifted .dock-ico { transform: translateY(-28px); color: var(--accent-ink); }
+  .lbl-short { display: block; position: absolute; left: -6px; right: -6px; bottom: 6px; text-align: center; font-size: 11px; font-weight: 650; color: var(--accent); opacity: 0; transform: translateY(4px); pointer-events: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: opacity 160ms ease, transform 200ms var(--ease); }
+  .nav-item.is-lifted .lbl-short { opacity: 1; transform: none; }
   .side-nav.has-notch .dock-ball { display: block; position: absolute; top: 0; left: 0; width: 40px; height: 40px; border-radius: 50%; background: var(--accent); box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 40%, transparent); pointer-events: none; z-index: 1; transform-origin: center; will-change: transform; }
-  .main { padding-bottom: 110px; }
+  .main { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
 }
 @media (max-width: 820px) and (prefers-reduced-motion: reduce) {
-  .side-nav.has-notch .dock-ball { transition: none; }
+  .dock-ico, .lbl-short { transition: none; }
 }
-
-/* Elementos del dock: ocultos fuera de la vista móvil. */
-.side-nav .dock-notch, .side-nav .dock-ball { display: none; }
