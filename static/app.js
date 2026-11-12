@@ -205,8 +205,10 @@ function sideHTML() {
   const light = document.documentElement.dataset.theme === 'light';
   return `
     <div class="brand"><img class="brand-img" src="/assets/brand/modnex-mark.png" alt="" width="34" height="28"><span>MODNEX</span></div>
-    <nav class="side-nav" aria-label="Servidores">
-      <p class="side-title">Servidores</p>${isAdmin() ? '<button class="btn sm new-srv" data-action="new-server">+ Nuevo servidor</button>' : ''}${items}${admin}${pages ? `<p class="side-title">Cuenta</p>${pages}` : ''}
+    <div class="side-head"><p class="side-title">Servidores</p>${isAdmin() ? '<button class="btn sm new-srv" data-action="new-server">+ Nuevo servidor</button>' : ''}</div>
+    <nav class="side-nav" aria-label="Navegación">
+      ${items}${admin}${pages ? `<p class="side-title">Cuenta</p>${pages}` : ''}
+      <svg class="dock-notch" aria-hidden="true" focusable="false"><path></path></svg>
     </nav>
     <div class="side-foot">
       <div class="who-card">
@@ -244,28 +246,142 @@ function renderSide() {
   }
   setHTMLKeepLeds(s, sideHTML());
   placeSideInk();
+  // Se mide en el siguiente cuadro, cuando el diseño de la barra ya está asentado.
+  requestAnimationFrame(() => placeDock(true));
 }
 
 /* Selección de la barra lateral: un indicador que se desliza hasta el elemento activo (como en las pestañas),
    y la lista se construye por etapas cuando cambia la selección. */
-// Anillo que se expande desde el botón del tema. No tapa la pantalla: solo es un borde que se desvanece,
-// así el resto de la página sigue visible. El tema cambia al empezar.
-function themeRipple(btn, next, apply) {
-  apply();
-  const r0 = btn.getBoundingClientRect();
-  const x = r0.left + r0.width / 2, y = r0.top + r0.height / 2;
-  const R = 150;                                // radio final del anillo, en píxeles
-  const ring = document.createElement('div');
-  ring.className = 'theme-ripple';
-  ring.setAttribute('aria-hidden', 'true');
-  Object.assign(ring.style, { left: `${x - R}px`, top: `${y - R}px`, width: `${2 * R}px`, height: `${2 * R}px` });
-  document.body.append(ring);
-  const anim = ring.animate([
-    { transform: 'scale(0.1)', opacity: 0.9 },
-    { transform: 'scale(1)', opacity: 0 },
-  ], { duration: 640, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'forwards' });
-  anim.finished.then(() => ring.remove());
+// Cambio de tema circular (copiado de Nexo): el tema nuevo se revela con un círculo que crece desde el botón.
+// Usa la API de transiciones de vista; si no existe o hay «reducir movimiento», el cambio es inmediato.
+let themeTransition = null;
+function circularThemeChange(btn, apply) {
+  const doc = document.documentElement;
+  const r = btn.getBoundingClientRect();
+  const x = r.left + r.width / 2, y = r.top + r.height / 2;
+  // Radio que llega a la esquina más lejana, para que el círculo cubra toda la pantalla
+  const endRadius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+  doc.classList.add('theme-switching');
+  const transition = document.startViewTransition(apply);
+  themeTransition = transition;
+  transition.ready
+    .then(() => {
+      doc.animate(
+        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`] },
+        { duration: 700, easing: 'cubic-bezier(0.65, 0, 0.35, 1)', pseudoElement: '::view-transition-new(root)' },
+      );
+    })
+    .catch(() => undefined);
+  // Solo quita la clase la última transición: si se pulsa dos veces, la primera se salta y no debe reactivar las transiciones.
+  transition.finished.finally(() => { if (themeTransition === transition) doc.classList.remove('theme-switching'); });
 }
+
+/* Dock de navegación móvil (copiado de Nexo): barra inferior con una muesca bajo la selección y una burbuja
+   que salta hasta el elemento activo siguiendo un resorte críticamente amortiguado. Mismos valores que Nexo. */
+const DOCK_TRAVEL_MS = 300;
+const DOCK_SPRING_RESPONSE = 0.25;   // s
+const DOCK_ARC_HEIGHT = 16;
+const DOCK_HOP_HEIGHT = 7;
+const DOCK_HOPS = 3;
+const DOCK_SQUASH = 0.08;
+const DOCK_KEYFRAMES = 48;
+const DOCK_SIZE = 40;
+const DOCK_NOTCH_RADIUS = 25;
+const DOCK_NOTCH_SHOULDER = 8;
+const DOCK_NOTCH_FLATTEN = 0.4;
+const DOCK_BAR_RADIUS = 20;
+const DOCK_SPRING_W = (2 * Math.PI) / DOCK_SPRING_RESPONSE;
+const dockSpringRaw = (sec) => 1 - (1 + DOCK_SPRING_W * sec) * Math.exp(-DOCK_SPRING_W * sec);
+const DOCK_SPRING_END = dockSpringRaw(DOCK_TRAVEL_MS / 1000);
+function dockSpringProgress(t) {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  return dockSpringRaw((t * DOCK_TRAVEL_MS) / 1000) / DOCK_SPRING_END;
+}
+function dockSmoothstep(e0, e1, x) {
+  const k = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+  return k * k * (3 - 2 * k);
+}
+function dockClampX(x, width) {
+  const min = DOCK_BAR_RADIUS + DOCK_NOTCH_RADIUS + DOCK_NOTCH_SHOULDER;
+  return Math.min(width - min, Math.max(min, x));
+}
+// Contorno de la barra: rectángulo redondeado cuyo borde superior se hunde en una muesca centrada en cx.
+function dockNotchPath(width, height, cx, depthScale = 1) {
+  const r = DOCK_BAR_RADIUS, R = DOCK_NOTCH_RADIUS, depth = R * depthScale;
+  let top = '';
+  if (cx !== null) {
+    const a = cx - R - DOCK_NOTCH_SHOULDER, b = cx + R + DOCK_NOTCH_SHOULDER;
+    top = `L${a.toFixed(2)},0 ` +
+      `C${(cx - R).toFixed(2)},0 ${(cx - R + 1).toFixed(2)},${(depth * 0.96).toFixed(2)} ${cx.toFixed(2)},${depth.toFixed(2)} ` +
+      `C${(cx + R - 1).toFixed(2)},${(depth * 0.96).toFixed(2)} ${(cx + R).toFixed(2)},0 ${b.toFixed(2)},0 `;
+  }
+  return `M${r},0 ${top}L${width - r},0 A${r},${r} 0 0 1 ${width},${r} L${width},${height - r} ` +
+    `A${r},${r} 0 0 1 ${width - r},${height} L${r},${height} A${r},${r} 0 0 1 0,${height - r} L0,${r} A${r},${r} 0 0 1 ${r},0 Z`;
+}
+// Altura de la burbuja para el progreso p: un arco con saltos. sin² da aterrizajes tangentes.
+function dockBubbleY(p, startY = 0) {
+  const arc = DOCK_ARC_HEIGHT * Math.sin(Math.PI * p);
+  const hop = DOCK_HOP_HEIGHT * Math.sin(Math.PI * DOCK_HOPS * p) ** 2;
+  return -arc - hop + startY * (1 - dockSmoothstep(0, 0.35, p));
+}
+function dockBubbleTransform(x, y, p) {
+  const contact = 1 - Math.sin(Math.PI * DOCK_HOPS * p) ** 2;
+  const squash = DOCK_SQUASH * contact * dockSmoothstep(0, 0.08, p) * (1 - dockSmoothstep(0.88, 1, p));
+  const half = DOCK_SIZE / 2;
+  return `translate3d(${(x - half).toFixed(2)}px, ${(y - half).toFixed(2)}px, 0) scale(${(1 + squash).toFixed(4)}, ${(1 - squash).toFixed(4)})`;
+}
+
+state.dock = null;          // { x, y } de la última posición de la burbuja (para seguir desde ahí)
+state.dockAnim = null;
+function placeDock(animate = true) {
+  const nav = $('#side .side-nav'), path = $('#side .dock-notch path');
+  if (!nav || !path) return;
+  if (!matchMedia('(max-width: 820px)').matches) {
+    nav.classList.remove('has-notch');
+    state.dock = null;
+    return;
+  }
+  nav.classList.add('has-notch');
+  const dest = $('.on', nav);
+  const width = nav.clientWidth, height = nav.clientHeight;
+  if (!dest) { path.setAttribute('d', dockNotchPath(width, height, null)); return; }
+  // El origen de la burbuja está dentro del borde de la barra: se resta su grosor.
+  const navBox = nav.getBoundingClientRect(), box = dest.getBoundingClientRect();
+  const target = dockClampX(box.left - navBox.left - nav.clientLeft + box.width / 2, width);
+  let ball = $('.dock-ball', nav);
+  if (!ball) { ball = document.createElement('span'); ball.className = 'dock-ball'; ball.setAttribute('aria-hidden', 'true'); nav.append(ball); }
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fromX = state.dock ? state.dock.x : target;
+  if (!animate || reduce || !state.dock) {
+    ball.getAnimations().forEach((a) => a.cancel());
+    ball.style.transform = dockBubbleTransform(target, 0, 1);
+    path.setAttribute('d', dockNotchPath(width, height, target));
+    state.dock = { x: target };
+    return;
+  }
+  // Sale de donde está la burbuja ahora mismo, también si el viaje anterior se interrumpió
+  ball.getAnimations().forEach((a) => a.cancel());
+  const frames = [];
+  for (let i = 0; i <= DOCK_KEYFRAMES; i++) {
+    const p = dockSpringProgress(i / DOCK_KEYFRAMES);
+    frames.push({ transform: dockBubbleTransform(fromX + (target - fromX) * p, dockBubbleY(p, 0), p) });
+  }
+  ball.style.transform = dockBubbleTransform(target, 0, 1);
+  const anim = ball.animate(frames, { duration: DOCK_TRAVEL_MS, easing: 'linear' });
+  state.dockAnim = anim;
+  const tick = () => {
+    if (state.dockAnim !== anim) return;
+    const t = Math.min(1, Number(anim.currentTime ?? 0) / DOCK_TRAVEL_MS);
+    const p = dockSpringProgress(t);
+    path.setAttribute('d', dockNotchPath(width, height, fromX + (target - fromX) * p, 1 - DOCK_NOTCH_FLATTEN * Math.sin(Math.PI * p)));
+    if (t < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  anim.onfinish = () => { if (state.dockAnim === anim) { path.setAttribute('d', dockNotchPath(width, height, target)); state.dockAnim = null; } };
+  state.dock = { x: target };
+}
+window.addEventListener('resize', () => placeDock(false));
 
 state.sideInk = null;
 state.sideKey = null;
@@ -1674,8 +1790,6 @@ const actions = {
   'mod-filter'(el) { state.modFilter = el.dataset.filter; paintMods(); },
   'log-level'(el) { state.logLevel = el.dataset.level; $$('[data-action=log-level]').forEach((b) => b.classList.toggle('on', b === el)); paintLog(); },
   theme() {
-    // El cambio sale de un punto en el botón: un círculo del color del tema nuevo crece hasta cubrir la pantalla
-    // y el tema se aplica cuando ya lo cubre. Con «reducir movimiento» cambia de golpe.
     const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
     const btn = document.querySelector('.theme-btn');
     const apply = () => {
@@ -1687,8 +1801,8 @@ const actions = {
         btn.title = light ? 'Modo oscuro' : 'Modo claro';
       }
     };
-    if (!btn || matchMedia('(prefers-reduced-motion: reduce)').matches) return apply();
-    themeRipple(btn, next, apply);
+    if (!btn || !document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return apply();
+    circularThemeChange(btn, apply);
   },
   async logout() { try { await api('/api/logout', { method: 'POST', body: {} }); } catch { /* ya cerrada */ } state.me = null; renderLogin(); },
   password() {
