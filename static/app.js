@@ -267,7 +267,10 @@ function placeSideInk() {
   ink.className = 'side-ink'; ink.setAttribute('aria-hidden', 'true');
   nav.append(ink);          // al final: no cambia el orden de los elementos de la lista
   const set = (y, h) => { ink.style.setProperty('--y', `${y}px`); ink.style.setProperty('--h', `${h}px`); };
-  const y = active.offsetTop, h = active.offsetHeight, prev = state.sideInk;
+  // Medidas relativas a la propia barra (con coordenadas de pantalla), no con offsetTop: así no depende de
+  // qué ancestro esté posicionado ni del desplazamiento de la columna lateral.
+  const navBox = nav.getBoundingClientRect(), box = active.getBoundingClientRect();
+  const y = box.top - navBox.top, h = box.height, prev = state.sideInk;
   ink.classList.add('no-anim');
   set(prev ? prev.y : y, prev ? prev.h : h);     // parte de donde estaba la selección anterior
   void ink.offsetWidth;
