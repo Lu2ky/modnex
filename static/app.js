@@ -248,6 +248,26 @@ function renderSide() {
 
 /* Selección de la barra lateral: un indicador que se desliza hasta el elemento activo (como en las pestañas),
    y la lista se construye por etapas cuando cambia la selección. */
+// Punto que se expande desde el botón del tema. Usa el color de fondo del tema nuevo.
+function themeRipple(btn, next, apply) {
+  const r0 = btn.getBoundingClientRect();
+  const x = r0.left + r0.width / 2, y = r0.top + r0.height / 2;
+  const R = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+  const probe = document.createElement('div');
+  probe.dataset.theme = next;
+  document.body.append(probe);
+  const bg = getComputedStyle(probe).getPropertyValue('--bg').trim();
+  probe.remove();
+  const dot = document.createElement('div');
+  dot.className = 'theme-ripple';
+  dot.setAttribute('aria-hidden', 'true');
+  Object.assign(dot.style, { left: `${x - R}px`, top: `${y - R}px`, width: `${2 * R}px`, height: `${2 * R}px`, background: bg });
+  document.body.append(dot);
+  const grow = dot.animate([{ transform: 'scale(0)' }, { transform: 'scale(1)' }], { duration: 520, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'forwards' });
+  setTimeout(apply, 380);                       // el tema cambia cuando el punto ya cubre casi todo
+  grow.finished.then(() => dot.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, fill: 'forwards' }).finished).then(() => dot.remove());
+}
+
 state.sideInk = null;
 state.sideKey = null;
 function placeSideInk() {
@@ -1655,16 +1675,21 @@ const actions = {
   'mod-filter'(el) { state.modFilter = el.dataset.filter; paintMods(); },
   'log-level'(el) { state.logLevel = el.dataset.level; $$('[data-action=log-level]').forEach((b) => b.classList.toggle('on', b === el)); paintLog(); },
   theme() {
-    // Solo cambia el botón: si se volviera a pintar la barra, la animación de sol y luna no se vería.
+    // El cambio sale de un punto en el botón: un círculo del color del tema nuevo crece hasta cubrir la pantalla
+    // y el tema se aplica cuando ya lo cubre. Con «reducir movimiento» cambia de golpe.
     const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
-    document.documentElement.dataset.theme = next;
-    localStorage.setItem('theme', next);
-    const b = document.querySelector('.theme-btn');
-    if (b) {
-      const light = next === 'light';
-      b.setAttribute('aria-label', light ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro');
-      b.title = light ? 'Modo oscuro' : 'Modo claro';
-    }
+    const btn = document.querySelector('.theme-btn');
+    const apply = () => {
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem('theme', next);
+      if (btn) {
+        const light = next === 'light';
+        btn.setAttribute('aria-label', light ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro');
+        btn.title = light ? 'Modo oscuro' : 'Modo claro';
+      }
+    };
+    if (!btn || matchMedia('(prefers-reduced-motion: reduce)').matches) return apply();
+    themeRipple(btn, next, apply);
   },
   async logout() { try { await api('/api/logout', { method: 'POST', body: {} }); } catch { /* ya cerrada */ } state.me = null; renderLogin(); },
   password() {

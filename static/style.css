@@ -991,3 +991,6 @@ h1 { letter-spacing: -0.012em; }
   .side-nav .srv-item.on, .side-nav .nav-item.on { background: var(--surface); box-shadow: inset 0 -2px 0 var(--accent); }
   .side-nav .srv-item.on::before, .side-nav .nav-item.on::before { content: none; }
 }
+
+/* Punto del cambio de tema: crece desde el botón (la animación la pone app.js con la API de animaciones). */
+.theme-ripple { position: fixed; border-radius: 50%; pointer-events: none; z-index: 9000; transform: scale(0); will-change: transform, opacity; }
