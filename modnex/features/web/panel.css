@@ -264,6 +264,7 @@ button.cr-slot:hover, button.cr-slot:focus-visible, .cr-slot.on { background-ima
 /* Bloques dibujados con su modelo en 3D: son renders suaves, no pixel art */
 .kjs-ico.iso, .cr-machine, .cr-machine.spin, canvas.spin { image-rendering: auto; }
 canvas.spin { cursor: grab; }
+.cr-cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; margin: 6px 0 8px; }
 
 /* Probar los scripts en el servidor */
 .kjs-testbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; }
