@@ -392,6 +392,17 @@
       ? `<img class="${cls}" src="${esc(icon)}" alt="" loading="lazy">`
       : `<span class="${cls} kjs-ph" aria-hidden="true">${esc((id || '?').replace('#', '').split(':').pop().charAt(0).toUpperCase())}</span>`;
     const nameOf = (id) => names[id] || id;
+    // La receta en la interfaz del juego, solo para mirar. Si no se sabe dibujar (otro mod, formato raro) se usa la lista de ingredientes.
+    const recipeGui = (r) => {
+      const G = window.ModnexKjsGui;
+      if (!G || !r.layout || !G.has(r.layout.skin)) return '';
+      const L = r.layout;
+      return `<div class="kjs-recipe-gui">${G.html(L.skin, (key) => {
+        const sl = L.slots[key];
+        if (!sl) return {};
+        return { inner: ico(sl.id, sl.icon), label: esc(sl.tag ? sl.id : sl.name), count: sl.count };
+      }, undefined, { ro: true, small: true })}</div>`;
+    };
     const queued = (kind, value) => removals.some((r) => r.kind === kind && r.value === value);
     async function search() {
       try { const d = await api(`${base}/kubejs_items?q=${encodeURIComponent(q)}&limit=120`); items = d.items; items.forEach((i) => { names[i.id] = i.name; }); } catch (e) { toast(e.message, 'error'); }
@@ -399,6 +410,7 @@
     }
     async function init() {
       try { removals = (await api(`${base}/kubejs_state`)).removals || []; } catch (e) { el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+      if (window.ModnexKjsGui) window.ModnexKjsGui.setTextures(await window.ModnexKjsGui.load(base));
       await Promise.all([...new Set(removals.filter((r) => r.kind === 'output').map((r) => r.value))].slice(0, 30).map(async (id) => {
         try { (await api(`${base}/kubejs_items?q=${encodeURIComponent(id)}&limit=120`)).items.forEach((i) => { names[i.id] = i.name; }); } catch (e) { /* sin nombre */ }
       }));
@@ -414,7 +426,7 @@
           : `<p class="muted small">${found.recipes.length} ${found.recipes.length === 1 ? 'receta' : 'recetas'} lo producen. Quita todas o solo las que no quieras. Las recetas agregadas desde el panel no les afecta «quitar todas»: se borran con su propio botón.</p>
             <ul class="kjs-recipes">${found.recipes.map((r) => `<li class="kjs-recipe">
               <div class="kjs-recipe-t"><span class="chip">${esc(RECIPE_TYPE[r.type] || r.type.replace(/^[a-z0-9_.-]+:/, ''))}</span>${r.source === 'panel' ? ' <span class="chip ok">Agregada desde el panel</span>' : ''} <code>${esc(r.id)}</code></div>
-              <div class="kjs-ing">${r.ingredients.map((i) => `<span class="kjs-ing-i" title="${esc(i.id)}">${ico(i.id, i.icon, 'kjs-ico sm')}<span class="muted small">${esc(i.tag ? i.id : i.name)}</span></span>`).join('') || '<span class="muted small">Sin ingredientes reconocibles</span>'}</div>
+              ${recipeGui(r) || `<div class="kjs-ing">${r.ingredients.map((i) => `<span class="kjs-ing-i" title="${esc(i.id)}">${ico(i.id, i.icon, 'kjs-ico sm')}<span class="muted small">${esc(i.tag ? i.id : i.name)}</span></span>`).join('') || '<span class="muted small">Sin ingredientes reconocibles</span>'}</div>`}
               ${r.source === 'panel' ? `<button class="btn sm danger" data-act="del-panel" data-slug="${esc(r.slug)}">Borrar receta</button>`
                 : `<button class="btn sm" data-act="rm-id" data-id="${esc(r.id)}" ${queued('id', r.id) || queued('output', sel.id) ? 'disabled' : ''}>${queued('id', r.id) ? 'Se quita' : 'Quitar esta'}</button>`}</li>`).join('')}</ul>`}</div>`;
       el.innerHTML = `
@@ -428,6 +440,7 @@
         <div class="kjs-foot"><span class="muted small">${status ? esc(status) : dirty ? 'Hay cambios sin guardar.' : ''}</span>
           <button class="btn primary" data-act="save" ${dirty ? '' : 'disabled'}>Guardar en el servidor</button></div>`;
       drawBrowser();
+      if (window.ModnexKjsGui) window.ModnexKjsGui.place(el);
     }
     function drawBrowser() {
       const box = el.querySelector('.kjs-browser');

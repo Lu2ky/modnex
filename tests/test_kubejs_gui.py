@@ -23,7 +23,7 @@ class GuiTest(unittest.TestCase):
     def jar(self, names):
         (self.root / "cache").mkdir(exist_ok=True)
         with zipfile.ZipFile(self.root / "cache" / "minecraft-1.21.1-client.jar", "w") as z:
-            for n in names: z.writestr(f"assets/minecraft/textures/gui/container/{n}.png", PNG)
+            for n in names: z.writestr(f"assets/minecraft/textures/{'item' if n == 'campfire' else 'gui/container'}/{n}.png", PNG)
 
     def test_sin_cliente_descargado(self):
         self.assertEqual(kubejs.gui_textures(self.ctx, "s"), {})
@@ -43,6 +43,10 @@ class GuiTest(unittest.TestCase):
         (self.root / "cache").mkdir()
         (self.root / "cache" / "minecraft-1.21.1-client.jar").write_bytes(b"no soy un zip")
         self.assertEqual(kubejs.gui_textures(self.ctx, "s"), {})
+
+    def test_la_fogata_sale_del_sprite_del_item(self):
+        self.jar(["campfire", "furnace"])
+        self.assertEqual(sorted(kubejs.gui_textures(self.ctx, "s")), ["campfire", "furnace"])
 
     def test_se_recalcula_si_cambia_el_jar(self):
         self.jar(["furnace"]); a = kubejs.gui_textures(self.ctx, "s")
