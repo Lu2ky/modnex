@@ -309,3 +309,16 @@ canvas.spin { cursor: grab; }
 .kjs-hist-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .kjs-hist-row.same { opacity: .65; }
 .kjs-hist-row .block { display: block; margin-top: 2px; }
+
+.ae2-slots { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 10px 0; }
+.ae2-side { display: flex; flex-direction: column; gap: 6px; }
+.ae2-ent { align-items: flex-end; }
+.cr-slot-pick { display: flex; align-items: center; gap: 8px; min-width: 150px; min-height: 52px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.cr-slot-pick.on { border-color: var(--accent); }
+.cr-slot-pick .block { display: block; }
+.ae2-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+.ae2-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.ae2-pickbar { display: flex; gap: 8px; align-items: center; }
+.ae2-pickbar .kjs-search { flex: 1; }
+.ae2-new { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
+.ae2-list { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
