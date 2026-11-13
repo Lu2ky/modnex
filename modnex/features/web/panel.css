@@ -81,7 +81,7 @@
 .kjs-new { justify-content: center; min-width: 160px; border-style: dashed; color: var(--muted); }
 .kjs-ico { width: 32px; height: 32px; image-rendering: pixelated; flex: none; }
 .kjs-ico.big { width: 48px; height: 48px; }
-.kjs-ph { display: inline-grid; place-items: center; border-radius: 6px; background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
+.kjs-ph { display: inline-grid; place-items: center; border-radius: 6px; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
 .kjs-editor { border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 0 0 16px; background: var(--surface); }
 .kjs-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
 .kjs-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
@@ -106,12 +106,13 @@
 .kjs-browser { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; max-height: 420px; overflow: auto; padding: 4px; }
 .kjs-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; min-width: 0; text-align: left; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text); cursor: pointer; transition: background-color 160ms ease-out, border-color 160ms ease-out; }
 .kjs-item:hover, .kjs-item:focus-visible { background: var(--accent-soft); border-color: var(--accent); outline: none; }
+.kjs-item-t .block { display: block; overflow: hidden; text-overflow: ellipsis; }
 .kjs-item-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .kjs-search { width: 100%; margin: 8px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
 .kjs-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
 
 /* KubeJS: navegación interna y editor de scripts */
-.kjs-nav { display: flex; gap: 6px; margin: 4px 0 14px; }
+.kjs-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
 .kjs-nav button { padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); cursor: pointer; transition: background-color 160ms ease-out, color 160ms ease-out; }
 .kjs-nav button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .kjs-scripts { display: grid; grid-template-columns: 240px 1fr; gap: 16px; align-items: start; }
@@ -160,3 +161,10 @@
 .kjs-act { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
 .kjs-act select, .kjs-field select { padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
 .kjs-pickbox { margin-top: 8px; }
+
+/* Formularios de Reglas: letra y aire iguales en todos los campos, sin estirarlos a todo el ancho */
+.kjs-field { margin-bottom: 12px; }
+.kjs-field select, .kjs-field input, .kjs-act select { font-size: 14px; }
+.kjs-field select, .kjs-field input:not(.kjs-wide) { max-width: 420px; }
+.kjs-field-blk { margin-bottom: 14px; }
+@media (pointer: coarse) { .kjs-nav button, .kjs-cats button { padding-block: 10px; } }
