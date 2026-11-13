@@ -33,7 +33,7 @@
   const esc = (v) => M().esc(v);
   function machine(D, id, cls) {
     const iso = window.ModnexKjsBlock && window.ModnexKjsBlock.get(id), flat = D.flat[id], src = iso || (flat && flat.icon);
-    return src ? `<img class="cr-machine ${cls || ''}" src="${esc(src)}" alt="" title="${esc(flat ? flat.name : id)}">`
+    return src ? `<img class="cr-machine ${cls || ''}" ${iso ? `data-spin="${esc(id)}"` : ''} src="${esc(src)}" alt="" title="${esc(flat ? flat.name : id)}">`
       : `<span class="cr-machine ${cls || ''} kjs-ph" aria-hidden="true">${esc((id || '?').split(':').pop().charAt(0).toUpperCase())}</span>`;
   }
   const fluidName = (D, e) => (D.fluids[e.id] && D.fluids[e.id].name) || e.name || e.id;
@@ -117,7 +117,7 @@
     const info = {};
     const remember = (l) => l.forEach((i) => { info[i.id] = { name: i.name, icon: i.icon }; });
     const nameOf = (e) => (info[e.id] ? info[e.id].name : e.id);
-    const itemIcon = (e) => (info[e.id] && info[e.id].icon ? `<img class="kjs-ico" src="${esc(info[e.id].icon)}" alt="">` : `<span class="kjs-ph kjs-ico" aria-hidden="true">${esc((e.id || '?').split(':').pop().charAt(0).toUpperCase())}</span>`);
+    const itemIcon = (e) => (info[e.id] && info[e.id].icon ? `<img class="kjs-ico" data-iid="${esc(e.id)}" src="${esc(info[e.id].icon)}" alt="">` : `<span class="kjs-ph kjs-ico" aria-hidden="true">${esc((e.id || '?').split(':').pop().charAt(0).toUpperCase())}</span>`);
     const T = () => D.types[draft.type];
     const empty = (k) => (k === 'fluid' ? { k, id: '', amount: 1000 } : { k, id: '' });
 
@@ -298,7 +298,7 @@
     function drawBrowser() {
       const box = el.querySelector('.kjs-browser');
       if (!box) return;
-      box.innerHTML = items.length ? items.map((it) => `<button type="button" class="kjs-item" data-id="${esc(it.id)}" title="${esc(it.id)}">${it.icon ? `<img class="kjs-ico sm" src="${esc(it.icon)}" alt="" loading="lazy">` : `<span class="kjs-ico sm kjs-ph">${esc(it.name.charAt(0))}</span>`}<span class="kjs-item-t">${esc(it.name)}<span class="muted small block">${esc(it.id)}</span></span></button>`).join('') : '<p class="muted small">Escribe para buscar.</p>';
+      box.innerHTML = items.length ? items.map((it) => `<button type="button" class="kjs-item" data-id="${esc(it.id)}" title="${esc(it.id)}">${it.icon ? `<img class="kjs-ico sm" data-iid="${esc(it.id)}" src="${esc(it.icon)}" alt="" loading="lazy">` : `<span class="kjs-ico sm kjs-ph">${esc(it.name.charAt(0))}</span>`}<span class="kjs-item-t">${esc(it.name)}<span class="muted small block">${esc(it.id)}</span></span></button>`).join('') : '<p class="muted small">Escribe para buscar.</p>';
     }
 
     el.oninput = (e) => {

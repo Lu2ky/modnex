@@ -139,8 +139,9 @@ def register(api):
     @_guard
     def r_blocks(ctx, user, name, q, b):
         _need(ctx, name)
-        ids = [i for i in str((q or {}).get("ids", "")).split(",") if i][:40]
-        return 200, {"models": {i: kubejs.block_model(ctx, name, i) for i in ids}}
+        ids = [i for i in str((q or {}).get("ids", "")).split(",") if i][:60]
+        models, textures = kubejs.block_models(ctx, name, ids)
+        return 200, {"models": models, "textures": textures}
 
     @api.route("GET", "kubejs_create")
     @_guard

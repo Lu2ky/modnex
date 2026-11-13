@@ -40,7 +40,7 @@ DEFAULT_TIME = {"campfire": 600}
 
 _LOCK = threading.Lock()
 _CACHE = {"sig": None, "items": [], "textures": {}, "models": {}, "icons": {}, "zips": {}, "parsed": {},
-          "recipe_refs": {}, "recipes": None, "names": {}, "fluids": {}}
+          "recipe_refs": {}, "recipes": None, "names": {}, "fluids": {}, "blockmodels": {}, "texuris": {}}
 _ICON_LOCK = threading.Lock()   # ZipFile no es seguro entre hilos: los iconos se calculan de uno en uno
 
 
@@ -172,7 +172,7 @@ def _index(ctx, name):
     with _LOCK:
         old = _CACHE.get("zips", {})
         _CACHE.update(sig=sig, items=items, textures=textures, models=models, icons={}, zips={}, parsed={},
-                      recipe_refs=recipe_refs, recipes=None, names=names, fluids=fluid_names)
+                      recipe_refs=recipe_refs, recipes=None, names=names, fluids=fluid_names, blockmodels={}, texuris={})
     for z in old.values():
         z.close()
     return items, textures, models
@@ -291,10 +291,21 @@ def _nums(v, n, lo=-80.0, hi=80.0):
 
 
 def block_model(ctx, name, item_id):
-    """Cubos, texturas (data URI) y transformación de inventario de un item/bloque, o None si su modelo no tiene cubos
-    (modelos especiales, entidades): entonces se usa el icono plano."""
+    """Cubos, transformación de inventario y lista de texturas de un item/bloque, o None si su modelo no tiene cubos
+    (items planos, modelos especiales, entidades): entonces se usa el icono plano. Se guarda en caché por conjunto de jars."""
     _check_id(item_id, "item")
     _, textures, models = _index(ctx, name)
+    with _LOCK:
+        cached = _CACHE["blockmodels"]
+        if item_id in cached:
+            return cached[item_id]
+    result = _build_block_model(textures, models, item_id)
+    with _LOCK:
+        _CACHE["blockmodels"][item_id] = result
+    return result
+
+
+def _build_block_model(textures, models, item_id):
     ns, _, path = item_id.partition(":")
     mid = next((m for m in (f"{ns}:item/{path}", f"{ns}:block/{path}") if m in models), None)
     if not mid:
@@ -312,7 +323,7 @@ def block_model(ctx, name, item_id):
                 got = _nums(gui.get(k), 3, lo, hi)
                 if got:
                     display[k] = got
-    out, used = [], {}
+    out, used = [], []
     for el in elements:
         if not isinstance(el, dict):
             continue
@@ -335,8 +346,11 @@ def block_model(ctx, name, item_id):
                 face["uv"] = uv
             if f.get("rotation") in (90, 180, 270):
                 face["r"] = f["rotation"]
+            if isinstance(f.get("tintindex"), int) and f["tintindex"] >= 0:
+                face["tint"] = 1          # hierba, hojas...: el juego las tiñe según el bioma
             faces[d] = face
-            used.setdefault(t, None)
+            if t not in used:
+                used.append(t)
         if not faces:
             continue
         item = {"from": frm, "to": to, "faces": faces}
@@ -348,12 +362,33 @@ def block_model(ctx, name, item_id):
         out.append(item)
     if not out:
         return None
-    uris = {}
-    for t in used:
-        raw = _read(textures[t])
-        if raw and len(raw) <= MAX_MODEL_TEXTURE:
-            uris[t] = "data:image/png;base64," + base64.b64encode(raw).decode()
-    return {"elements": out, "textures": uris, "display": display}
+    return {"elements": out, "tex": used, "display": display}
+
+
+def texture_uris(ctx, name, ids):
+    """{id de textura: data URI} (las demasiado grandes se omiten). Se guardan en caché porque muchos bloques las comparten."""
+    _, textures, _ = _index(ctx, name)
+    out = {}
+    for t in ids:
+        with _LOCK:
+            have = t in _CACHE["texuris"]
+            uri = _CACHE["texuris"].get(t)
+        if not have:
+            ref = textures.get(t)
+            raw = _read(ref) if ref else None
+            uri = ("data:image/png;base64," + base64.b64encode(raw).decode()) if raw and len(raw) <= MAX_MODEL_TEXTURE else None
+            with _LOCK:
+                _CACHE["texuris"][t] = uri
+        if uri:
+            out[t] = uri
+    return out
+
+
+def block_models(ctx, name, ids):
+    """({id: modelo|None}, {textura: data URI}) para varios items; las texturas van una sola vez aunque las compartan."""
+    models = {i: block_model(ctx, name, i) for i in ids}
+    used = list(dict.fromkeys(t for m in models.values() if m for t in m["tex"]))
+    return models, texture_uris(ctx, name, used)
 
 
 def fluids(ctx, name):

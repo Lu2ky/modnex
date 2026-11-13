@@ -367,6 +367,7 @@
     el.innerHTML = `<nav class="kjs-nav" role="tablist" aria-label="KubeJS">${VIEWS.map(([k, l]) =>
       `<button role="tab" data-view="${k}" aria-selected="${k === view}" class="${k === view ? 'on' : ''}">${l}</button>`).join('')}</nav><div class="kjs-sub"></div>`;
     const sub = el.querySelector('.kjs-sub');
+    if (window.ModnexKjsBlock) window.ModnexKjsBlock.watch(sub, `/api/servers/${encodeURIComponent(s.name)}`);   // los items que son bloques se ven con su modelo
     function show() {
       el.querySelectorAll('.kjs-nav button').forEach((b) => { const on = b.getAttribute('data-view') === view; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
       sub.onclick = sub.oninput = sub.onkeydown = null;
@@ -390,14 +391,14 @@
     let removals = [], items = [], q = '', timer = null, sel = null, found = null, dirty = false, status = '', createData = null;
     const names = {};
     const ico = (id, icon, cls = 'kjs-ico') => icon
-      ? `<img class="${cls}" src="${esc(icon)}" alt="" loading="lazy">`
+      ? `<img class="${cls}" data-iid="${esc(id)}" src="${esc(icon)}" alt="" loading="lazy">`
       : `<span class="${cls} kjs-ph" aria-hidden="true">${(id || '').startsWith('#') ? '#' : esc((id || '?').split(':').pop().charAt(0).toUpperCase())}</span>`;
     const nameOf = (id) => names[id] || id;
     // La receta en la interfaz del juego, solo para mirar. Si no se sabe dibujar (otro mod, formato raro) se usa la lista de ingredientes.
     const recipeGui = (r) => {
       const G = window.ModnexKjsGui, L = r.layout;
       if (L && L.skin === 'create' && createData) {
-        const icon = (e) => (e.icon ? `<img class="kjs-ico" src="${esc(e.icon)}" alt="">` : `<span class="kjs-ph kjs-ico" aria-hidden="true">${esc((e.id || '?').charAt(0).toUpperCase())}</span>`);
+        const icon = (e) => (e.icon ? `<img class="kjs-ico" data-iid="${esc(e.id)}" src="${esc(e.icon)}" alt="">` : `<span class="kjs-ph kjs-ico" aria-hidden="true">${esc((e.id || '?').charAt(0).toUpperCase())}</span>`);
         return `<div class="kjs-recipe-gui">${window.ModnexKjsCreate.scene(createData, L, { ro: true, small: true, icon, name: (e) => e.name })}</div>`;
       }
       if (!G || !r.layout || !G.has(r.layout.skin)) return '';
@@ -595,7 +596,7 @@
     const label = (id) => (info[id] ? info[id].name : id);
     const icon = (id, cls = 'kjs-ico') => {
       const i = info[id];
-      if (i && i.icon) return `<img class="${cls}" src="${esc(i.icon)}" alt="" loading="lazy">`;
+      if (i && i.icon) return `<img class="${cls}" data-iid="${esc(id)}" src="${esc(i.icon)}" alt="" loading="lazy">`;
       const ch = (id || '?').split(':').pop().charAt(0).toUpperCase();
       return `<span class="${cls} kjs-ph" aria-hidden="true">${esc(ch)}</span>`;
     };

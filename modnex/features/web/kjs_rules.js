@@ -63,7 +63,7 @@
     const info = {};
     const nameOf = (id) => (info[id] ? info[id].name : id);
     const ico = (id, cls = 'kjs-ico sm') => id && !id.startsWith('#')
-      ? (info[id] && info[id].icon ? `<img class="${cls}" src="${esc(info[id].icon)}" alt="" loading="lazy">` : `<span class="${cls} kjs-ph" aria-hidden="true">${esc(id.split(':').pop().charAt(0).toUpperCase())}</span>`)
+      ? (info[id] && info[id].icon ? `<img class="${cls}" data-iid="${esc(id)}" src="${esc(info[id].icon)}" alt="" loading="lazy">` : `<span class="${cls} kjs-ph" aria-hidden="true">${esc(id.split(':').pop().charAt(0).toUpperCase())}</span>`)
       : `<span class="${cls} kjs-ph" aria-hidden="true">#</span>`;
     const remember = (l) => l.forEach((i) => { info[i.id] = { name: i.name, icon: i.icon }; });
     const idsOf = (r) => [r.source, r.target, r.only, r.result, r.template, r.base, r.addition, r.item, r.filter, ...(r.entries || []), ...(r.items || []),
@@ -169,7 +169,7 @@
       if (!box) return;
       box.hidden = !pick;
       if (!pick) return;
-      box.querySelector('.kjs-browser').innerHTML = items.length ? items.map((i) => `<button type="button" class="kjs-item" data-id="${esc(i.id)}" title="${esc(i.id)}">${i.icon ? `<img class="kjs-ico sm" src="${esc(i.icon)}" alt="" loading="lazy">` : `<span class="kjs-ico sm kjs-ph">${esc(i.name.charAt(0))}</span>`}<span class="kjs-item-t">${esc(i.name)}</span></button>`).join('')
+      box.querySelector('.kjs-browser').innerHTML = items.length ? items.map((i) => `<button type="button" class="kjs-item" data-id="${esc(i.id)}" title="${esc(i.id)}">${i.icon ? `<img class="kjs-ico sm" data-iid="${esc(i.id)}" src="${esc(i.icon)}" alt="" loading="lazy">` : `<span class="kjs-ico sm kjs-ph">${esc(i.name.charAt(0))}</span>`}<span class="kjs-item-t">${esc(i.name)}</span></button>`).join('')
         : '<p class="muted small">Sin resultados.</p>';
     }
 
