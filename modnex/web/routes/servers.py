@@ -16,7 +16,7 @@ from modnex.services.mods import delete_mod, installed_index, toggle_mod
 from modnex.services.modconfig import mods_with_config, read_config, save_config, set_auto
 from modnex.services.players import player_action, players_info
 from modnex.services.properties import properties_view, set_properties
-from modnex.services.resourcepacks import (delete_local_pack, finish_pack_upload, get_resourcepack, list_local_packs, packs_dir,
+from modnex.services.resourcepacks import (UNIFIED, add_remote_pack, delete_local_pack, finish_pack_upload, get_resourcepack, list_local_packs, packs_dir,
                                            set_resourcepack, use_local_pack)
 from modnex.services.servers import (delete_server, live_metrics, read_log, send_command, server_path, set_memory, start, stop,
                                      visible_servers)
@@ -279,6 +279,15 @@ def resourcepack_set(req, name, b):
 def resourcepack_use(req, name, b):
     use_local_pack(name, b["file"], b.get("base_url"), bool(b.get("required")), b.get("prompt"))
     db.audit(req.user, name, "texturas del servidor (local)", b["file"])
+
+
+@server_action("POST", "resourcepack_add_remote", perm="textures")
+def resourcepack_add_remote(req, name, b):
+    """Añade a la fusión un pack de Modrinth: se descarga, se verifica y se fusiona con los demás packs locales."""
+    fname = str(b.get("file") or "")
+    add_remote_pack(name, str(b.get("url") or ""), str(b.get("sha1") or ""), fname)
+    db.audit(req.user, name, "añadir pack de texturas a la fusión", fname)
+    return {"added": fname, "unified": UNIFIED}
 
 
 @server_action("POST", "resourcepack_delete", perm="textures")
