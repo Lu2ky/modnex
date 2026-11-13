@@ -60,8 +60,9 @@ def _client_cache(ctx, name):
 
 # Interfaces de Minecraft que se usan de fondo en el editor de recetas. Se leen del cliente oficial que el panel ya
 # descarga a su caché (nunca se guardan en el repositorio) y se entregan como data URI.
-GUI_SKINS = {"crafting": "crafting_table", "furnace": "furnace", "blast_furnace": "blast_furnace", "smoker": "smoker",
-             "stonecutter": "stonecutter", "smithing": "smithing"}
+GUI_SKINS = {"crafting": "gui/container/crafting_table", "furnace": "gui/container/furnace", "blast_furnace": "gui/container/blast_furnace",
+             "smoker": "gui/container/smoker", "stonecutter": "gui/container/stonecutter", "smithing": "gui/container/smithing",
+             "campfire": "item/campfire"}   # la fogata no tiene interfaz: se dibuja su sprite y se coloca el item encima
 _GUI = {"key": None, "tex": {}}
 
 
@@ -80,7 +81,7 @@ def gui_textures(ctx, name):
         with zipfile.ZipFile(jar) as z:
             for skin, fname in GUI_SKINS.items():
                 try:
-                    raw = z.read(f"assets/minecraft/textures/gui/container/{fname}.png")
+                    raw = z.read(f"assets/minecraft/textures/{fname}.png")
                 except KeyError:
                     continue
                 out[skin] = "data:image/png;base64," + base64.b64encode(raw).decode()
@@ -657,6 +658,88 @@ def _ingredient_ids(v, found):
             _ingredient_ids(x, found)
 
 
+RECIPE_SKIN = {"minecraft:crafting_shaped": "crafting", "minecraft:crafting_shapeless": "crafting", "minecraft:smelting": "furnace",
+               "minecraft:blasting": "blast_furnace", "minecraft:smoking": "smoker", "minecraft:campfire_cooking": "campfire",
+               "minecraft:stonecutting": "stonecutter", "minecraft:smithing_transform": "smithing"}
+
+
+def _pick_ingredient(v):
+    """Un ingrediente de receta -> id de item, '#tag' o None. Si ofrece varias opciones se toma la primera."""
+    if isinstance(v, str):
+        return v if ID_RE.fullmatch(v) else None
+    if isinstance(v, dict):
+        if isinstance(v.get("item"), str):
+            return v["item"]
+        if isinstance(v.get("tag"), str):
+            return "#" + v["tag"]
+    if isinstance(v, list):
+        for x in v:
+            got = _pick_ingredient(x)
+            if got:
+                return got
+    return None
+
+
+def _result_of(data):
+    r = data.get("result")
+    if isinstance(r, str):
+        return r, 1
+    if isinstance(r, dict):
+        rid = r.get("id") or r.get("item")
+        if isinstance(rid, str):
+            try:
+                return rid, max(1, int(r.get("count", 1)))
+            except (TypeError, ValueError):
+                return rid, 1
+    return None, 1
+
+
+def recipe_layout(data):
+    """Dónde va cada ingrediente en la interfaz del juego: {"skin": ..., "slots": {hueco: {"id", "count"?}}} o None si no se sabe dibujar."""
+    if not isinstance(data, dict):
+        return None
+    skin = RECIPE_SKIN.get(str(data.get("type", "")))
+    rid, count = _result_of(data)
+    if not skin or not rid:
+        return None
+    slots = {}
+    kind = data["type"]
+    if kind == "minecraft:crafting_shaped":
+        pattern, key = data.get("pattern"), data.get("key")
+        if not isinstance(pattern, list) or not isinstance(key, dict) or len(pattern) > 3:
+            return None
+        for r, row in enumerate(pattern):
+            if not isinstance(row, str) or len(row) > 3:
+                return None
+            for c, ch in enumerate(row):
+                got = _pick_ingredient(key.get(ch)) if ch != " " else None
+                if got:
+                    slots[f"g{r * 3 + c}"] = {"id": got}
+    elif kind == "minecraft:crafting_shapeless":
+        ings = data.get("ingredients")
+        if not isinstance(ings, list) or len(ings) > 9:
+            return None
+        for i, ing in enumerate(ings):
+            got = _pick_ingredient(ing)
+            if got:
+                slots[f"g{i}"] = {"id": got}
+    elif kind == "minecraft:smithing_transform":
+        for k in ("template", "base", "addition"):
+            got = _pick_ingredient(data.get(k))
+            if got:
+                slots[k] = {"id": got}
+        slots["result"] = {"id": rid, "count": count}
+        return {"skin": skin, "slots": slots} if len(slots) > 1 else None
+    else:   # horno, horno alto, ahumador, fogata y cortapiedras: un ingrediente
+        got = _pick_ingredient(data.get("ingredient"))
+        if got:
+            slots["g0"] = {"id": got}
+    if not any(k.startswith("g") for k in slots):
+        return None
+    slots["out"] = {"id": rid, "count": count}
+    return {"skin": skin, "slots": slots}
+
+
 def _recipes_index(ctx, name):
     """item de salida -> recetas (de vanilla y de los mods) que lo producen. Se calcula una vez por conjunto de jars."""
     _index(ctx, name)
@@ -681,7 +764,7 @@ def _recipes_index(ctx, name):
             continue
         ing = []
         _ingredient_ids({k: v for k, v in data.items() if k not in RESULT_KEYS}, ing)
-        entry = {"id": rid, "type": str(data.get("type", "")), "ingredients": list(dict.fromkeys(ing))[:12]}
+        entry = {"id": rid, "type": str(data.get("type", "")), "ingredients": list(dict.fromkeys(ing))[:12], "layout": recipe_layout(data)}
         for o in set(outs):
             by_item.setdefault(o, []).append(entry)
     with _LOCK:
@@ -700,6 +783,10 @@ def recipes_for(ctx, name, item):
         if i.startswith("#"):
             return {"id": i, "name": i, "icon": None, "tag": True}
         return {"id": i, "name": names.get(i, i), "icon": _cached_icon(textures, models, i), "tag": False}
+    def lay(layout):
+        if not layout:
+            return None
+        return {"skin": layout["skin"], "slots": {k: {**ing(v["id"]), **({"count": v["count"]} if v.get("count", 1) > 1 else {})} for k, v in layout["slots"].items()}}
     out = []
     # primero las que se agregaron desde el panel (viven en kubejs/modnex/recetas.json, no en los jars)
     mine, _ = _read_store(Path(ctx.server_path(name)) / "kubejs")
@@ -707,10 +794,14 @@ def recipes_for(ctx, name, item):
         if r["result"]["id"] != item:
             continue
         ings = list(dict.fromkeys(c for c in r["grid"] if c))
+        slots = {f"g{i}": {"id": c} for i, c in enumerate(r["grid"]) if c}
+        slots["out"] = {"id": r["result"]["id"], "count": r["result"]["count"]}
+        skin = {"shaped": "crafting", "shapeless": "crafting", "smelting": "furnace", "blasting": "blast_furnace", "smoking": "smoker",
+                "campfire": "campfire", "stonecutting": "stonecutter"}[r["type"]]
         out.append({"id": f"modnex:{r['id']}", "slug": r["id"], "source": "panel", "type": PANEL_TYPE.get(r["type"], r["type"]),
-                    "ingredients": [ing(i) for i in ings]})
+                    "ingredients": [ing(i) for i in ings], "layout": lay({"skin": skin, "slots": slots})})
     for e in sorted(entries, key=lambda x: x["id"])[:60]:
-        out.append({"id": e["id"], "source": "pack", "type": e["type"], "ingredients": [ing(i) for i in e["ingredients"]]})
+        out.append({"id": e["id"], "source": "pack", "type": e["type"], "ingredients": [ing(i) for i in e["ingredients"]], "layout": lay(e.get("layout"))})
     return {"item": item, "recipes": out}
 
 

@@ -178,8 +178,19 @@
 .mc-title.center { transform: translateX(-50%); }
 .mc-slot { position: absolute; left: calc(var(--x) * var(--u)); top: calc(var(--y) * var(--u)); width: calc(var(--w) * var(--u)); height: calc(var(--w) * var(--u)); display: grid; place-items: center; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .mc-slot.ro { cursor: default; }
-.mc-slot:not(.ro):hover, .mc-slot:not(.ro):focus-visible { background: rgba(255, 255, 255, .5); outline: none; }
-.mc-slot.on { background: rgba(255, 255, 255, .5); box-shadow: inset 0 0 0 calc(1 * var(--u)) #fff; }
+.mc-slot:not(.ro):hover, .mc-slot:not(.ro):focus-visible { background-image: linear-gradient(rgba(255, 255, 255, .5), rgba(255, 255, 255, .5)); outline: none; }
+.mc-slot.on { background-image: linear-gradient(rgba(255, 255, 255, .5), rgba(255, 255, 255, .5)); box-shadow: inset 0 0 0 calc(1 * var(--u)) #fff; }
 .mc-slot .kjs-ico, .mc-slot .kjs-ph { width: calc(16 * var(--u)); height: calc(16 * var(--u)); pointer-events: none; }
 .mc-count { position: absolute; right: calc(1 * var(--u)); bottom: calc(0 * var(--u)); font-size: calc(5.5 * var(--u)); line-height: 1; font-weight: 700; color: #fff; text-shadow: calc(0.7 * var(--u)) calc(0.7 * var(--u)) 0 #3f3f3f; pointer-events: none; }
 .kjs-craft-mc { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin: 4px 0 8px; }
+
+/* Fogata: no tiene interfaz en el juego. Panel y huecos con los biseles de Minecraft; sprite grande; flecha recortada del horno. */
+.mc-custom .mc-panel { width: 100%; height: calc(84 * var(--u)); box-sizing: border-box; background: #c6c6c6; border: calc(1 * var(--u)) solid #000; box-shadow: inset calc(2 * var(--u)) calc(2 * var(--u)) 0 #fff, inset calc(-2 * var(--u)) calc(-2 * var(--u)) 0 #555; }
+.mc-fire { position: absolute; left: calc(27 * var(--u)); top: calc(10 * var(--u)); width: calc(64 * var(--u)); height: calc(64 * var(--u)); background-image: var(--skin); background-size: 100% 100%; background-repeat: no-repeat; image-rendering: pixelated; pointer-events: none; }
+.mc-arrow { position: absolute; left: calc(98 * var(--u)); top: calc(32 * var(--u)); width: calc(22 * var(--u)); height: calc(15 * var(--u)); background-image: var(--skin2); background-repeat: no-repeat; background-size: calc(256 * var(--u)) calc(256 * var(--u)); background-position: calc(-80 * var(--u)) calc(-35 * var(--u)); image-rendering: pixelated; pointer-events: none; }
+.mc-slot.draw { background-color: #8b8b8b; box-shadow: inset calc(1 * var(--u)) calc(1 * var(--u)) 0 #373737, inset calc(-1 * var(--u)) calc(-1 * var(--u)) 0 #fff; z-index: 1; }
+.mc-slot.draw.on { box-shadow: inset calc(1 * var(--u)) calc(1 * var(--u)) 0 #373737, inset calc(-1 * var(--u)) calc(-1 * var(--u)) 0 #fff, 0 0 0 calc(1 * var(--u)) #fff; }
+/* Tamaño de lista (recetas existentes) */
+.mc-gui.mc-sm { --u: clamp(1.2px, calc((100vw - 96px) / 176), 1.5px); margin: 4px 0; }
+.kjs-recipe-gui { grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+.kjs-recipe:has(.kjs-recipe-gui) > button { grid-row: 1; grid-column: 2; }
