@@ -648,6 +648,12 @@ function placeInk(nav, kind, key) {
   set(x, w);
   state.ink[kind] = { key, x, w };
   nav.dataset.ink = kind;
+  fadeEdges(nav);
+}
+// Marca por qué lado se puede seguir desplazando una barra de pestañas, para que el borde se difumine y no parezca cortada.
+function fadeEdges(nav) {
+  const upd = () => { const max = nav.scrollWidth - nav.clientWidth; nav.dataset.fade = max <= 1 ? '' : nav.scrollLeft <= 1 ? 'end' : nav.scrollLeft >= max - 1 ? 'start' : 'both'; };
+  nav._fadeUpd = upd; nav.addEventListener('scroll', upd, { passive: true }); upd();
 }
 // Si cambia el ancho (fuente cargada, ventana), el indicador se recoloca sin animar.
 function resyncInk() {
@@ -657,6 +663,7 @@ function resyncInk() {
     ink.classList.add('no-anim');
     ink.style.setProperty('--x', `${active.offsetLeft}px`); ink.style.setProperty('--w', `${active.offsetWidth}px`);
     void ink.offsetWidth; ink.classList.remove('no-anim');
+    if (nav._fadeUpd) nav._fadeUpd();
     const k = nav.dataset.ink; if (state.ink[k]) { state.ink[k].x = active.offsetLeft; state.ink[k].w = active.offsetWidth; }
   });
 }

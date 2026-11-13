@@ -52,7 +52,7 @@ async def main():
             check("las pestañas de copias, diagnóstico y avisos están", all(t in tabs for t in ("Copias", "Diagnóstico", "Avisos")), tabs)
             check("el riel de estado se muestra", await pg.locator("#rail .rail-block").count() >= 4)
             await pg.wait_for_selector("#rail .rail-block:has-text('Copias')", timeout=10000)   # el bloque se pinta tras pedir sus datos
-            check("el bloque de copias está en el riel", await pg.locator("#rail .rail-block:has-text('Copias')").count() == 1)
+            check("el bloque de copias está en el riel", await pg.locator("#rail .rail-title:text-is('Copias')").count() == 1)   # por el título: el aviso de disco bajo también nombra las copias
             # Respuesta, resortes y materiales del panel
             st = await pg.evaluate("""() => { const root = getComputedStyle(document.documentElement);
               const b = document.querySelector('.btn'); const t = getComputedStyle(b);
