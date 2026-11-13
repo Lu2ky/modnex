@@ -6,9 +6,25 @@ from modnex import plugins
 from modnex.infra import db
 from modnex.services import extras
 from modnex.services import modpacks
-from modnex.services import templates
+from modnex.services import playit, templates
 from modnex.config import MEM_RE, NAME_RE, SERVERS_DIR
 from modnex.services.servers import used_ports
+
+
+def _playit_tunnel(user, name, port):
+    """Crea el túnel de playit del servidor. Nunca impide la creación: si falla, se registra en la auditoría."""
+    try:
+        rec = playit.ensure_tunnel(SERVERS_DIR / name, name, port)
+    except OSError as e:
+        db.audit(user, name, "túnel playit", f"no se creó: {type(e).__name__}")
+        return
+    if rec is None:
+        db.audit(user, name, "túnel playit", "playit no está configurado en este equipo")
+    elif rec.get("error"):
+        db.audit(user, name, "túnel playit", f"no se creó: {rec['error']}")
+    else:
+        db.audit(user, name, "túnel playit", f"creado (puerto local {port})")
+
 
 
 def create_server(user, b, ctx):
@@ -47,6 +63,7 @@ def create_server(user, b, ctx):
         db.sync_servers([n])
         db.audit(user, n, "crear servidor", f"{template} {mc}")
         extras.run(ctx, n, wanted, user)
+        _playit_tunnel(user, n, port)
         plugins.emit("server_created", n)
 
     perf = b.get("perf", True) is not False
@@ -90,6 +107,7 @@ def create_modpack_server(user, b, ctx):
         db.sync_servers([n])
         db.audit(user, n, "crear servidor desde modpack", f"{source}:{project}:{version_id}")
         extras.run(ctx, n, wanted, user)
+        _playit_tunnel(user, n, port)
         plugins.emit("server_created", n)
 
     job = modpacks.start_job(SERVERS_DIR, name, source, project, version_id, memory, port, display,
