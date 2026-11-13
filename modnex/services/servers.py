@@ -331,7 +331,8 @@ def visible_servers(user):
 
 
 # Complementos que habilitan pestañas propias en el panel: id -> patrón del jar principal.
-ADDON_JARS = {"kubejs": re.compile(r"kubejs-(neoforge|forge|fabric)-.*\.jar"), "morejs": re.compile(r"morejs-.*\.jar", re.IGNORECASE)}
+ADDON_JARS = {"kubejs": re.compile(r"kubejs-(neoforge|forge|fabric)-.*\.jar"), "morejs": re.compile(r"morejs-.*\.jar", re.IGNORECASE),
+              "create": re.compile(r"create-\d.*\.jar", re.IGNORECASE)}   # no confunde con createaddition, createnuclear...
 
 
 def addons_of(path):

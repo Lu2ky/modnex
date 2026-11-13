@@ -16,10 +16,13 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+from . import kubejs_create
+
 ID_RE = re.compile(r"[a-z0-9_.-]+:[a-z0-9_./-]+")
 SLUG_RE = re.compile(r"[a-z0-9_]{1,40}")
 LANG_RE = re.compile(r"assets/([a-z0-9_.-]+)/lang/en_us\.json")
 NAME_KEY = re.compile(r"(item|block)\.([a-z0-9_.-]+?)\.([a-z0-9_/.-]+)")
+FLUID_KEY = re.compile(r"fluid(?:_type)?\.([a-z0-9_.-]+?)\.([a-z0-9_/.-]+)")
 TEX_RE = re.compile(r"assets/([a-z0-9_.-]+)/textures/([a-z0-9_/.-]+)\.png")
 RECIPE_RE = re.compile(r"data/([a-z0-9_.-]+)/(?:recipe|recipes)/([a-z0-9_/.-]+)\.json")
 MC_VERSION_RE = re.compile(r"\d+\.\d+(?:\.\d+)?")
@@ -37,7 +40,7 @@ DEFAULT_TIME = {"campfire": 600}
 
 _LOCK = threading.Lock()
 _CACHE = {"sig": None, "items": [], "textures": {}, "models": {}, "icons": {}, "zips": {}, "parsed": {},
-          "recipe_refs": {}, "recipes": None, "names": {}}
+          "recipe_refs": {}, "recipes": None, "names": {}, "fluids": {}}
 _ICON_LOCK = threading.Lock()   # ZipFile no es seguro entre hilos: los iconos se calculan de uno en uno
 
 
@@ -117,7 +120,7 @@ def _index(ctx, name):
     with _LOCK:
         if _CACHE["sig"] == sig:
             return _CACHE["items"], _CACHE["textures"], _CACHE["models"]
-    names, textures, models, recipe_refs, from_block = {}, {}, {}, {}, set()
+    names, textures, models, recipe_refs, from_block, fluid_names = {}, {}, {}, {}, set(), {"minecraft:water": "Water", "minecraft:lava": "Lava"}
     for jar in jars:
         try:
             z = zipfile.ZipFile(jar)
@@ -147,6 +150,10 @@ def _index(ctx, name):
                 except ValueError:
                     continue
                 for key, val in data.items():
+                    fm = FLUID_KEY.fullmatch(key)
+                    if fm and isinstance(val, str) and "." not in fm.group(2):
+                        fluid_names.setdefault(f"{fm.group(1)}:{fm.group(2)}", val)
+                        continue
                     m = NAME_KEY.fullmatch(key)
                     if not m or key.endswith(SKIP_SUFFIX) or not isinstance(val, str) or "." in m.group(3):
                         continue   # los ids con punto son variantes de traducción (estandartes, tooltips), no items
@@ -165,7 +172,7 @@ def _index(ctx, name):
     with _LOCK:
         old = _CACHE.get("zips", {})
         _CACHE.update(sig=sig, items=items, textures=textures, models=models, icons={}, zips={}, parsed={},
-                      recipe_refs=recipe_refs, recipes=None, names=names)
+                      recipe_refs=recipe_refs, recipes=None, names=names, fluids=fluid_names)
     for z in old.values():
         z.close()
     return items, textures, models
@@ -250,6 +257,120 @@ def _icon(textures, models, iid):
         return None
     raw = _read(ref)
     return ("data:image/png;base64," + base64.b64encode(raw).decode()) if raw else None
+
+
+# ---------- modelos de bloque (para dibujar las máquinas como en el inventario del juego) ----------
+MAX_MODEL_ELEMENTS = 160
+MAX_MODEL_TEXTURE = 70_000
+DEFAULT_GUI = {"rotation": [30, 225, 0], "translation": [0, 0, 0], "scale": [0.625, 0.625, 0.625]}
+FACE_NAMES = ("north", "south", "east", "west", "up", "down")
+
+
+def _model_chain(models, mid):
+    out, seen = [], set()
+    while mid and mid not in seen and len(out) < 12:
+        seen.add(mid)
+        m = _model(models, mid)
+        if not m:
+            break
+        out.append(m)
+        parent = m.get("parent")
+        if not isinstance(parent, str) or parent.startswith("builtin/"):
+            break
+        mid = parent if ":" in parent else "minecraft:" + parent
+    return out
+
+
+def _nums(v, n, lo=-80.0, hi=80.0):
+    if not isinstance(v, list) or len(v) != n:
+        return None
+    try:
+        return [max(lo, min(hi, float(x))) for x in v]
+    except (TypeError, ValueError):
+        return None
+
+
+def block_model(ctx, name, item_id):
+    """Cubos, texturas (data URI) y transformación de inventario de un item/bloque, o None si su modelo no tiene cubos
+    (modelos especiales, entidades): entonces se usa el icono plano."""
+    _check_id(item_id, "item")
+    _, textures, models = _index(ctx, name)
+    ns, _, path = item_id.partition(":")
+    mid = next((m for m in (f"{ns}:item/{path}", f"{ns}:block/{path}") if m in models), None)
+    if not mid:
+        return None
+    chain = _model_chain(models, mid)
+    elements = next((m["elements"] for m in chain if isinstance(m.get("elements"), list) and m["elements"]), None)
+    if not elements or len(elements) > MAX_MODEL_ELEMENTS:
+        return None
+    tex = _textures_of(models, mid)
+    display = {k: list(v) for k, v in DEFAULT_GUI.items()}
+    for m in reversed(chain):
+        gui = (m.get("display") or {}).get("gui")
+        if isinstance(gui, dict):
+            for k, lo, hi in (("rotation", -360.0, 360.0), ("translation", -80.0, 80.0), ("scale", 0.0, 4.0)):
+                got = _nums(gui.get(k), 3, lo, hi)
+                if got:
+                    display[k] = got
+    out, used = [], {}
+    for el in elements:
+        if not isinstance(el, dict):
+            continue
+        frm, to = _nums(el.get("from"), 3, -16.0, 32.0), _nums(el.get("to"), 3, -16.0, 32.0)
+        if not frm or not to:
+            continue
+        faces = {}
+        for d in FACE_NAMES:
+            f = (el.get("faces") or {}).get(d)
+            if not isinstance(f, dict):
+                continue
+            t = _resolve(tex, f.get("texture"))
+            if t and ":" not in t:
+                t = "minecraft:" + t
+            if not t or t not in textures:
+                continue
+            face = {"t": t}
+            uv = _nums(f.get("uv"), 4, -16.0, 32.0)
+            if uv:
+                face["uv"] = uv
+            if f.get("rotation") in (90, 180, 270):
+                face["r"] = f["rotation"]
+            faces[d] = face
+            used.setdefault(t, None)
+        if not faces:
+            continue
+        item = {"from": frm, "to": to, "faces": faces}
+        rot = el.get("rotation")
+        if isinstance(rot, dict) and rot.get("axis") in ("x", "y", "z"):
+            origin, angle = _nums(rot.get("origin"), 3, -16.0, 32.0), rot.get("angle")
+            if origin and isinstance(angle, (int, float)):
+                item["rot"] = {"o": origin, "a": rot["axis"], "d": float(angle)}
+        out.append(item)
+    if not out:
+        return None
+    uris = {}
+    for t in used:
+        raw = _read(textures[t])
+        if raw and len(raw) <= MAX_MODEL_TEXTURE:
+            uris[t] = "data:image/png;base64," + base64.b64encode(raw).decode()
+    return {"elements": out, "textures": uris, "display": display}
+
+
+def fluids(ctx, name):
+    """Fluidos conocidos (vanilla y mods) con su nombre y su textura de «fluido quieto» (una tira vertical de fotogramas)."""
+    _, textures, _ = _index(ctx, name)
+    with _LOCK:
+        names = dict(_CACHE["fluids"])
+    out = []
+    for fid, label in sorted(names.items()):
+        ns, _, path = fid.partition(":")
+        tex = next((textures[t] for t in (f"{ns}:fluid/{path}_still", f"{ns}:block/{path}_still", f"{ns}:fluid/{path}") if t in textures), None)
+        raw = _read(tex) if tex else None
+        item = {"id": fid, "name": label, "icon": ("data:image/png;base64," + base64.b64encode(raw).decode()) if raw and len(raw) < 60_000 else None}
+        if fid == "minecraft:water":
+            item["tint"] = "#3f76e4"   # el agua es gris en su textura: el juego la tiñe según el bioma
+        out.append(item)
+    return out
 
 
 def search(ctx, name, q="", limit=MAX_RESULTS):
@@ -694,10 +815,100 @@ def _result_of(data):
     return None, 1
 
 
+def _create_ing(v):
+    """Ingrediente de una receta de Create -> {"k", "id", "amount"?}. Con varias opciones se toma la primera."""
+    if isinstance(v, list):
+        for x in v:
+            got = _create_ing(x)
+            if got:
+                return got
+        return None
+    if not isinstance(v, dict):
+        return None
+    if v.get("type") == "neoforge:compound":        # varias opciones (compatibilidad con otros mods): se muestra la primera
+        return _create_ing(v.get("ingredients"))
+    if isinstance(v.get("item"), str):
+        return {"k": "item", "id": v["item"]}
+    if isinstance(v.get("fluids"), str):             # fluido con componentes (pociones): se muestra su fluido
+        return {"k": "fluid", "id": v["fluids"], "amount": v["amount"] if isinstance(v.get("amount"), int) else 1000}
+    if isinstance(v.get("tag"), str) and "amount" not in v:
+        return {"k": "tag", "id": v["tag"]}          # un tag de items no lleva cantidad; el de fluidos sí
+    amount = v.get("amount") if isinstance(v.get("amount"), int) else 1000
+    if isinstance(v.get("fluid"), str):
+        return {"k": "fluid", "id": v["fluid"], "amount": amount}
+    if isinstance(v.get("tag"), str):
+        return {"k": "fluid", "id": "#" + v["tag"], "amount": amount}
+    return None
+
+
+def _create_out(v):
+    if not isinstance(v, dict) or not isinstance(v.get("id"), str):
+        return None
+    if isinstance(v.get("amount"), int):
+        return {"k": "fluid", "id": v["id"], "amount": v["amount"]}
+    out = {"k": "item", "id": v["id"], "count": v["count"] if isinstance(v.get("count"), int) else 1}
+    if isinstance(v.get("chance"), (int, float)) and 0 < v["chance"] < 1:
+        out["chance"] = round(float(v["chance"]), 4)
+    return out
+
+
+def create_layout(data):
+    """Receta de Create -> forma normalizada (la misma que guarda el panel), o None si no se sabe dibujar."""
+    kind = str(data.get("type", ""))[7:]
+    if kind == "mechanical_crafting":
+        pattern, key = data.get("pattern"), data.get("key")
+        res = _create_out(data.get("result"))
+        if not isinstance(pattern, list) or not isinstance(key, dict) or not res or not pattern or len(pattern) > 9:
+            return None
+        keys = {c: _create_ing(v) for c, v in key.items()}
+        return {"skin": "create", "type": kind, "pattern": [str(p) for p in pattern], "key": {c: v for c, v in keys.items() if v}, "outs": [res]}
+    if kind == "sequenced_assembly":
+        ing, trans = _create_ing(data.get("ingredient")), (data.get("transitional_item") or {}).get("id")
+        outs = []
+        for r in data.get("results") or []:
+            o = _create_out(r)
+            if o:
+                if o["k"] == "item" and isinstance(r.get("chance"), (int, float)):
+                    o.pop("chance", None)
+                    o["weight"] = r["chance"]      # aquí «chance» es un peso relativo, no una probabilidad
+                outs.append(o)
+        steps = []
+        for st in data.get("sequence") or []:
+            t = str(st.get("type", ""))[7:] if isinstance(st, dict) else ""
+            if t not in kubejs_create.SEQ_STEPS:
+                continue
+            rest = [_create_ing(i) for i in (st.get("ingredients") or [])[1:]]
+            step = {"t": t}
+            if t == "deploying" and rest and rest[0]:
+                step["held"] = rest[0]
+            if t == "filling" and rest and rest[0]:
+                step["fluid"] = rest[0]
+            steps.append(step)
+        if not ing or not outs:
+            return None
+        return {"skin": "create", "type": kind, "ins": [ing], "outs": outs, "transitional": trans, "loops": data.get("loops", 5), "steps": steps}
+    if kind not in kubejs_create.TYPES:
+        return None
+    ins = [i for i in (_create_ing(x) for x in data.get("ingredients") or []) if i]
+    outs = [o for o in (_create_out(x) for x in data.get("results") or []) if o]
+    if not ins or not outs:
+        return None
+    lay = {"skin": "create", "type": kind, "ins": ins, "outs": outs}
+    if isinstance(data.get("processing_time"), int):
+        lay["time"] = data["processing_time"]
+    if data.get("heat_requirement") in ("heated", "superheated"):
+        lay["heat"] = data["heat_requirement"]
+    if data.get("keep_held_item") is True:
+        lay["keep"] = True
+    return lay
+
+
 def recipe_layout(data):
     """Dónde va cada ingrediente en la interfaz del juego: {"skin": ..., "slots": {hueco: {"id", "count"?}}} o None si no se sabe dibujar."""
     if not isinstance(data, dict):
         return None
+    if str(data.get("type", "")).startswith("create:"):
+        return create_layout(data)
     skin = RECIPE_SKIN.get(str(data.get("type", "")))
     rid, count = _result_of(data)
     if not skin or not rid:
@@ -783,9 +994,37 @@ def recipes_for(ctx, name, item):
         if i.startswith("#"):
             return {"id": i, "name": i, "icon": None, "tag": True}
         return {"id": i, "name": names.get(i, i), "icon": _cached_icon(textures, models, i), "tag": False}
+    with _LOCK:
+        fluid_names = dict(_CACHE["fluids"])
+
+    def rich(e):
+        if not isinstance(e, dict):
+            return e
+        e = dict(e)
+        if e.get("k") == "fluid":
+            e["name"] = fluid_names.get(e["id"], e["id"])
+        elif e.get("k") in ("item", "tag"):
+            e.update({kk: vv for kk, vv in ing(("#" if e["k"] == "tag" else "") + e["id"]).items() if kk != "id"})
+        return e
+
+    def lay_create(L):
+        out = dict(L)
+        for k in ("ins", "outs"):
+            if k in out:
+                out[k] = [rich(x) for x in out[k]]
+        if "key" in out:
+            out["key"] = {c: rich(v) for c, v in out["key"].items()}
+        if isinstance(out.get("transitional"), str):
+            out["transitional"] = rich({"k": "item", "id": out["transitional"]})
+        if "steps" in out:
+            out["steps"] = [{**st, **({"held": rich(st["held"])} if "held" in st else {}), **({"fluid": rich(st["fluid"])} if "fluid" in st else {})} for st in out["steps"]]
+        return out
+
     def lay(layout):
         if not layout:
             return None
+        if layout["skin"] == "create":
+            return lay_create(layout)
         return {"skin": layout["skin"], "slots": {k: {**ing(v["id"]), **({"count": v["count"]} if v.get("count", 1) > 1 else {})} for k, v in layout["slots"].items()}}
     out = []
     # primero las que se agregaron desde el panel (viven en kubejs/modnex/recetas.json, no en los jars)
@@ -800,6 +1039,10 @@ def recipes_for(ctx, name, item):
                 "campfire": "campfire", "stonecutting": "stonecutter"}[r["type"]]
         out.append({"id": f"modnex:{r['id']}", "slug": r["id"], "source": "panel", "type": PANEL_TYPE.get(r["type"], r["type"]),
                     "ingredients": [ing(i) for i in ings], "layout": lay({"skin": skin, "slots": slots})})
+    for r in kubejs_create.load(ctx, name)["recipes"]:
+        if item in kubejs_create.output_ids(r):
+            out.append({"id": f"modnex:create_{r['id']}", "slug": r["id"], "store": "create", "source": "panel", "type": "create:" + r["type"],
+                        "ingredients": [ing(i) for i in kubejs_create.item_ids(r)], "layout": lay(kubejs_create.as_layout(r))})
     for e in sorted(entries, key=lambda x: x["id"])[:60]:
         out.append({"id": e["id"], "source": "pack", "type": e["type"], "ingredients": [ing(i) for i in e["ingredients"]], "layout": lay(e.get("layout"))})
     return {"item": item, "recipes": out}
