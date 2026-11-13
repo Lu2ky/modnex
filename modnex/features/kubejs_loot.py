@@ -14,8 +14,11 @@ from . import kubejs
 
 ID_RE = re.compile(r"[a-z0-9_.-]+:[a-z0-9_./-]+")
 SLUG_RE = re.compile(r"[a-z0-9_]{1,40}")
-KINDS = ("block", "entity")
-DIR = {"block": "blocks", "entity": "entities"}
+KINDS = ("block", "entity", "chest")
+DIR = {"block": "blocks", "entity": "entities", "chest": "chests"}
+MAX_CHEST_DROPS = 80
+MAX_POOLS = 8
+MAX_WEIGHT = 1000
 BONUS = ("", "fortune", "looting")
 WHEN = ("always", "silk", "nosilk")
 MAX_DROPS = 40
@@ -45,11 +48,13 @@ def clean_rule(r):
         raise ValueError("regla no válida")
     kind = r.get("kind")
     if kind not in KINDS:
-        raise ValueError("tipo de botín no válido (bloque o mob)")
+        raise ValueError("tipo de botín no válido (bloque, mob o cofre)")
     target = _id(r.get("target"), "objetivo")
     slug = str(r.get("id") or "")
     if not SLUG_RE.fullmatch(slug):
         raise ValueError(f"«{slug}»: el nombre solo puede tener minúsculas, números y _ (máx. 40)")
+    if kind == "chest":
+        return _clean_chest(slug, target, r)
     drops = r.get("drops")
     if not isinstance(drops, list) or len(drops) > MAX_DROPS:
         raise ValueError(f"el botín admite hasta {MAX_DROPS} objetos (puede estar vacío: no suelta nada)")
@@ -88,6 +93,36 @@ def clean_rule(r):
     return {"id": slug, "kind": kind, "target": target, "drops": out, "survives": kind == "block" and r.get("survives") is not False}
 
 
+def _clean_chest(slug, target, r):
+    """Un cofre tiene grupos («pools») con su número de tiradas; cada tirada saca un objeto según su peso."""
+    pools = r.get("pools")
+    if not isinstance(pools, list) or not 1 <= len(pools) <= MAX_POOLS:
+        raise ValueError(f"un cofre lleva entre 1 y {MAX_POOLS} grupos de objetos")
+    clean_pools = []
+    for i, p in enumerate(pools):
+        if not isinstance(p, dict):
+            raise ValueError("grupo no válido")
+        lo, hi = _int(p.get("min", 1), f"grupo {i + 1}: tiradas mínimas", 0, MAX_COUNT), _int(p.get("max", 1), f"grupo {i + 1}: tiradas máximas", 0, MAX_COUNT)
+        if lo > hi:
+            raise ValueError(f"grupo {i + 1}: las tiradas mínimas no pueden pasar de las máximas")
+        clean_pools.append({"min": lo, "max": hi})
+    drops = r.get("drops")
+    if not isinstance(drops, list) or len(drops) > MAX_CHEST_DROPS:
+        raise ValueError(f"un cofre admite hasta {MAX_CHEST_DROPS} objetos")
+    out = []
+    for d in drops:
+        if not isinstance(d, dict):
+            raise ValueError("objeto del cofre no válido")
+        item = _id(d.get("item"), "objeto")
+        lo, hi = _int(d.get("min", 1), f"{item}: cantidad mínima", 0, MAX_COUNT), _int(d.get("max", 1), f"{item}: cantidad máxima", 0, MAX_COUNT)
+        if lo > hi:
+            raise ValueError(f"{item}: la cantidad mínima no puede pasar de la máxima")
+        weight = _int(d.get("weight", 10), f"{item}: peso", 1, MAX_WEIGHT)
+        pool = _int(d.get("pool", 0), f"{item}: grupo", 0, len(clean_pools) - 1)
+        out.append({"item": item, "min": lo, "max": hi, "weight": weight, "pool": pool})
+    return {"id": slug, "kind": "chest", "target": target, "pools": clean_pools, "drops": out, "survives": False}
+
+
 def clean_list(rules):
     if not isinstance(rules, list):
         raise ValueError("lista de reglas no válida")
@@ -110,6 +145,8 @@ def rel_path(r):
 
 def to_json(r):
     """La regla como tabla de botín de datapack (una piscina por objeto, para que cada uno tenga su propia probabilidad)."""
+    if r["kind"] == "chest":
+        return _chest_json(r)
     pools = []
     for d in r["drops"]:
         entry, fns, conds = {"type": "minecraft:item", "name": d["item"]}, [], []
@@ -140,6 +177,29 @@ def to_json(r):
         pools.append(pool)
     ns, _, path = r["target"].partition(":")
     return {"type": "minecraft:" + r["kind"], "pools": pools, "random_sequence": f"{ns}:{DIR[r['kind']]}/{path}"}
+
+
+def _set_count(d):
+    if d["min"] == d["max"]:
+        return [] if d["min"] == 1 else [{"function": "minecraft:set_count", "count": float(d["min"]), "add": False}]
+    return [{"function": "minecraft:set_count", "count": {"type": "minecraft:uniform", "min": float(d["min"]), "max": float(d["max"])}, "add": False}]
+
+
+def _chest_json(r):
+    pools = []
+    for i, p in enumerate(r["pools"]):
+        entries = []
+        for d in r["drops"]:
+            if d["pool"] != i:
+                continue
+            e = {"type": "minecraft:item", "name": d["item"], "weight": d["weight"]}
+            if _set_count(d):
+                e["functions"] = _set_count(d)
+            entries.append(e)
+        rolls = float(p["min"]) if p["min"] == p["max"] else {"type": "minecraft:uniform", "min": float(p["min"]), "max": float(p["max"])}
+        pools.append({"rolls": rolls, "bonus_rolls": 0.0, "entries": entries})
+    ns, _, path = r["target"].partition(":")
+    return {"type": "minecraft:chest", "pools": pools, "random_sequence": f"{ns}:chests/{path}"}
 
 
 # ---------- lectura de la tabla actual ----------
@@ -225,20 +285,70 @@ def summarize(table):
     return drops[:60]
 
 
+def _rolls(v):
+    if isinstance(v, (int, float)):
+        return int(v), int(v), True
+    if isinstance(v, dict) and v.get("type") in ("minecraft:uniform", "uniform"):
+        try:
+            return int(float(v["min"])), int(float(v["max"])), True
+        except (KeyError, TypeError, ValueError):
+            pass
+    return 1, 1, False
+
+
+def summarize_chest(table):
+    """({pools: [{min, max}], drops: [{item, min, max, weight, pool, complex?}]}). `complex` marca encantamientos, NBT,
+    condiciones, etiquetas, tiradas especiales o entradas anidadas: el panel no las reproduce y se pierden al reemplazar la tabla."""
+    pools, drops = [], []
+    for pool in (table.get("pools") if isinstance(table, dict) else None) or []:
+        lo, hi, ok = _rolls(pool.get("rolls"))
+        idx = len(pools)
+        pools.append({"min": lo, "max": hi, "complex": (not ok) or bool(pool.get("conditions")) or bool(pool.get("functions")) or bool(pool.get("bonus_rolls"))})
+
+        def add(e, nested):
+            kind = str(e.get("type", ""))
+            if kind == "minecraft:alternatives" or kind == "minecraft:group" or kind == "minecraft:sequence":
+                for ch in e.get("children") or []:
+                    add(ch, True)
+                return
+            name = e.get("name")
+            if kind not in ("minecraft:item", "minecraft:tag") or not isinstance(name, str):
+                drops.append({"item": "?", "min": 1, "max": 1, "weight": 1, "pool": idx, "complex": True})
+                return
+            d = {"item": ("#" if kind == "minecraft:tag" else "") + name, "min": 1, "max": 1, "pool": idx}
+            w = e.get("weight", 1)
+            d["weight"] = int(w) if isinstance(w, (int, float)) and w >= 1 else 1
+            bad = nested or kind == "minecraft:tag" or bool(e.get("conditions")) or e.get("quality") not in (None, 0)
+            for fn in e.get("functions") or []:
+                if fn.get("function") == "minecraft:set_count" and not fn.get("conditions"):
+                    lo2, hi2, ok2 = _count(fn)
+                    d["min"], d["max"] = lo2, hi2
+                    bad = bad or not ok2
+                else:
+                    bad = True
+            if bad:
+                d["complex"] = True
+            drops.append(d)
+
+        for e in pool.get("entries") or []:
+            add(e, False)
+    return {"pools": pools[:MAX_POOLS], "drops": drops[:MAX_CHEST_DROPS]}
+
+
 def targets(ctx, name, kind, q="", limit=120):
     if kind not in KINDS:
         raise ValueError("tipo no válido")
     _, textures, models = kubejs._index(ctx, name)
     with kubejs._LOCK:
         refs = dict(kubejs._CACHE["loot"][DIR[kind]])
-        names = dict(kubejs._CACHE["names"] if kind == "block" else kubejs._CACHE["entities"])
+        names = dict(kubejs._CACHE["names"]) if kind == "block" else dict(kubejs._CACHE["entities"]) if kind == "entity" else {}
     words = [w for w in (q or "").lower().split() if w]
     out = []
     for tid in sorted(refs):
         label = names.get(tid) or tid.split(":", 1)[1].replace("/", " ").replace("_", " ").title()
         if words and not all(w in (tid + " " + label).lower() for w in words):
             continue
-        egg = tid + "_spawn_egg" if kind == "entity" else tid
+        egg = tid + "_spawn_egg" if kind == "entity" else "minecraft:chest" if kind == "chest" else tid
         out.append({"id": tid, "name": label, "icon": kubejs._cached_icon(textures, models, egg)})
         if len(out) >= limit:
             break
@@ -258,8 +368,12 @@ def current(ctx, name, kind, target):
             table = json.loads(raw.decode("utf-8", "replace")) if raw else None
         except ValueError:
             table = None
-    drops = summarize(table) if table else []
     rule = next((r for r in load(ctx, name)["rules"] if r["kind"] == kind and r["target"] == target), None)
+    if kind == "chest":
+        got = summarize_chest(table) if table else {"pools": [], "drops": []}
+        complex_ = any(d.get("complex") for d in got["drops"]) or any(p.get("complex") for p in got["pools"])
+        return {"exists": bool(ref), "drops": got["drops"], "pools": got["pools"], "complex": complex_, "rule": rule}
+    drops = summarize(table) if table else []
     return {"exists": bool(ref), "drops": drops, "complex": any(d.get("complex") for d in drops), "rule": rule}
 
 

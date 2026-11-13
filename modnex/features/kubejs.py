@@ -24,7 +24,7 @@ LANG_RE = re.compile(r"assets/([a-z0-9_.-]+)/lang/en_us\.json")
 NAME_KEY = re.compile(r"(item|block)\.([a-z0-9_.-]+?)\.([a-z0-9_/.-]+)")
 FLUID_KEY = re.compile(r"fluid(?:_type)?\.([a-z0-9_.-]+?)\.([a-z0-9_/.-]+)")
 TEX_RE = re.compile(r"assets/([a-z0-9_.-]+)/textures/([a-z0-9_/.-]+)\.png")
-LOOT_RE = re.compile(r"data/([a-z0-9_.-]+)/loot_tables?/(blocks|entities)/([a-z0-9_/.-]+)\.json")
+LOOT_RE = re.compile(r"data/([a-z0-9_.-]+)/loot_tables?/(blocks|entities|chests)/([a-z0-9_/.-]+)\.json")
 ENTITY_KEY = re.compile(r"entity\.([a-z0-9_.-]+?)\.([a-z0-9_/.-]+)")
 RECIPE_RE = re.compile(r"data/([a-z0-9_.-]+)/(?:recipe|recipes)/([a-z0-9_/.-]+)\.json")
 MC_VERSION_RE = re.compile(r"\d+\.\d+(?:\.\d+)?")
@@ -42,7 +42,7 @@ DEFAULT_TIME = {"campfire": 600}
 
 _LOCK = threading.Lock()
 _CACHE = {"sig": None, "items": [], "textures": {}, "models": {}, "icons": {}, "zips": {}, "parsed": {},
-          "recipe_refs": {}, "recipes": None, "names": {}, "fluids": {}, "blockmodels": {}, "texuris": {}, "loot": {"blocks": {}, "entities": {}}, "entities": {}}
+          "recipe_refs": {}, "recipes": None, "names": {}, "fluids": {}, "blockmodels": {}, "texuris": {}, "loot": {"blocks": {}, "entities": {}, "chests": {}}, "entities": {}}
 _ICON_LOCK = threading.Lock()   # ZipFile no es seguro entre hilos: los iconos se calculan de uno en uno
 
 
@@ -123,7 +123,7 @@ def _index(ctx, name):
         if _CACHE["sig"] == sig:
             return _CACHE["items"], _CACHE["textures"], _CACHE["models"]
     names, textures, models, recipe_refs, from_block, fluid_names = {}, {}, {}, {}, set(), {"minecraft:water": "Water", "minecraft:lava": "Lava"}
-    loot_refs, entity_names = {"blocks": {}, "entities": {}}, {}
+    loot_refs, entity_names = {"blocks": {}, "entities": {}, "chests": {}}, {}
     for jar in jars:
         try:
             z = zipfile.ZipFile(jar)

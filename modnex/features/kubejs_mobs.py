@@ -112,6 +112,18 @@ MOBS = {
     "minecraft:cave_spider": {"tex": _E + "spider/cave_spider", "size": (64, 32), "parts": _spider(), "scale": 0.7},
     "minecraft:ghast": {"tex": _E + "ghast/ghast", "size": (64, 32), "parts": _ghast()},
 }
+# El cofre se dibuja con el mismo sistema (su modelo también está en código): tapa, base y cerradura, mirando al frente.
+def _chest(tex):
+    return {"tex": _E + tex, "size": (64, 64), "parts": [
+        {"b": (0, 0, 0, 14, 10, 14), "uv": (0, 19), "p": (1, 9, 1)},
+        {"b": (0, -5, 0, 14, 5, 14), "uv": (0, 0), "p": (1, 9, 1)},
+        {"b": (7, -2, -1, 2, 4, 1), "uv": (0, 0), "p": (1, 9, 1)},
+    ]}
+
+
+MOBS["minecraft:chest"] = _chest("chest/normal")
+MOBS["minecraft:trapped_chest"] = _chest("chest/trapped")
+MOBS["minecraft:ender_chest"] = _chest("chest/ender")
 # Vista de inventario de un mob: de frente, algo girado y desde arriba.
 DISPLAY = {"rotation": [18.0, -32.0, 0.0], "translation": [0.0, 0.0, 0.0], "scale": [0.85, 0.85, 0.85]}
 _SIDES = ((0, 0), (1, 0), (1, 1), (0, 1))
