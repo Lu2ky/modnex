@@ -5,6 +5,19 @@ from modnex.services.servers import server_path
 from modnex.web.router import route
 
 
+def clean_permissions(perms):
+    """Valida el cuerpo {servidor: {permiso: bool}}. Un formato distinto es un error del cliente (400), no un fallo del servidor."""
+    if not isinstance(perms, dict):
+        raise ValueError("permisos no válidos")
+    clean = {}
+    for srv, p in perms.items():
+        if not isinstance(p, dict):
+            raise ValueError(f"permisos de «{srv}» no válidos: se esperaba un objeto con los permisos")
+        server_path(srv)
+        clean[srv] = {k: bool(p.get(k)) for k in db.PERMS}
+    return clean
+
+
 @route("GET", r"/api/users", auth="admin")
 def users(req):
     return db.list_users()
@@ -35,13 +48,7 @@ def edit_user(req):
         db.delete_user(uid)
         db.audit(user, None, "borrar usuario", target["username"])
     elif "permissions" in b:  # guardado explícito de todos los permisos del usuario
-        perms = b["permissions"]
-        if not isinstance(perms, dict):
-            raise ValueError("permisos no válidos")
-        clean = {}
-        for srv, p in perms.items():
-            server_path(srv)
-            clean[srv] = {k: bool(p.get(k)) for k in db.PERMS}
+        clean = clean_permissions(b["permissions"])
         db.set_all_permissions(uid, clean)
         db.audit(user, None, "permisos", f"{target['username']}: " + ", ".join(
             f"{s}[{'/'.join(k for k in db.PERMS if p[k]) or '-'}]" for s, p in clean.items()))
