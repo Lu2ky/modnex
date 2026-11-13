@@ -334,7 +334,8 @@
       ['Eliminar recetas de fábrica y de mods', 'visual'],
       ['Recetas de Create: prensa, muela, mezcladora, desplegador, fabricador, ensamblaje y más (requiere Create)', 'visual'],
       ['Reemplazar ingredientes y resultados, y recetas de mesa de herrería', 'visual'],
-      ['Tablas de botín (bloques, mobs, cofres)', 'todo'],
+      ['Tablas de botín de bloques y mobs', 'visual'],
+      ['Tablas de botín de cofres y de otros tipos', 'todo'],
       ['Tags de ítems, bloques, fluidos y entidades', 'visual'],
       ['Comercios de aldeanos (requiere MoreJS)', 'visual'],
       ['Eventos: entrar, romper, colocar, usar item (mensaje, regalo, comando, cancelar)', 'visual'],
@@ -362,18 +363,38 @@
   };
 
   function kubejsSection(el, s) {
-    const VIEWS = [['recetas', 'Recetas'], ...((s.addons || []).includes('create') ? [['create', 'Create']] : []), ['quitar', 'Quitar recetas'], ['reglas', 'Reglas'], ['scripts', 'Scripts'], ['diag', 'Diagnóstico']];
+    const VIEWS = [['recetas', 'Recetas'], ...((s.addons || []).includes('create') ? [['create', 'Create']] : []), ['quitar', 'Quitar recetas'], ['reglas', 'Reglas'], ['botin', 'Botín'], ['scripts', 'Scripts'], ['diag', 'Diagnóstico']];
     let view = 'recetas';
     el.innerHTML = `<nav class="kjs-nav" role="tablist" aria-label="KubeJS">${VIEWS.map(([k, l]) =>
-      `<button role="tab" data-view="${k}" aria-selected="${k === view}" class="${k === view ? 'on' : ''}">${l}</button>`).join('')}</nav><div class="kjs-sub"></div>`;
+      `<button role="tab" data-view="${k}" aria-selected="${k === view}" class="${k === view ? 'on' : ''}">${l}</button>`).join('')}</nav>
+      <div class="kjs-testbar"><button class="btn sm" data-act="kjs-test">Probar en el servidor</button>
+        <span class="muted small">Envía <code>/reload</code> al servidor en marcha y comprueba si los scripts cargan sin errores.</span></div>
+      <div class="kjs-test-out" aria-live="polite"></div><div class="kjs-sub"></div>`;
     const sub = el.querySelector('.kjs-sub');
     if (window.ModnexKjsBlock) window.ModnexKjsBlock.watch(sub, `/api/servers/${encodeURIComponent(s.name)}`);   // los items que son bloques se ven con su modelo
     function show() {
       el.querySelectorAll('.kjs-nav button').forEach((b) => { const on = b.getAttribute('data-view') === view; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
       sub.onclick = sub.oninput = sub.onkeydown = null;
       sub.innerHTML = '';
-      ({ recetas, quitar: kjsQuitar, create: (e, sv) => (window.ModnexKjsCreate ? window.ModnexKjsCreate.view(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar Create.</p>')), reglas: (e, sv) => (window.ModnexKjsRules ? window.ModnexKjsRules(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar las reglas.</p>')), scripts: kjsScripts, diag: kjsDiag })[view](sub, s);
+      ({ recetas, quitar: kjsQuitar, create: (e, sv) => (window.ModnexKjsCreate ? window.ModnexKjsCreate.view(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar Create.</p>')), botin: (e, sv) => (window.ModnexKjsLoot ? window.ModnexKjsLoot.view(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar el botín.</p>')), reglas: (e, sv) => (window.ModnexKjsRules ? window.ModnexKjsRules(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar las reglas.</p>')), scripts: kjsScripts, diag: kjsDiag })[view](sub, s);
     }
+    el.querySelector('.kjs-testbar').onclick = async (e) => {
+      const b = e.target.closest('[data-act=kjs-test]'); if (!b || b.disabled) return;
+      const { api, esc, toast } = M(), out = el.querySelector('.kjs-test-out');
+      if (!window.confirm('Esto ejecuta /reload en el servidor en marcha. Si hay jugadores conectados notarán un pequeño tirón. ¿Continuar?')) return;
+      b.disabled = true; b.textContent = 'Recargando…'; out.innerHTML = '<p class="muted small">Esperando a que el servidor termine de recargar…</p>';
+      try {
+        const r = await api(`/api/servers/${encodeURIComponent(s.name)}/kubejs_test`, { method: 'POST', body: {} });
+        const rc = r.recipes;
+        const head = !r.finished ? ['warn', 'No se vio el final del reload'] : r.ok ? ['ok', `Recargado sin errores en ${r.seconds} s`] : ['bad', (() => { const n = r.problems.filter((p) => p.level === 'error').length || r.kubejs_errors || 0; return n ? `Recargado con ${n} ${n === 1 ? 'error' : 'errores'}` : 'Recargado con errores'; })()];
+        out.innerHTML = `<div class="kjs-result ${head[0]}"><strong>${head[1]}</strong>
+          ${rc ? `<p class="small">KubeJS: ${rc.added} recetas añadidas, ${rc.modified} modificadas, ${rc.removed} quitadas, ${rc.failed} fallidas.</p>` : ''}
+          ${r.summary.length ? `<ul class="kjs-lines">${r.summary.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
+          ${r.problems.length ? `<ul class="kjs-lines">${r.problems.map((p) => `<li class="${p.level}"><span class="chip ${p.level === 'error' ? 'bad' : 'warn'}">${p.level === 'error' ? 'Error' : 'Aviso'}</span> <code>${esc(p.text)}</code></li>`).join('')}</ul>` : ''}
+          ${r.notes.length ? `<ul class="kjs-notes">${r.notes.map((n) => `<li class="muted small">${esc(n)}</li>`).join('')}</ul>` : ''}</div>`;
+      } catch (err) { out.innerHTML = `<div class="kjs-result bad"><strong>No se pudo probar</strong><p class="small">${esc(err.message)}</p></div>`; toast(err.message, 'error'); }
+      b.disabled = false; b.textContent = 'Probar en el servidor';
+    };
     el.querySelector('.kjs-nav').onclick = (e) => { const b = e.target.closest('[data-view]'); if (b) { view = b.getAttribute('data-view'); show(); } };
     show();
   }

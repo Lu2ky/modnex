@@ -23,7 +23,7 @@
           if (window.ModnexKjsBlock && window.ModnexKjsBlock.get(id)) return;
           try { const r = (await api(`${base}/kubejs_items?q=${encodeURIComponent(id)}&limit=20`)).items.find((i) => i.id === id); if (r) flat[id] = r; } catch (e) { /* sin icono */ }
         }));
-        return { types, stepMachine, fluids: Object.fromEntries((fl.fluids || []).map((f) => [f.id, f])), flat, installed: st ? st.installed : false };
+        return { types, stepMachine, fan: st ? st.fan : {}, fluids: Object.fromEntries((fl.fluids || []).map((f) => [f.id, f])), flat, installed: st ? st.installed : false };
       })();
     }
     return cache[base];
@@ -63,6 +63,8 @@
 
   function meta(D, m) {
     const chips = [];
+    const T0 = D.types[m.type];
+    if (T0 && T0.catalyst) chips.push(`<span>Ventilador sobre: ${esc(T0.catalyst)}</span>`);
     if (m.heat) chips.push(`<span class="${m.heat}">${m.heat === 'heated' ? 'Con calor (quemador)' : 'Calor extremo (quemador azul)'}</span>`);
     if (m.time) chips.push(`<span>${(m.time / 20).toFixed(m.time % 20 ? 1 : 0)} s</span>`);
     if (m.keep) chips.push('<span>Conserva el item</span>');
@@ -240,7 +242,7 @@
       } else body = '<p class="muted small">Elige un item en la lista de abajo.</p>';
       const extra = e.k === 'item' && isOut ? `<div class="cr-opts"><label class="kjs-field small">Cantidad<input type="number" min="1" max="64" data-sf="count" value="${esc(e.count || 1)}"></label>
         ${seqOut ? `<label class="kjs-field small">Peso (más peso, más probable)<input type="number" min="0" step="any" data-sf="weight" value="${esc(e.weight || '')}"></label>`
-          : draft.type !== 'mechanical_crafting' ? `<label class="kjs-field small">Probabilidad (%)<input type="number" min="1" max="100" data-sf="chance" value="${e.chance ? Math.round(e.chance * 100) : ''}" placeholder="100"></label>` : ''}</div>` : '';
+          : draft.type !== 'mechanical_crafting' && !(D.types[draft.type] || {}).vanilla ? `<label class="kjs-field small">Probabilidad (%)<input type="number" min="1" max="100" data-sf="chance" value="${e.chance ? Math.round(e.chance * 100) : ''}" placeholder="100"></label>` : ''}</div>` : '';
       return `<div class="cr-detail"><h3>Casilla seleccionada</h3>
         ${ks.length > 1 ? `<div class="cr-kinds" role="group" aria-label="Qué va en la casilla">${ks.map((k) => `<button type="button" class="${e.k === k ? 'on' : ''}" data-kind="${k}">${{ item: 'Item', tag: 'Etiqueta', fluid: 'Fluido' }[k]}</button>`).join('')}</div>` : ''}
         ${body}${extra}
@@ -279,14 +281,22 @@
         const label = out ? (out.k === 'fluid' ? fluidName(D, out) : nameOf(out)) : r.id;
         return `<button class="cr-card ${editing === i ? 'on' : ''}" data-open="${i}">${machine(D, D.types[r.type].machine)}<span class="t"><strong>${esc(label)}</strong><span class="muted small">${esc(D.types[r.type].label)} · ${esc(r.id)}</span></span></button>`;
       }).join('');
-      const picker = Object.entries(D.types).map(([k, t]) => `<button type="button" class="cr-type ${draft && draft.type === k ? 'on' : ''}" data-type="${k}" aria-pressed="${!!draft && draft.type === k}">${machine(D, t.machine)}<span>${esc(t.label)}</span></button>`).join('');
+      const fanTypes = Object.values(D.fan || {});
+      const card = (k, label, mach, on) => `<button type="button" class="cr-type ${on ? 'on' : ''}" data-type="${k}" aria-pressed="${on}">${machine(D, mach)}<span>${esc(label)}</span></button>`;
+      const picker = Object.entries(D.types).map(([k, t]) => {
+        if (fanTypes.includes(k)) return k === fanTypes[0] ? card('fan', 'Ventilador (agua, fuego, lava, fuego azul)', 'create:encased_fan', !!draft && fanTypes.includes(draft.type)) : '';
+        return card(k, t.label, t.machine, !!draft && draft.type === k);
+      }).join('');
+      const catalysts = draft && fanTypes.includes(draft.type) ? `<p class="muted small">¿Delante de qué está el ventilador?</p><div class="cr-cats" role="group" aria-label="Catalizador del ventilador">${Object.entries(D.fan).map(([c, t]) =>
+        `<button type="button" class="cr-type ${draft.type === t ? 'on' : ''}" data-catalyst="${t}" aria-pressed="${draft.type === t}">${machine(D, D.types[t].extra)}<span>${esc(D.types[t].catalyst)}</span></button>`).join('')}</div>
+        <p class="muted small">${['smoking', 'blasting'].includes(draft.type) ? 'Fuego y lava usan recetas de ahumador y de horno alto de vanilla, que el ventilador también aplica (y esas máquinas también).' : 'Agua y fuego azul usan recetas propias de Create.'}</p>` : '';
       el.insertAdjacentHTML('beforeend', `
         <div class="ft-head"><h2>Recetas de Create</h2><span class="muted small">${recipes.length} ${recipes.length === 1 ? 'receta' : 'recetas'}</span></div>
         <p class="muted small">Elige la máquina, rellena la receta y guárdala. Se aplica con <code>/reload</code> en la consola. Las recetas se escriben en el formato de Create, no hace falta ningún otro mod.</p>
         <div class="cr-list">${list}<button class="cr-card kjs-new" data-act="new">+ Nueva receta</button></div>
         ${draft ? `<div class="kjs-editor">
           <label class="kjs-field">Nombre de la receta<input class="kjs-name" data-f="id" value="${esc(draft.id)}" maxlength="40" placeholder="ej. lingote_de_hierro"></label>
-          <p class="muted small">¿En qué máquina se hace?</p><div class="cr-types">${picker}</div>
+          <p class="muted small">¿En qué máquina se hace?</p><div class="cr-types">${picker}</div>${catalysts}
           ${scene(D, draft, sceneOpts({}))}
           ${extraEditors()}${optsHTML()}${detailHTML()}
           ${sel && get(draft, sel) && get(draft, sel).k === 'item' ? `<div class="kjs-browser-wrap"><input class="kjs-search" type="search" placeholder="Buscar item por nombre o id" value="${esc(q)}" aria-label="Buscar item"><div class="kjs-browser" aria-live="polite"></div></div>` : ''}
@@ -327,7 +337,13 @@
       const d = b.dataset;
       if (b.dataset.act === 'new') { draft = fresh('pressing'); draft.id = ''; editing = -1; sel = null; return draw(); }
       if (d.open != null) { editing = Number(d.open); draft = toDraft(recipes[editing]); sel = null; return draw(); }
-      if (d.type) { draft = fresh(d.type); sel = null; return draw(); }
+      if (d.type) { draft = fresh(d.type === 'fan' ? Object.values(D.fan)[0] : d.type); sel = null; return draw(); }
+      if (d.catalyst) {                              // cambia de catalizador conservando lo ya puesto (lo que no cabe se quita)
+        const vanilla = !!D.types[d.catalyst].vanilla;
+        draft.type = d.catalyst;
+        if (vanilla) { draft.ins = draft.ins.slice(0, 1); draft.outs = draft.outs.slice(0, 1).map((o) => ({ ...o, chance: undefined })); }
+        sel = null; return draw();
+      }
       if (d.slot) {
         sel = sel === d.slot ? null : d.slot;
         if (sel && !get(draft, sel)) put(draft, sel, empty('item'));      // una casilla vacía de la cuadrícula es null
