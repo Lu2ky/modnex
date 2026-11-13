@@ -28,8 +28,12 @@ TYPES = {
     "milling": {"label": "Muela", "machine": "create:millstone", "nin": (1, 1), "nout": (1, 8), "time": True},
     "crushing": {"label": "Ruedas trituradoras", "machine": "create:crushing_wheel", "nin": (1, 1), "nout": (1, 8), "time": True},
     "cutting": {"label": "Sierra mecánica", "machine": "create:mechanical_saw", "nin": (1, 1), "nout": (1, 8), "time": True},
-    "splashing": {"label": "Lavado con ventilador", "machine": "create:encased_fan", "extra": "minecraft:water_bucket", "nin": (1, 1), "nout": (1, 8)},
-    "haunting": {"label": "Embrujo con ventilador", "machine": "create:encased_fan", "extra": "minecraft:soul_campfire", "nin": (1, 1), "nout": (1, 8)},
+    # El ventilador: el catalizador que tiene delante decide el tipo de receta. Fuego y lava usan las recetas de ahumador y de
+    # horno alto de vanilla (así las lee Create); agua y fuego azul usan las suyas.
+    "splashing": {"label": "Ventilador sobre agua (lavado)", "machine": "create:encased_fan", "extra": "minecraft:water_bucket", "catalyst": "Agua", "nin": (1, 1), "nout": (1, 8)},
+    "smoking": {"label": "Ventilador sobre fuego (ahumado)", "machine": "create:encased_fan", "extra": "minecraft:campfire", "catalyst": "Fuego", "nin": (1, 1), "nout": (1, 1), "vanilla": True},
+    "blasting": {"label": "Ventilador sobre lava (fundición)", "machine": "create:encased_fan", "extra": "minecraft:lava_bucket", "catalyst": "Lava", "nin": (1, 1), "nout": (1, 1), "vanilla": True},
+    "haunting": {"label": "Ventilador sobre fuego azul (embrujo)", "machine": "create:encased_fan", "extra": "minecraft:soul_campfire", "catalyst": "Fuego azul", "nin": (1, 1), "nout": (1, 8)},
     "sandpaper_polishing": {"label": "Pulido con papel de lija", "machine": "create:sand_paper", "nin": (1, 1), "nout": (1, 1)},
     "mixing": {"label": "Mezcladora mecánica", "machine": "create:mechanical_mixer", "extra": "create:basin", "nin": (1, 9), "nout": (1, 8), "fluid_in": True, "fluid_out": True, "heat": True, "time": True},
     "compacting": {"label": "Compactación (prensa y cuenco)", "machine": "create:mechanical_press", "extra": "create:basin", "nin": (1, 9), "nout": (1, 8), "fluid_in": True, "fluid_out": True, "heat": True, "time": True},
@@ -40,6 +44,7 @@ TYPES = {
     "mechanical_crafting": {"label": "Fabricador mecánico", "machine": "create:mechanical_crafter"},
     "sequenced_assembly": {"label": "Ensamblaje en secuencia", "machine": "create:mechanical_arm"},
 }
+FAN = {"water": "splashing", "fire": "smoking", "lava": "blasting", "soul_fire": "haunting"}   # catalizador -> tipo de receta
 STEP_MACHINE = {"deploying": "create:deployer", "pressing": "create:mechanical_press", "cutting": "create:mechanical_saw", "filling": "create:spout"}
 
 
@@ -164,6 +169,8 @@ def clean_recipe(r):
     if not isinstance(outs, list) or not lo <= len(outs) <= hi:
         raise ValueError(f"{label}: necesita " + (f"{lo}" if lo == hi else f"entre {lo} y {hi}") + " resultados")
     out["ins"] = [_ing(i, f"{label}: ingrediente", spec.get("fluid_in", False) or kind == "filling") for i in ins]
+    if spec.get("vanilla") and any(isinstance(o, dict) and o.get("chance") not in (None, "", 1, 1.0) for o in outs):
+        raise ValueError(f"{label}: este tipo de receta no admite probabilidad")
     out["outs"] = [_out(o, f"{label}: resultado", spec.get("fluid_out", False) or kind == "emptying") for o in outs]
     if kind == "filling":
         kinds = sorted(i["k"] == "fluid" for i in out["ins"])
@@ -250,6 +257,9 @@ def to_json(r):
             results.append(j)
         return {"type": "create:sequenced_assembly", "ingredient": ing_json(r["input"]), "loops": r["loops"], "results": results,
                 "sequence": seq, "transitional_item": {"id": r["transitional"]}}
+    if TYPES[kind].get("vanilla"):
+        return {"type": "minecraft:" + kind, "category": "misc", "ingredient": ing_json(r["ins"][0]), "result": out_json(r["outs"][0]),
+                "cookingtime": 100, "experience": 0.0}
     j = {"type": "create:" + kind, "ingredients": [ing_json(i) for i in r["ins"]], "results": [out_json(o) for o in r["outs"]]}
     if "time" in r:
         j["processing_time"] = r["time"]
@@ -321,7 +331,7 @@ def load(ctx, name):
         recipes = clean_list(json.loads(src.read_text(encoding="utf-8")).get("recipes", [])) if src.is_file() else []
     except (ValueError, OSError, AttributeError):
         recipes = []
-    return {"recipes": recipes, "types": {k: {kk: vv for kk, vv in v.items()} for k, v in TYPES.items()}, "step_machine": STEP_MACHINE}
+    return {"recipes": recipes, "types": {k: {kk: vv for kk, vv in v.items()} for k, v in TYPES.items()}, "step_machine": STEP_MACHINE, "fan": FAN}
 
 
 def save(ctx, name, recipes):

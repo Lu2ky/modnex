@@ -1,5 +1,5 @@
 """KubeJS: recetas visuales, editor de scripts y diagnóstico. Solo en servidores con KubeJS instalado."""
-from . import kubejs, kubejs_create, kubejs_loot, kubejs_rules
+from . import kubejs, kubejs_check, kubejs_create, kubejs_loot, kubejs_rules
 from .guard import _guard
 
 
@@ -197,3 +197,10 @@ def register(api):
         rules = kubejs_loot.save(ctx, name, b.get("rules"))
         ctx.audit(user, name, "tablas de botín de KubeJS guardadas", f"{len(rules)} reglas")
         return 200, kubejs_loot.load(ctx, name)
+    @api.route("POST", "kubejs_test")
+    @_guard
+    def r_test(ctx, user, name, q, b):
+        _need(ctx, name)
+        out = kubejs_check.run(ctx, name)
+        ctx.audit(user, name, "scripts de KubeJS probados con /reload", "sin errores" if out["ok"] else f"{len(out['problems'])} problemas")
+        return 200, out

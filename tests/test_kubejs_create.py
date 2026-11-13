@@ -65,6 +65,29 @@ class ValidationTest(unittest.TestCase):
         self.assertTrue(j["keep_held_item"])
 
 
+class FanTest(unittest.TestCase):
+    """El ventilador: el catalizador decide el tipo de receta."""
+    def test_agua_y_fuego_azul_son_recetas_de_create(self):
+        for t, name in (("splashing", "create:splashing"), ("haunting", "create:haunting")):
+            j = kc.to_json(kc.clean_recipe(rec(type=t, ins=[item("a:b")], outs=[out("a:c", chance=0.5)])))
+            self.assertEqual(j["type"], name); self.assertEqual(j["results"][0]["chance"], 0.5)
+
+    def test_fuego_y_lava_son_recetas_de_vanilla(self):
+        for t in ("smoking", "blasting"):
+            j = kc.to_json(kc.clean_recipe(rec(type=t, ins=[{"k": "tag", "id": "c:raw"}], outs=[out("a:c", count=2)])))
+            self.assertEqual(j["type"], "minecraft:" + t); self.assertEqual(j["ingredient"], {"tag": "c:raw"}); self.assertEqual(j["result"], {"id": "a:c", "count": 2})
+            self.assertEqual((j["cookingtime"], j["experience"]), (100, 0.0)); self.assertNotIn("ingredients", j)
+
+    def test_las_de_vanilla_no_admiten_probabilidad_ni_varios_resultados(self):
+        with self.assertRaises(ValueError): kc.clean_recipe(rec(type="smoking", ins=[item("a:b")], outs=[out("a:c", chance=0.5)]))
+        with self.assertRaises(ValueError): kc.clean_recipe(rec(type="blasting", ins=[item("a:b")], outs=[out("a:c"), out("a:d")]))
+
+    def test_los_cuatro_catalizadores_estan_declarados(self):
+        self.assertEqual(kc.FAN, {"water": "splashing", "fire": "smoking", "lava": "blasting", "soul_fire": "haunting"})
+        for t in kc.FAN.values():
+            self.assertEqual(kc.TYPES[t]["machine"], "create:encased_fan"); self.assertTrue(kc.TYPES[t]["extra"] and kc.TYPES[t]["catalyst"])
+
+
 class OtherShapesTest(unittest.TestCase):
     def test_fabricador_mecanico(self):
         r = kc.clean_recipe(rec(type="mechanical_crafting", pattern=[" A ", "ABA", " A "], key={"A": item("a:x"), "B": {"k": "tag", "id": "c:t"}}, result=out("a:r", count=2)))
