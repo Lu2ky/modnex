@@ -379,7 +379,7 @@
   }
 
   function kubejsSection(el, s) {
-    const VIEWS = [['recetas', 'Recetas'], ...((s.addons || []).includes('create') ? [['create', 'Create']] : []), ['quitar', 'Quitar recetas'], ['reglas', 'Reglas'], ['botin', 'Botín'], ['scripts', 'Scripts'], ['diag', 'Diagnóstico']];
+    const VIEWS = [['recetas', 'Recetas'], ...((s.addons || []).includes('create') ? [['create', 'Create']] : []), ['quitar', 'Quitar recetas'], ['reglas', 'Reglas'], ['botin', 'Botín'], ['historial', 'Historial'], ['scripts', 'Scripts'], ['diag', 'Diagnóstico']];
     let view = 'recetas';
     el.innerHTML = `<nav class="kjs-nav" role="tablist" aria-label="KubeJS">${VIEWS.map(([k, l]) =>
       `<button role="tab" data-view="${k}" aria-selected="${k === view}" class="${k === view ? 'on' : ''}">${l}</button>`).join('')}</nav>
@@ -393,7 +393,7 @@
       el.querySelectorAll('.kjs-nav button').forEach((b) => { const on = b.getAttribute('data-view') === view; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
       sub.onclick = sub.oninput = sub.onkeydown = null;
       sub.innerHTML = '';
-      ({ recetas, quitar: kjsQuitar, create: (e, sv) => (window.ModnexKjsCreate ? window.ModnexKjsCreate.view(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar Create.</p>')), botin: (e, sv) => (window.ModnexKjsLoot ? window.ModnexKjsLoot.view(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar el botín.</p>')), reglas: (e, sv) => (window.ModnexKjsRules ? window.ModnexKjsRules(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar las reglas.</p>')), scripts: kjsScripts, diag: kjsDiag })[view](sub, s);
+      ({ recetas, quitar: kjsQuitar, create: (e, sv) => (window.ModnexKjsCreate ? window.ModnexKjsCreate.view(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar Create.</p>')), botin: (e, sv) => (window.ModnexKjsLoot ? window.ModnexKjsLoot.view(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar el botín.</p>')), reglas: (e, sv) => (window.ModnexKjsRules ? window.ModnexKjsRules(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar las reglas.</p>')), historial: (e, sv) => (window.ModnexKjsHistory ? window.ModnexKjsHistory.view(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar el historial.</p>')), scripts: kjsScripts, diag: kjsDiag })[view](sub, s);
     }
     el.querySelector('.kjs-testbar').onclick = async (e) => {
       const b = e.target.closest('[data-act=kjs-test]'); if (!b || b.disabled) return;
