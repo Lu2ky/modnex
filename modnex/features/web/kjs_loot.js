@@ -13,7 +13,8 @@
     const info = {};
     const remember = (l) => l.forEach((i) => { info[i.id] = { name: i.name, icon: i.icon }; });
     const nameOf = (id) => (info[id] && info[id].name) || id;
-    const icon = (id, cls) => (info[id] && info[id].icon ? `<img class="${cls || 'kjs-ico'}" data-iid="${esc(id)}" src="${esc(info[id].icon)}" alt="">` : `<span class="${cls || 'kjs-ico'} kjs-ph" aria-hidden="true">${esc((id || '?').split(':').pop().charAt(0).toUpperCase())}</span>`);
+    // Un mob se pide con el prefijo `mob:`: si tenemos su modelo se dibuja en 3D en lugar de su huevo de aparición.
+    const icon = (id, cls, mob) => (info[id] && info[id].icon ? `<img class="${cls || 'kjs-ico'}" data-iid="${esc(mob ? 'mob:' + id : id)}"${mob ? ` data-spin="mob:${esc(id)}"` : ''} src="${esc(info[id].icon)}" alt="">` : `<span class="${cls || 'kjs-ico'} kjs-ph" aria-hidden="true">${esc((id || '?').split(':').pop().charAt(0).toUpperCase())}</span>`);
     const slug = (t) => t.split(':').pop().replace(/[^a-z0-9_]/g, '_').slice(0, 30);
     const pct = (c) => `${Math.round(c * 1000) / 10}%`;
 
@@ -53,13 +54,14 @@
       return ro ? `<span class="cr-slot" role="img" aria-label="${esc(dropLabel(d))}" title="${esc(dropLabel(d))}">${inner}${badge}${ch}${tag}</span>`
         : `<button type="button" class="cr-slot ${pick === i ? 'on' : ''}" data-pick="${i}" aria-label="${esc(d.item ? dropLabel(d) : 'objeto vacío')}" title="${esc(d.item ? dropLabel(d) : 'objeto vacío')}">${inner}${badge}${ch}${tag}</button>`;
     }
-    function targetVisual(id) {
-      return info[id] && info[id].icon ? `<img class="cr-machine" data-iid="${esc(id)}" src="${esc(info[id].icon)}" alt="" title="${esc(nameOf(id))}">` : `<span class="cr-machine kjs-ph">${esc(id.split(':').pop().charAt(0).toUpperCase())}</span>`;
+    function targetVisual(id, kind) {
+      const mob = kind === 'entity';
+      return info[id] && info[id].icon ? `<img class="cr-machine" data-iid="${esc(mob ? 'mob:' + id : id)}"${mob ? ` data-spin="mob:${esc(id)}"` : ''} src="${esc(info[id].icon)}" alt="" title="${esc(nameOf(id))}">` : `<span class="cr-machine kjs-ph">${esc(id.split(':').pop().charAt(0).toUpperCase())}</span>`;
     }
     function scene(d, ro) {
       const slots = d.drops.length ? d.drops.map((x, i) => slot(x, i, ro)).join('') : '<span class="cr-meta"><span>No suelta nada</span></span>';
       return `<div class="cr-scene"><div class="cr-panel"><span class="cr-title">Botín de ${esc(nameOf(d.target))}</span>
-        <div class="cr-body"><div class="cr-mid">${targetVisual(d.target)}<div class="cr-meta"><span>${d.kind === 'block' ? 'Al romperlo' : 'Al morir'}</span></div></div><span class="cr-arrow" aria-hidden="true"></span>
+        <div class="cr-body"><div class="cr-mid">${targetVisual(d.target, d.kind)}<div class="cr-meta"><span>${d.kind === 'block' ? 'Al romperlo' : 'Al morir'}</span></div></div><span class="cr-arrow" aria-hidden="true"></span>
         <div class="cr-col">${slots}${ro ? '' : '<div class="cr-add"><button type="button" data-add="1">+ Objeto</button></div>'}</div></div></div></div>`;
     }
 
@@ -76,7 +78,7 @@
         <button type="button" class="btn sm danger" data-rm="${i}">Quitar</button></li>`).join('');
     }
     function draw() {
-      const list = rules.map((r, i) => `<button class="cr-card ${draft && draft.target === r.target && draft.kind === r.kind ? 'on' : ''}" data-open="${i}">${icon(r.target, 'kjs-ico big')}<span class="t"><strong>${esc(nameOf(r.target))}</strong>
+      const list = rules.map((r, i) => `<button class="cr-card ${draft && draft.target === r.target && draft.kind === r.kind ? 'on' : ''}" data-open="${i}">${icon(r.target, 'kjs-ico big', r.kind === 'entity')}<span class="t"><strong>${esc(nameOf(r.target))}</strong>
         <span class="muted small">${r.kind === 'block' ? 'Bloque' : 'Mob'} · ${r.drops.length} ${r.drops.length === 1 ? 'objeto' : 'objetos'}</span></span></button>`).join('');
       const today = cur && cur.exists ? `<div class="cr-today"><h3>Lo que suelta hoy</h3>${cur.drops.length ? `<div class="cr-scene sm"><div class="cr-panel"><div class="cr-col">${cur.drops.map((d, i) => slot(d, i, true)).join('')}</div></div></div>` : '<p class="muted small">No suelta nada.</p>'}
         ${cur.complex ? '<p class="muted small">Algunos objetos dependen de condiciones que el panel no puede reproducir (tijeras, estado del bloque, cocinado al arder…). Si reemplazas la tabla, esas condiciones se pierden.</p>' : ''}
@@ -97,7 +99,7 @@
     }
     function drawTargets() {
       const box = el.querySelector('[data-targets]'); if (!box) return;
-      box.innerHTML = targets.length ? targets.map((t) => `<button type="button" class="kjs-item ${target === t.id ? 'on' : ''}" data-target="${esc(t.id)}" title="${esc(t.id)}">${icon(t.id, 'kjs-ico sm')}<span class="kjs-item-t">${esc(t.name)}<span class="muted small block">${esc(t.id)}</span></span></button>`).join('') : '<p class="muted small">Ninguno coincide.</p>';
+      box.innerHTML = targets.length ? targets.map((t) => `<button type="button" class="kjs-item ${target === t.id ? 'on' : ''}" data-target="${esc(t.id)}" title="${esc(t.id)}">${icon(t.id, 'kjs-ico sm', kind === 'entity')}<span class="kjs-item-t">${esc(t.name)}<span class="muted small block">${esc(t.id)}</span></span></button>`).join('') : '<p class="muted small">Ninguno coincide.</p>';
     }
     function drawItems() {
       const box = el.querySelector('[data-items]'); if (!box) return;

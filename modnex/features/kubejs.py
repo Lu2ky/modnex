@@ -16,7 +16,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-from . import kubejs_create
+from . import kubejs_create, kubejs_mobs
 
 ID_RE = re.compile(r"[a-z0-9_.-]+:[a-z0-9_./-]+")
 SLUG_RE = re.compile(r"[a-z0-9_]{1,40}")
@@ -395,9 +395,23 @@ def texture_uris(ctx, name, ids):
     return out
 
 
+def mob_model(ctx, name, entity_id):
+    """Modelo 3D de un mob de vanilla, o None si no lo tenemos o falta su textura (entonces se queda su huevo de aparición)."""
+    _, textures, _ = _index(ctx, name)
+    key = "mob:" + entity_id
+    with _LOCK:
+        if key in _CACHE["blockmodels"]:
+            return _CACHE["blockmodels"][key]
+    result = kubejs_mobs.build(entity_id, textures)
+    with _LOCK:
+        _CACHE["blockmodels"][key] = result
+    return result
+
+
 def block_models(ctx, name, ids):
-    """({id: modelo|None}, {textura: data URI}) para varios items; las texturas van una sola vez aunque las compartan."""
-    models = {i: block_model(ctx, name, i) for i in ids}
+    """({id: modelo|None}, {textura: data URI}) para varios items; las texturas van una sola vez aunque las compartan.
+    Un id `mob:<id>` pide el modelo de un mob en lugar del de un bloque."""
+    models = {i: (mob_model(ctx, name, i[4:]) if i.startswith("mob:") else block_model(ctx, name, i)) for i in ids}
     used = list(dict.fromkeys(t for m in models.values() if m for t in m["tex"]))
     return models, texture_uris(ctx, name, used)
 
