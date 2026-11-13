@@ -1,5 +1,5 @@
 """KubeJS: recetas visuales, editor de scripts y diagnóstico. Solo en servidores con KubeJS instalado."""
-from . import kubejs, kubejs_check, kubejs_create, kubejs_history, kubejs_loot, kubejs_rules
+from . import kubejs, kubejs_ae2, kubejs_check, kubejs_create, kubejs_history, kubejs_loot, kubejs_rules
 from .guard import _guard
 
 
@@ -232,3 +232,18 @@ def register(api):
         out = kubejs_history.restore(ctx, name, b.get("id"), (user or {}).get("username", ""))
         ctx.audit(user, name, "versión anterior de KubeJS restaurada", f"{out['restored']} ({out['files']} archivos)")
         return 200, {**out, "versions": kubejs_history.versions(ctx, name)}
+
+    @api.route("GET", "kubejs_appeng")
+    @_guard
+    def r_ae2(ctx, user, name, q, b):
+        _need(ctx, name)
+        return 200, kubejs_ae2.load(ctx, name)
+
+    @api.route("POST", "kubejs_appeng_save")
+    @_guard
+    def r_ae2_save(ctx, user, name, q, b):
+        _need(ctx, name)
+        _snap(ctx, user, name, "Antes de guardar recetas de AE2")
+        recipes = kubejs_ae2.save(ctx, name, b.get("recipes"))
+        ctx.audit(user, name, "recetas de AE2 guardadas con KubeJS", f"{len(recipes)} recetas")
+        return 200, kubejs_ae2.load(ctx, name)
