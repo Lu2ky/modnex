@@ -24,6 +24,8 @@ LANG_RE = re.compile(r"assets/([a-z0-9_.-]+)/lang/en_us\.json")
 NAME_KEY = re.compile(r"(item|block)\.([a-z0-9_.-]+?)\.([a-z0-9_/.-]+)")
 FLUID_KEY = re.compile(r"fluid(?:_type)?\.([a-z0-9_.-]+?)\.([a-z0-9_/.-]+)")
 TEX_RE = re.compile(r"assets/([a-z0-9_.-]+)/textures/([a-z0-9_/.-]+)\.png")
+LOOT_RE = re.compile(r"data/([a-z0-9_.-]+)/loot_tables?/(blocks|entities)/([a-z0-9_/.-]+)\.json")
+ENTITY_KEY = re.compile(r"entity\.([a-z0-9_.-]+?)\.([a-z0-9_/.-]+)")
 RECIPE_RE = re.compile(r"data/([a-z0-9_.-]+)/(?:recipe|recipes)/([a-z0-9_/.-]+)\.json")
 MC_VERSION_RE = re.compile(r"\d+\.\d+(?:\.\d+)?")
 MOJANG_MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
@@ -40,7 +42,7 @@ DEFAULT_TIME = {"campfire": 600}
 
 _LOCK = threading.Lock()
 _CACHE = {"sig": None, "items": [], "textures": {}, "models": {}, "icons": {}, "zips": {}, "parsed": {},
-          "recipe_refs": {}, "recipes": None, "names": {}, "fluids": {}, "blockmodels": {}, "texuris": {}}
+          "recipe_refs": {}, "recipes": None, "names": {}, "fluids": {}, "blockmodels": {}, "texuris": {}, "loot": {"blocks": {}, "entities": {}}, "entities": {}}
 _ICON_LOCK = threading.Lock()   # ZipFile no es seguro entre hilos: los iconos se calculan de uno en uno
 
 
@@ -121,6 +123,7 @@ def _index(ctx, name):
         if _CACHE["sig"] == sig:
             return _CACHE["items"], _CACHE["textures"], _CACHE["models"]
     names, textures, models, recipe_refs, from_block, fluid_names = {}, {}, {}, {}, set(), {"minecraft:water": "Water", "minecraft:lava": "Lava"}
+    loot_refs, entity_names = {"blocks": {}, "entities": {}}, {}
     for jar in jars:
         try:
             z = zipfile.ZipFile(jar)
@@ -142,6 +145,10 @@ def _index(ctx, name):
                     m = RECIPE_RE.fullmatch(entry)
                     if m:
                         recipe_refs.setdefault(f"{m.group(1)}:{m.group(2)}", (str(jar), entry))
+                        continue
+                    m = LOOT_RE.fullmatch(entry)
+                    if m:
+                        loot_refs[m.group(2)].setdefault(f"{m.group(1)}:{m.group(3)}", (str(jar), entry))
                     continue
                 if not LANG_RE.fullmatch(entry):
                     continue
@@ -150,6 +157,10 @@ def _index(ctx, name):
                 except ValueError:
                     continue
                 for key, val in data.items():
+                    em = ENTITY_KEY.fullmatch(key)
+                    if em and isinstance(val, str) and "." not in em.group(2):
+                        entity_names.setdefault(f"{em.group(1)}:{em.group(2)}", val)
+                        continue
                     fm = FLUID_KEY.fullmatch(key)
                     if fm and isinstance(val, str) and "." not in fm.group(2):
                         fluid_names.setdefault(f"{fm.group(1)}:{fm.group(2)}", val)
@@ -172,7 +183,7 @@ def _index(ctx, name):
     with _LOCK:
         old = _CACHE.get("zips", {})
         _CACHE.update(sig=sig, items=items, textures=textures, models=models, icons={}, zips={}, parsed={},
-                      recipe_refs=recipe_refs, recipes=None, names=names, fluids=fluid_names, blockmodels={}, texuris={})
+                      recipe_refs=recipe_refs, recipes=None, names=names, fluids=fluid_names, blockmodels={}, texuris={}, loot=loot_refs, entities=entity_names)
     for z in old.values():
         z.close()
     return items, textures, models
