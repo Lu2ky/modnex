@@ -260,3 +260,7 @@ button.cr-slot:hover, button.cr-slot:focus-visible, .cr-slot.on { background-ima
 .cr-tagmark { font-size: calc(10 * var(--u)); font-weight: 800; color: #1e5a3a; line-height: 1; pointer-events: none; }
 .cr-steps { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .cr-steprow { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+
+/* Bloques dibujados con su modelo en 3D: son renders suaves, no pixel art */
+.kjs-ico.iso, .cr-machine, .cr-machine.spin, canvas.spin { image-rendering: auto; }
+canvas.spin { cursor: grab; }
