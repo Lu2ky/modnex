@@ -264,3 +264,14 @@ button.cr-slot:hover, button.cr-slot:focus-visible, .cr-slot.on { background-ima
 /* Bloques dibujados con su modelo en 3D: son renders suaves, no pixel art */
 .kjs-ico.iso, .cr-machine, .cr-machine.spin, canvas.spin { image-rendering: auto; }
 canvas.spin { cursor: grab; }
+
+/* Probar los scripts en el servidor */
+.kjs-testbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; }
+.kjs-result { margin: 0 0 12px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.kjs-result.ok { border-color: var(--accent); }
+.kjs-result.bad { border-color: var(--bad); }
+.kjs-result.warn { border-color: var(--warn); }
+.kjs-result p { margin: 6px 0 0; }
+.kjs-lines, .kjs-notes { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.kjs-lines code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.chip.warn { color: var(--warn); border-color: var(--warn); }
