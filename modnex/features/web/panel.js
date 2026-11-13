@@ -332,6 +332,7 @@
     ['En el servidor (server_scripts)', [
       ['Recetas de mesa, horno, horno alto, ahumador, fogata y cortapiedras (añadir)', 'visual'],
       ['Eliminar recetas de fábrica y de mods', 'visual'],
+      ['Recetas de Create: prensa, muela, mezcladora, desplegador, fabricador, ensamblaje y más (requiere Create)', 'visual'],
       ['Reemplazar ingredientes y resultados, y recetas de mesa de herrería', 'visual'],
       ['Tablas de botín (bloques, mobs, cofres)', 'todo'],
       ['Tags de ítems, bloques, fluidos y entidades', 'visual'],
@@ -361,7 +362,7 @@
   };
 
   function kubejsSection(el, s) {
-    const VIEWS = [['recetas', 'Recetas'], ['quitar', 'Quitar recetas'], ['reglas', 'Reglas'], ['scripts', 'Scripts'], ['diag', 'Diagnóstico']];
+    const VIEWS = [['recetas', 'Recetas'], ...((s.addons || []).includes('create') ? [['create', 'Create']] : []), ['quitar', 'Quitar recetas'], ['reglas', 'Reglas'], ['scripts', 'Scripts'], ['diag', 'Diagnóstico']];
     let view = 'recetas';
     el.innerHTML = `<nav class="kjs-nav" role="tablist" aria-label="KubeJS">${VIEWS.map(([k, l]) =>
       `<button role="tab" data-view="${k}" aria-selected="${k === view}" class="${k === view ? 'on' : ''}">${l}</button>`).join('')}</nav><div class="kjs-sub"></div>`;
@@ -370,7 +371,7 @@
       el.querySelectorAll('.kjs-nav button').forEach((b) => { const on = b.getAttribute('data-view') === view; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
       sub.onclick = sub.oninput = sub.onkeydown = null;
       sub.innerHTML = '';
-      ({ recetas, quitar: kjsQuitar, reglas: (e, sv) => (window.ModnexKjsRules ? window.ModnexKjsRules(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar las reglas.</p>')), scripts: kjsScripts, diag: kjsDiag })[view](sub, s);
+      ({ recetas, quitar: kjsQuitar, create: (e, sv) => (window.ModnexKjsCreate ? window.ModnexKjsCreate.view(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar Create.</p>')), reglas: (e, sv) => (window.ModnexKjsRules ? window.ModnexKjsRules(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar las reglas.</p>')), scripts: kjsScripts, diag: kjsDiag })[view](sub, s);
     }
     el.querySelector('.kjs-nav').onclick = (e) => { const b = e.target.closest('[data-view]'); if (b) { view = b.getAttribute('data-view'); show(); } };
     show();
@@ -386,17 +387,20 @@
   function kjsQuitar(el, s) {
     const { api, esc, toast } = M();
     const base = `/api/servers/${encodeURIComponent(s.name)}`;
-    let removals = [], items = [], q = '', timer = null, sel = null, found = null, dirty = false, status = '';
+    let removals = [], items = [], q = '', timer = null, sel = null, found = null, dirty = false, status = '', createData = null;
     const names = {};
     const ico = (id, icon, cls = 'kjs-ico') => icon
       ? `<img class="${cls}" src="${esc(icon)}" alt="" loading="lazy">`
-      : `<span class="${cls} kjs-ph" aria-hidden="true">${esc((id || '?').replace('#', '').split(':').pop().charAt(0).toUpperCase())}</span>`;
+      : `<span class="${cls} kjs-ph" aria-hidden="true">${(id || '').startsWith('#') ? '#' : esc((id || '?').split(':').pop().charAt(0).toUpperCase())}</span>`;
     const nameOf = (id) => names[id] || id;
     // La receta en la interfaz del juego, solo para mirar. Si no se sabe dibujar (otro mod, formato raro) se usa la lista de ingredientes.
     const recipeGui = (r) => {
-      const G = window.ModnexKjsGui;
+      const G = window.ModnexKjsGui, L = r.layout;
+      if (L && L.skin === 'create' && createData) {
+        const icon = (e) => (e.icon ? `<img class="kjs-ico" src="${esc(e.icon)}" alt="">` : `<span class="kjs-ph kjs-ico" aria-hidden="true">${esc((e.id || '?').charAt(0).toUpperCase())}</span>`);
+        return `<div class="kjs-recipe-gui">${window.ModnexKjsCreate.scene(createData, L, { ro: true, small: true, icon, name: (e) => e.name })}</div>`;
+      }
       if (!G || !r.layout || !G.has(r.layout.skin)) return '';
-      const L = r.layout;
       return `<div class="kjs-recipe-gui">${G.html(L.skin, (key) => {
         const sl = L.slots[key];
         if (!sl) return {};
@@ -411,6 +415,7 @@
     async function init() {
       try { removals = (await api(`${base}/kubejs_state`)).removals || []; } catch (e) { el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
       if (window.ModnexKjsGui) window.ModnexKjsGui.setTextures(await window.ModnexKjsGui.load(base));
+      if (window.ModnexKjsCreate) createData = await window.ModnexKjsCreate.prepare(base);
       await Promise.all([...new Set(removals.filter((r) => r.kind === 'output').map((r) => r.value))].slice(0, 30).map(async (id) => {
         try { (await api(`${base}/kubejs_items?q=${encodeURIComponent(id)}&limit=120`)).items.forEach((i) => { names[i.id] = i.name; }); } catch (e) { /* sin nombre */ }
       }));
@@ -425,7 +430,7 @@
         ${!found ? '<p class="muted small">Buscando recetas…</p>' : !found.recipes.length ? '<p class="muted small">Ningún mod ni vanilla tiene una receta para este item.</p>'
           : `<p class="muted small">${found.recipes.length} ${found.recipes.length === 1 ? 'receta' : 'recetas'} lo producen. Quita todas o solo las que no quieras. Las recetas agregadas desde el panel no les afecta «quitar todas»: se borran con su propio botón.</p>
             <ul class="kjs-recipes">${found.recipes.map((r) => `<li class="kjs-recipe">
-              <div class="kjs-recipe-t"><span class="chip">${esc(RECIPE_TYPE[r.type] || r.type.replace(/^[a-z0-9_.-]+:/, ''))}</span>${r.source === 'panel' ? ' <span class="chip ok">Agregada desde el panel</span>' : ''} <code>${esc(r.id)}</code></div>
+              <div class="kjs-recipe-t"><span class="chip">${esc(RECIPE_TYPE[r.type] || (r.type.startsWith('create:') && createData && createData.types[r.type.slice(7)] ? 'Create · ' + createData.types[r.type.slice(7)].label : r.type.replace(/^[a-z0-9_.-]+:/, '')))}</span>${r.source === 'panel' ? ' <span class="chip ok">Agregada desde el panel</span>' : ''} <code>${esc(r.id)}</code></div>
               ${recipeGui(r) || `<div class="kjs-ing">${r.ingredients.map((i) => `<span class="kjs-ing-i" title="${esc(i.id)}">${ico(i.id, i.icon, 'kjs-ico sm')}<span class="muted small">${esc(i.tag ? i.id : i.name)}</span></span>`).join('') || '<span class="muted small">Sin ingredientes reconocibles</span>'}</div>`}
               ${r.source === 'panel' ? `<button class="btn sm danger" data-act="del-panel" data-slug="${esc(r.slug)}">Borrar receta</button>`
                 : `<button class="btn sm" data-act="rm-id" data-id="${esc(r.id)}" ${queued('id', r.id) || queued('output', sel.id) ? 'disabled' : ''}>${queued('id', r.id) ? 'Se quita' : 'Quitar esta'}</button>`}</li>`).join('')}</ul>`}</div>`;
@@ -441,6 +446,7 @@
           <button class="btn primary" data-act="save" ${dirty ? '' : 'disabled'}>Guardar en el servidor</button></div>`;
       drawBrowser();
       if (window.ModnexKjsGui) window.ModnexKjsGui.place(el);
+      if (window.ModnexKjsCreate) window.ModnexKjsCreate.place(el);
     }
     function drawBrowser() {
       const box = el.querySelector('.kjs-browser');

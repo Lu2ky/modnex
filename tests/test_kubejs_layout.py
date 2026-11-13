@@ -44,7 +44,7 @@ class OtherTypesTest(unittest.TestCase):
 
     def test_lo_que_no_se_sabe_dibujar_devuelve_none(self):
         for bad in ({"type": "minecraft:crafting_transmute", "input": item("a:t"), "result": {"id": "a:r"}},
-                    {"type": "create:mixing", "ingredients": [item("a:t")], "results": [{"id": "a:r"}]},
+                    {"type": "mekanism:crushing", "input": item("a:t"), "output": {"id": "a:r"}}, {"type": "create:item_copying", "results": [{"id": "a:r"}]},
                     {"type": "minecraft:smelting", "ingredient": item("a:in")}, "no es un dict", None):
             self.assertIsNone(lay(bad), bad)
 

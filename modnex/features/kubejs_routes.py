@@ -1,5 +1,5 @@
 """KubeJS: recetas visuales, editor de scripts y diagnóstico. Solo en servidores con KubeJS instalado."""
-from . import kubejs, kubejs_rules
+from . import kubejs, kubejs_create, kubejs_rules
 from .guard import _guard
 
 
@@ -103,6 +103,10 @@ def register(api):
     def r_recipe_delete(ctx, user, name, q, b):
         _need(ctx, name)
         slug = str(b.get("slug") or "")
+        if b.get("store") == "create":
+            kubejs_create.delete(ctx, name, slug)
+            ctx.audit(user, name, "receta de Create borrada", slug)
+            return 200, kubejs_create.load(ctx, name)
         kubejs.delete_recipe(ctx, name, slug)
         ctx.audit(user, name, "receta del panel borrada", slug)
         return 200, kubejs.load(ctx, name)
@@ -130,3 +134,34 @@ def register(api):
     def r_gui(ctx, user, name, q, b):
         _need(ctx, name)
         return 200, {"textures": kubejs.gui_textures(ctx, name), "vanilla": kubejs.vanilla_status(ctx, name)}
+
+    @api.route("GET", "kubejs_blocks")
+    @_guard
+    def r_blocks(ctx, user, name, q, b):
+        _need(ctx, name)
+        ids = [i for i in str((q or {}).get("ids", "")).split(",") if i][:40]
+        return 200, {"models": {i: kubejs.block_model(ctx, name, i) for i in ids}}
+
+    @api.route("GET", "kubejs_create")
+    @_guard
+    def r_create(ctx, user, name, q, b):
+        _need(ctx, name)
+        out = kubejs_create.load(ctx, name)
+        out["installed"] = "create" in ctx_addons(ctx, name)
+        return 200, out
+
+    @api.route("POST", "kubejs_create_save")
+    @_guard
+    def r_create_save(ctx, user, name, q, b):
+        _need(ctx, name)
+        recipes = kubejs_create.save(ctx, name, b.get("recipes"))
+        ctx.audit(user, name, "recetas de Create guardadas", f"{len(recipes)} recetas")
+        out = kubejs_create.load(ctx, name)
+        out["installed"] = "create" in ctx_addons(ctx, name)
+        return 200, out
+
+    @api.route("GET", "kubejs_fluids")
+    @_guard
+    def r_fluids(ctx, user, name, q, b):
+        _need(ctx, name)
+        return 200, {"fluids": kubejs.fluids(ctx, name)}
