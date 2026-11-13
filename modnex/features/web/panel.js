@@ -593,6 +593,7 @@
       try { d = await api(`${base}/kubejs_state`); }
       catch (e) { el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
       recipes = d.recipes; total = d.items; script = d.script; kubejs = d.kubejs; vanilla = d.vanilla || null;
+      if (window.ModnexKjsGui) window.ModnexKjsGui.setTextures(await window.ModnexKjsGui.load(base));
       const need = [...new Set(recipes.flatMap((r) => [r.result.id, ...r.grid.filter(Boolean)]))].filter((id) => !info[id]);
       await Promise.all(need.map(async (id) => {
         try { const x = await api(`${base}/kubejs_items?q=${encodeURIComponent(id)}&limit=120`); remember(x.items); } catch (e) { /* sin icono */ }
@@ -623,6 +624,7 @@
           <button class="btn primary" data-act="save" ${dirty ? '' : 'disabled'}>Guardar en el servidor</button>
         </div>`;
       drawBrowser();
+      if (window.ModnexKjsGui) window.ModnexKjsGui.place(el);
     }
     function typeChips() {
       return Object.entries(TYPES).map(([k, t]) => `<button class="${edit.type === k ? 'on' : ''}" data-act="type" data-type="${k}" aria-pressed="${edit.type === k}">${esc(t.label)}</button>`).join('');
@@ -639,6 +641,13 @@
         : `<div class="kjs-single">${cell(0)}<span class="muted small">Ingrediente</span></div>`;
       const outBtn = `<button class="kjs-slot big ${target === 'out' ? 'on' : ''}" data-act="slot" data-slot="out"
           aria-label="${edit.result ? esc(label(edit.result)) : 'resultado vacío'}">${edit.result ? icon(edit.result, 'kjs-ico big') : '<span class="kjs-empty"></span>'}</button>`;
+      // Con las texturas del cliente de Minecraft se pinta la interfaz real del juego; sin ellas, la cuadrícula sencilla.
+      const G = window.ModnexKjsGui, skin = G && G.skinFor(edit.type);
+      const mcGui = G && G.has(skin) ? G.html(skin, (key) => {
+        if (key === 'out') return { inner: edit.result ? icon(edit.result) : '', attrs: 'data-act="slot" data-slot="out"', on: target === 'out', label: edit.result ? esc(label(edit.result)) : 'resultado vacío', count: edit.count };
+        const i = Number(key.slice(1)), id = edit.grid[i];
+        return { inner: id ? icon(id) : '', attrs: `data-act="slot" data-slot="g${i}"`, on: target === key, label: id ? esc(label(id)) : 'casilla vacía' };
+      }, G.title(edit.type)) : '';
       const timeSec = (edit.time / 20).toFixed(edit.time % 20 ? 2 : 0);
       const extras = [];
       if (isCook(edit.type) || edit.type === 'stonecutting') {
@@ -652,13 +661,14 @@
           <label class="kjs-field">Nombre de la receta<input class="kjs-name" value="${esc(edit.id)}" maxlength="40" placeholder="ej. cobre_bloque"></label>
         </div>
         <div class="kjs-types" role="group" aria-label="Tipo de receta">${typeChips()}</div>
-        <div class="kjs-craft">
+        ${mcGui ? `<div class="kjs-craft-mc">${mcGui}
+          <label class="kjs-field small">Cantidad del resultado<input class="kjs-count" type="number" min="1" max="64" value="${esc(edit.count)}"></label></div>` : `<div class="kjs-craft">
           ${inputs}
           <span class="kjs-arrow" aria-hidden="true">→</span>
           <div class="kjs-out">${outBtn}
             <label class="kjs-field small">Cantidad<input class="kjs-count" type="number" min="1" max="64" value="${esc(edit.count)}"></label>
           </div>
-        </div>
+        </div>`}
         ${extras.length ? `<div class="kjs-extras">${extras.join('')}</div>` : ''}
         <p class="muted small">Elige una casilla y luego un item de la lista. ${esc(TYPES[edit.type].hint || '')}</p>
         <div class="ft-actions">
