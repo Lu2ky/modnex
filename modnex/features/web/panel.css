@@ -303,3 +303,8 @@ canvas.spin { cursor: grab; }
 .cr-pool { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 10px; }
 .cr-pool strong { align-self: center; min-width: 70px; font-size: 13px; }
 .cr-pool input[type=number] { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; font-size: 13px; width: 90px; }
+
+.kjs-hist { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.kjs-hist-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.kjs-hist-row.same { opacity: .65; }
+.kjs-hist-row .block { display: block; margin-top: 2px; }
