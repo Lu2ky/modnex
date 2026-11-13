@@ -2,10 +2,12 @@
 
 import hashlib
 import json
+import os
 import re
 import urllib.parse
 import urllib.request
 import zipfile
+from pathlib import Path
 
 from modnex.infra import db
 from modnex.services import release
@@ -15,6 +17,10 @@ from modnex.services.packmerge import merge_packs
 
 # Nombre fijo del pack fusionado: se reconstruye cada vez que cambian los packs del servidor.
 UNIFIED = "unificado.zip"
+# Formato de pack_format de cada versión de Minecraft que el panel conoce. Otras versiones usan el del pack más nuevo.
+PACK_FORMAT = {"1.21": 34, "1.21.1": 34}
+MAX_REMOTE_PACK = 256 * 1024 * 1024
+MODRINTH_CDN = "cdn.modrinth.com"
 
 
 def get_resourcepack(name):
@@ -72,6 +78,45 @@ def finish_pack_upload(name, tmp, fname):
     return sha1
 
 
+def add_remote_pack(name, url, sha1, fname):
+    """Descarga un pack de Modrinth, comprueba su SHA-1 y lo guarda como pack local (y se fusiona con los demás).
+
+    Solo se aceptan descargas del CDN de Modrinth por https. El pack se guarda con su nombre original, así que se puede
+    volver a usar o borrar desde la lista de packs."""
+    import tempfile
+    from urllib.parse import urlparse
+    from modnex.services import modpacks
+    u = urlparse(url or "")
+    if u.scheme != "https" or u.hostname != MODRINTH_CDN:
+        raise ValueError("solo se pueden añadir packs del CDN de Modrinth")
+    if not re.fullmatch(r"[0-9a-f]{40}", (sha1 or "").lower()):
+        raise ValueError("falta el SHA-1 del pack")
+    fname = release.safe_zip_name(fname)
+    if not fname.lower().endswith(".zip"):
+        raise ValueError("el pack debe ser un .zip")
+    if fname == UNIFIED:
+        raise ValueError("ese nombre está reservado para el pack fusionado")
+    fd, tmp = tempfile.mkstemp(prefix="pack-", suffix=".zip", dir=packs_dir(name))
+    os.close(fd)
+    tmp = Path(tmp)
+    try:
+        modpacks._download(url, tmp, sha1=sha1.lower(), limit=MAX_REMOTE_PACK)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+    return finish_pack_upload(name, tmp, fname)
+
+
+def target_format(name):
+    """pack_format del servidor según su versión de Minecraft, o None si no se conoce."""
+    from modnex.services.client import server_versions
+    try:
+        mc = server_versions(name).get("minecraft")
+    except (OSError, ValueError):
+        return None
+    return PACK_FORMAT.get(mc)
+
+
 def rebuild_unified(name):
     """Fusiona los packs del servidor (del más antiguo al más nuevo) en UNIFIED.
 
@@ -91,7 +136,7 @@ def rebuild_unified(name):
         if serving:
             set_resourcepack(name, "", "", False, "")
         return None
-    report = merge_packs(sources, d / UNIFIED)
+    report = merge_packs(sources, d / UNIFIED, pack_format=target_format(name))
     sha1 = hashlib.sha1((d / UNIFIED).read_bytes()).hexdigest()
     db.pack_add(name, UNIFIED, sha1)
     if serving:

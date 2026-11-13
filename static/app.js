@@ -1380,7 +1380,7 @@ async function loadTex(s) {
   const list = $('#texLocalList');
   if (list) list.innerHTML = state.tex.local.length ? `<div class="rows">${state.tex.local.map((p) => `
     <div class="row-item"><div class="grow"><strong>${esc(p.file)}</strong>
-      <div class="muted small">${fmtSize(p.size)} · SHA-1 ${esc(p.sha1.slice(0, 10))}…</div></div>
+      <div class="muted small">${p.file === 'unificado.zip' ? 'Fusión de todos los packs locales (se regenera sola) · ' : ''}${fmtSize(p.size)} · SHA-1 ${esc(p.sha1.slice(0, 10))}…</div></div>
       <div class="acts">
         <button class="btn primary sm" data-action="tex-use-local" data-file="${esc(p.file)}">Usar en el servidor</button>
         <button class="btn danger sm" data-action="tex-delete-local" data-file="${esc(p.file)}">Borrar</button>
@@ -1974,7 +1974,8 @@ const actions = {
       box.innerHTML = files.map((f) => {
         const act = !f.url ? (f.page ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(f.page)}">Descargar a mano</a>` : '')
           : kind === 'resourcepack'
-            ? `<button class="btn sm" data-action="pack-use-remote" data-url="${esc(f.url)}" data-sha1="${esc(f.sha1 || '')}">Usar en el servidor</button>`
+            ? `<button class="btn sm" data-action="pack-use-remote" data-url="${esc(f.url)}" data-sha1="${esc(f.sha1 || '')}">Usar en el servidor</button>
+               <button class="btn sm" data-action="pack-add-remote" data-url="${esc(f.url)}" data-sha1="${esc(f.sha1 || '')}" data-name="${esc(f.filename)}">Añadir a la fusión</button>`
             : (kind === 'mod' || kind === 'plugin') && instVersion(card.dataset.source, card.dataset.id) === f.version
               ? '<button class="btn sm" disabled>Instalado</button>'
               : `<button class="btn sm" data-action="finder-install" data-kind="${kind}" data-source="${esc(card.dataset.source)}" data-project="${esc(card.dataset.id)}" data-vid="${esc(f.id)}" data-url="${esc(f.url)}" data-name="${esc(f.filename)}" data-sha1="${esc(f.sha1 || '')}">Instalar</button>`;
@@ -1991,6 +1992,19 @@ const actions = {
     try {
       await api(sPath('resourcepack_set'), { method: 'POST', body: { url: el.dataset.url, sha1: el.dataset.sha1, required: c.required, prompt: c.prompt } });
       toast('El servidor pedirá este pack a los jugadores. Reinícialo para aplicarlo.', 'ok');
+      loadTex(current());
+    } catch (e) { fail(e); }
+    busy(el, false);
+  },
+  async 'pack-add-remote'(el) {
+    const ok = await askConfirm('¿Añadir este pack a la fusión?',
+      'Se descarga, se comprueba su SHA-1 y se fusiona con los demás packs del servidor en unificado.zip. Antes de servirlo a tus jugadores, revisa la licencia del pack: algunos prohíben redistribuirlo o incluir sus archivos sin editar.',
+      { confirmLabel: 'Descargar y fusionar' });
+    if (!ok) return;
+    busy(el, true);
+    try {
+      await api(sPath('resourcepack_add_remote'), { method: 'POST', body: { url: el.dataset.url, sha1: el.dataset.sha1, file: el.dataset.name } });
+      toast('Pack añadido. unificado.zip está actualizado: úsalo en el servidor si quieres servir la fusión.', 'ok');
       loadTex(current());
     } catch (e) { fail(e); }
     busy(el, false);

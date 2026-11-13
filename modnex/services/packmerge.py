@@ -22,10 +22,12 @@ def _safe_name(name):
     return name
 
 
-def merge_packs(sources, out):
+def merge_packs(sources, out, pack_format=None):
     """Une `sources` (lista de rutas a zips, del más antiguo al más nuevo) en el zip `out`.
 
     Devuelve un informe: cuántos packs, archivos, sobrescritos y claves de idioma fusionadas.
+    `pack_format`: el formato que pide la versión de Minecraft del servidor. Sin él se usa el del pack más nuevo; el panel siempre
+    lo pasa, porque un formato más nuevo que el del juego sale como «incompatible» aunque los archivos estén bien.
     """
     files = {}          # nombre -> (bytes, origen)
     lang = {}           # nombre -> dict de claves
@@ -78,6 +80,8 @@ def merge_packs(sources, out):
             pass
     fmt_list = sorted(formats)
     meta.setdefault("pack", {})
+    if pack_format is not None:
+        meta["pack"]["pack_format"] = int(pack_format)
     meta["pack"]["description"] = f"Pack unificado ({usable} packs)"
     tmp = Path(str(out) + ".tmp")
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
