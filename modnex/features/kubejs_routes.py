@@ -1,5 +1,5 @@
 """KubeJS: recetas visuales, editor de scripts y diagnóstico. Solo en servidores con KubeJS instalado."""
-from . import kubejs, kubejs_check, kubejs_create, kubejs_loot, kubejs_rules
+from . import kubejs, kubejs_check, kubejs_create, kubejs_history, kubejs_loot, kubejs_rules
 from .guard import _guard
 
 
@@ -11,6 +11,14 @@ def _need(ctx, name):
 def ctx_addons(ctx, name):
     from ..services import servers
     return servers.addons_of(ctx.server_path(name))
+
+
+def _snap(ctx, user, name, label):
+    """Guarda una versión antes de cambiar nada. Si falla (disco lleno...) no impide guardar: solo se pierde el deshacer de ese cambio."""
+    try:
+        kubejs_history.snapshot(ctx, name, label, (user or {}).get("username", ""))
+    except OSError:
+        pass
 
 
 def register(api):
@@ -34,6 +42,7 @@ def register(api):
     @_guard
     def r_save(ctx, user, name, q, b):
         _need(ctx, name)
+        _snap(ctx, user, name, "Antes de guardar recetas")
         recipes = kubejs.save(ctx, name, b.get("recipes"))
         ctx.audit(user, name, "recetas de KubeJS guardadas", f"{len(recipes)} recetas")
         return 200, kubejs.load(ctx, name)
@@ -86,6 +95,7 @@ def register(api):
     @_guard
     def r_removals_save(ctx, user, name, q, b):
         _need(ctx, name)
+        _snap(ctx, user, name, "Antes de cambiar las recetas quitadas")
         removals = kubejs.save_removals(ctx, name, b.get("removals"))
         ctx.audit(user, name, "recetas quitadas con KubeJS", f"{len(removals)} eliminaciones")
         return 200, kubejs.load(ctx, name)
@@ -103,6 +113,7 @@ def register(api):
     def r_recipe_delete(ctx, user, name, q, b):
         _need(ctx, name)
         slug = str(b.get("slug") or "")
+        _snap(ctx, user, name, "Antes de borrar una receta")
         if b.get("store") == "create":
             kubejs_create.delete(ctx, name, slug)
             ctx.audit(user, name, "receta de Create borrada", slug)
@@ -123,6 +134,7 @@ def register(api):
     @_guard
     def r_rules_save(ctx, user, name, q, b):
         _need(ctx, name)
+        _snap(ctx, user, name, "Antes de guardar reglas")
         rules = kubejs_rules.save(ctx, name, b.get("rules"))
         ctx.audit(user, name, "reglas de KubeJS guardadas", f"{len(rules)} reglas")
         out = kubejs_rules.load(ctx, name)
@@ -155,6 +167,7 @@ def register(api):
     @_guard
     def r_create_save(ctx, user, name, q, b):
         _need(ctx, name)
+        _snap(ctx, user, name, "Antes de guardar recetas de Create")
         recipes = kubejs_create.save(ctx, name, b.get("recipes"))
         ctx.audit(user, name, "recetas de Create guardadas", f"{len(recipes)} recetas")
         out = kubejs_create.load(ctx, name)
@@ -194,6 +207,7 @@ def register(api):
     @_guard
     def r_loot_save(ctx, user, name, q, b):
         _need(ctx, name)
+        _snap(ctx, user, name, "Antes de guardar tablas de botín")
         rules = kubejs_loot.save(ctx, name, b.get("rules"))
         ctx.audit(user, name, "tablas de botín de KubeJS guardadas", f"{len(rules)} reglas")
         return 200, kubejs_loot.load(ctx, name)
@@ -204,3 +218,17 @@ def register(api):
         out = kubejs_check.run(ctx, name)
         ctx.audit(user, name, "scripts de KubeJS probados con /reload", "sin errores" if out["ok"] else f"{len(out['problems'])} problemas")
         return 200, out
+
+    @api.route("GET", "kubejs_history")
+    @_guard
+    def r_history(ctx, user, name, q, b):
+        _need(ctx, name)
+        return 200, {"versions": kubejs_history.versions(ctx, name)}
+
+    @api.route("POST", "kubejs_history_restore")
+    @_guard
+    def r_history_restore(ctx, user, name, q, b):
+        _need(ctx, name)
+        out = kubejs_history.restore(ctx, name, b.get("id"), (user or {}).get("username", ""))
+        ctx.audit(user, name, "versión anterior de KubeJS restaurada", f"{out['restored']} ({out['files']} archivos)")
+        return 200, {**out, "versions": kubejs_history.versions(ctx, name)}

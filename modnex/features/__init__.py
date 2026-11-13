@@ -32,6 +32,7 @@ def register(api):
     api.asset("kjs_block.js", WEB / "kjs_block.js", "application/javascript; charset=utf-8", script=True)
     api.asset("kjs_create.js", WEB / "kjs_create.js", "application/javascript; charset=utf-8", script=True)
     api.asset("kjs_loot.js", WEB / "kjs_loot.js", "application/javascript; charset=utf-8", script=True)
+    api.asset("kjs_history.js", WEB / "kjs_history.js", "application/javascript; charset=utf-8", script=True)
     api.asset("kjs_gui.js", WEB / "kjs_gui.js", "application/javascript; charset=utf-8", script=True)
     api.asset("kjs_rules.js", WEB / "kjs_rules.js", "application/javascript; charset=utf-8", script=True)
     api.asset("panel.css", WEB / "panel.css", "text/css; charset=utf-8")
