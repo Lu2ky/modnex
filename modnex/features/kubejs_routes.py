@@ -1,5 +1,5 @@
 """KubeJS: recetas visuales, editor de scripts y diagnóstico. Solo en servidores con KubeJS instalado."""
-from . import kubejs, kubejs_create, kubejs_rules
+from . import kubejs, kubejs_create, kubejs_loot, kubejs_rules
 from .guard import _guard
 
 
@@ -166,3 +166,34 @@ def register(api):
     def r_fluids(ctx, user, name, q, b):
         _need(ctx, name)
         return 200, {"fluids": kubejs.fluids(ctx, name)}
+
+    @api.route("GET", "kubejs_loot")
+    @_guard
+    def r_loot(ctx, user, name, q, b):
+        _need(ctx, name)
+        return 200, kubejs_loot.load(ctx, name)
+
+    @api.route("GET", "kubejs_loot_targets")
+    @_guard
+    def r_loot_targets(ctx, user, name, q, b):
+        _need(ctx, name)
+        q = q or {}
+        return 200, {"targets": kubejs_loot.targets(ctx, name, str(q.get("kind", "block")), str(q.get("q", "")))}
+
+    @api.route("GET", "kubejs_loot_current")
+    @_guard
+    def r_loot_current(ctx, user, name, q, b):
+        _need(ctx, name)
+        q = q or {}
+        kind = str(q.get("kind", "block"))
+        if kind not in kubejs_loot.KINDS:
+            raise ValueError("tipo no válido")
+        return 200, kubejs_loot.current(ctx, name, kind, str(q.get("target", "")))
+
+    @api.route("POST", "kubejs_loot_save")
+    @_guard
+    def r_loot_save(ctx, user, name, q, b):
+        _need(ctx, name)
+        rules = kubejs_loot.save(ctx, name, b.get("rules"))
+        ctx.audit(user, name, "tablas de botín de KubeJS guardadas", f"{len(rules)} reglas")
+        return 200, kubejs_loot.load(ctx, name)

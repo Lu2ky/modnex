@@ -264,3 +264,14 @@ button.cr-slot:hover, button.cr-slot:focus-visible, .cr-slot.on { background-ima
 /* Bloques dibujados con su modelo en 3D: son renders suaves, no pixel art */
 .kjs-ico.iso, .cr-machine, .cr-machine.spin, canvas.spin { image-rendering: auto; }
 canvas.spin { cursor: grab; }
+
+/* Botín */
+.cr-tagline { position: absolute; left: calc(1 * var(--u)); bottom: 0; font-size: calc(5 * var(--u)); line-height: 1.1; color: #1d1d1d; pointer-events: none; }
+.cr-drops { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cr-droprow { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+.cr-droprow.on { border-color: var(--accent); }
+.cr-droprow .cr-dn { min-width: 150px; align-self: center; font-size: 13px; }
+.cr-droprow input[type=number], .cr-droprow select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; font-size: 13px; width: 90px; }
+.cr-droprow select { width: auto; }
+.cr-today { margin: 8px 0 10px; }
+.cr-today h3 { margin: 0 0 4px; font-size: 14px; }
