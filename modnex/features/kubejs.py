@@ -58,6 +58,39 @@ def _client_cache(ctx, name):
     return Path(ctx.here) / "cache" / f"minecraft-{v}-client.jar" if v else None
 
 
+# Interfaces de Minecraft que se usan de fondo en el editor de recetas. Se leen del cliente oficial que el panel ya
+# descarga a su caché (nunca se guardan en el repositorio) y se entregan como data URI.
+GUI_SKINS = {"crafting": "crafting_table", "furnace": "furnace", "blast_furnace": "blast_furnace", "smoker": "smoker",
+             "stonecutter": "stonecutter", "smithing": "smithing"}
+_GUI = {"key": None, "tex": {}}
+
+
+def gui_textures(ctx, name):
+    """{piel: data URI} de las interfaces de vanilla. Vacío si el cliente de Minecraft aún no está descargado."""
+    jar = _client_cache(ctx, name)
+    if not jar or not jar.is_file():
+        return {}
+    st = jar.stat()
+    key = (str(jar), st.st_mtime_ns, st.st_size)
+    with _LOCK:
+        if _GUI["key"] == key:
+            return _GUI["tex"]
+    out = {}
+    try:
+        with zipfile.ZipFile(jar) as z:
+            for skin, fname in GUI_SKINS.items():
+                try:
+                    raw = z.read(f"assets/minecraft/textures/gui/container/{fname}.png")
+                except KeyError:
+                    continue
+                out[skin] = "data:image/png;base64," + base64.b64encode(raw).decode()
+    except (OSError, zipfile.BadZipFile):
+        return {}
+    with _LOCK:
+        _GUI["key"], _GUI["tex"] = key, out
+    return out
+
+
 def _vanilla_jars(ctx, name):
     """Jars de Minecraft: el cliente descargado (texturas, modelos, nombres) y el jar `-extra` del servidor
     (nombres y recetas de vanilla). Van primero para que vanilla gane sobre los mods en `minecraft:`."""

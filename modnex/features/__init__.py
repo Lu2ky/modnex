@@ -29,6 +29,7 @@ def register(api):
     api.tab("estadisticas", "Estadísticas", admin=False, perm="players", group="operar")
     api.rail("copias", "Copias")
     api.asset("panel.js", WEB / "panel.js", "application/javascript; charset=utf-8", script=True)
+    api.asset("kjs_gui.js", WEB / "kjs_gui.js", "application/javascript; charset=utf-8", script=True)
     api.asset("kjs_rules.js", WEB / "kjs_rules.js", "application/javascript; charset=utf-8", script=True)
     api.asset("panel.css", WEB / "panel.css", "text/css; charset=utf-8")
 

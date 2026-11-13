@@ -124,3 +124,9 @@ def register(api):
         out = kubejs_rules.load(ctx, name)
         out["morejs"] = "morejs" in ctx_addons(ctx, name)
         return 200, out
+
+    @api.route("GET", "kubejs_gui")
+    @_guard
+    def r_gui(ctx, user, name, q, b):
+        _need(ctx, name)
+        return 200, {"textures": kubejs.gui_textures(ctx, name), "vanilla": kubejs.vanilla_status(ctx, name)}

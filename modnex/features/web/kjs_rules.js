@@ -34,8 +34,7 @@
     replace: { make: () => ({ type: 'replace', mode: 'input', source: '', target: '', only: '' }), fields: [
       ['select', 'mode', 'Dónde', [['input', 'Como ingrediente'], ['output', 'Como resultado']]], ['item', 'source', 'Item a cambiar'],
       ['item', 'target', 'Item nuevo', { tags: true }], ['item', 'only', 'Solo en recetas que producen… (opcional)', { optional: true }]] },
-    smithing: { make: () => ({ type: 'smithing', result: '', template: '', base: '', addition: '' }), fields: [
-      ['item', 'template', 'Plantilla'], ['item', 'base', 'Base'], ['item', 'addition', 'Material'], ['item', 'result', 'Resultado']] },
+    smithing: { make: () => ({ type: 'smithing', result: '', template: '', base: '', addition: '' }), fields: [['smith', 'smithing', 'Receta de herrería']] },
     trade: { make: () => ({ type: 'trade', profession: 'farmer', level: 1, inputs: [stack()], output: stack(), max_uses: 12, xp: 5 }), fields: [
       ['select', 'profession', 'Profesión', Object.entries(PROF)], ['select', 'level', 'Nivel del aldeano', [1, 2, 3, 4, 5].map((n) => [n, String(n)])],
       ['stack', 'inputs.0', 'El aldeano pide'], ['stack', 'inputs.1', 'Y además (opcional)', { optional: true }], ['stack', 'output', 'Y da a cambio'],
@@ -73,6 +72,7 @@
     async function load() {
       let d;
       try { d = await api(`${base}/kubejs_rules`); } catch (e) { el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+      if (window.ModnexKjsGui) window.ModnexKjsGui.setTextures(await window.ModnexKjsGui.load(base));
       rules = d.rules; T = d.types; morejs = d.morejs;
       await Promise.all([...new Set(rules.flatMap(idsOf))].filter((id) => !info[id]).slice(0, 40).map(async (id) => {
         try { remember((await api(`${base}/kubejs_items?q=${encodeURIComponent(id)}&limit=20`)).items); } catch (e) { /* sin icono */ }
@@ -122,6 +122,14 @@
       if (kind === 'event' && !Object.keys(T.events).length) return '';
       const v = get(draft, key);
       const lab = (inner) => `<div class="kjs-field-blk"><span class="kjs-lab">${esc(label)}</span>${inner}</div>`;
+      if (kind === 'smith') {
+        const G = window.ModnexKjsGui, NAMES = { template: 'Plantilla', base: 'Base', addition: 'Material', result: 'Resultado' };
+        if (G && G.has('smithing')) {
+          return lab(G.html('smithing', (k) => ({ inner: draft[k] ? ico(draft[k], 'kjs-ico') : '', attrs: `data-pick="${k}"`, on: pick === k, label: draft[k] ? esc(nameOf(draft[k])) : NAMES[k] })) +
+            '<p class="muted small">Elige un hueco y luego un item de la lista: plantilla, base, material y, a la derecha, el resultado.</p>');
+        }
+        return Object.entries(NAMES).map(([k, l]) => field(['item', k, l])).join('');
+      }
       if (kind === 'select') return `<label class="kjs-field">${esc(label)}<select data-f="${key}" data-redraw="1">${opt(extra, v)}</select></label>`;
       if (kind === 'event') return `<label class="kjs-field">${esc(label)}<select data-f="${key}" data-redraw="1">${opt(Object.entries(T.events).map(([k, e]) => [k, e.label]), v)}</select></label>`;
       if (kind === 'text') return `<label class="kjs-field">${esc(label)}<input data-f="${key}" value="${esc(v || '')}" placeholder="${esc(extra || '')}" maxlength="200"></label>`;
@@ -183,6 +191,7 @@
           <div class="kjs-foot"><span></span><span><button class="btn" data-cancel>Cancelar</button> <button class="btn primary" data-save ${busy ? 'disabled' : ''}>Guardar regla</button></span></div></div>`
           : `<div class="ft-actions">${types.map((t) => `<button class="btn primary" data-new="${t}">Nueva regla${types.length > 1 ? ` · ${TYPE_LABEL[t]}` : ''}</button>`).join('')}</div>`}`;
       drawPicker();
+      if (window.ModnexKjsGui) window.ModnexKjsGui.place(el);
     }
     const TYPE_SIDE = (c) => ({ item_prop: 'Se aplica al reiniciar el servidor.', tooltip: 'Cada jugador lo recibe al recargar o reiniciar su juego.', hide: 'Cada jugador lo recibe al recargar o reiniciar su juego.' })[c] || 'Se aplica con /reload en la consola.';
 
