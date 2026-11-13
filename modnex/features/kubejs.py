@@ -16,7 +16,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-from . import kubejs_create, kubejs_mobs
+from . import kubejs_create, kubejs_geo, kubejs_mobs
 
 ID_RE = re.compile(r"[a-z0-9_.-]+:[a-z0-9_./-]+")
 SLUG_RE = re.compile(r"[a-z0-9_]{1,40}")
@@ -24,6 +24,7 @@ LANG_RE = re.compile(r"assets/([a-z0-9_.-]+)/lang/en_us\.json")
 NAME_KEY = re.compile(r"(item|block)\.([a-z0-9_.-]+?)\.([a-z0-9_/.-]+)")
 FLUID_KEY = re.compile(r"fluid(?:_type)?\.([a-z0-9_.-]+?)\.([a-z0-9_/.-]+)")
 TEX_RE = re.compile(r"assets/([a-z0-9_.-]+)/textures/([a-z0-9_/.-]+)\.png")
+GEO_RE = re.compile(r"assets/([a-z0-9_.-]+)/geo/([a-z0-9_/.-]+)\.geo\.json")
 LOOT_RE = re.compile(r"data/([a-z0-9_.-]+)/loot_tables?/(blocks|entities|chests)/([a-z0-9_/.-]+)\.json")
 ENTITY_KEY = re.compile(r"entity\.([a-z0-9_.-]+?)\.([a-z0-9_/.-]+)")
 RECIPE_RE = re.compile(r"data/([a-z0-9_.-]+)/(?:recipe|recipes)/([a-z0-9_/.-]+)\.json")
@@ -42,7 +43,7 @@ DEFAULT_TIME = {"campfire": 600}
 
 _LOCK = threading.Lock()
 _CACHE = {"sig": None, "items": [], "textures": {}, "models": {}, "icons": {}, "zips": {}, "parsed": {},
-          "recipe_refs": {}, "recipes": None, "names": {}, "fluids": {}, "blockmodels": {}, "texuris": {}, "loot": {"blocks": {}, "entities": {}, "chests": {}}, "entities": {}}
+          "recipe_refs": {}, "recipes": None, "names": {}, "fluids": {}, "blockmodels": {}, "texuris": {}, "loot": {"blocks": {}, "entities": {}, "chests": {}}, "entities": {}, "geo": {}}
 _ICON_LOCK = threading.Lock()   # ZipFile no es seguro entre hilos: los iconos se calculan de uno en uno
 
 
@@ -123,7 +124,7 @@ def _index(ctx, name):
         if _CACHE["sig"] == sig:
             return _CACHE["items"], _CACHE["textures"], _CACHE["models"]
     names, textures, models, recipe_refs, from_block, fluid_names = {}, {}, {}, {}, set(), {"minecraft:water": "Water", "minecraft:lava": "Lava"}
-    loot_refs, entity_names = {"blocks": {}, "entities": {}, "chests": {}}, {}
+    loot_refs, entity_names, geo_refs = {"blocks": {}, "entities": {}, "chests": {}}, {}, {}
     for jar in jars:
         try:
             z = zipfile.ZipFile(jar)
@@ -140,6 +141,11 @@ def _index(ctx, name):
                     m = MODEL_RE.fullmatch(entry)
                     if m:
                         models.setdefault(f"{m.group(1)}:{m.group(2)}", (str(jar), entry))
+                    continue
+                if entry.endswith(".geo.json"):
+                    m = GEO_RE.fullmatch(entry)
+                    if m:
+                        geo_refs.setdefault(f"{m.group(1)}:{m.group(2)}", (str(jar), entry))
                     continue
                 if entry.startswith("data/") and entry.endswith(".json"):
                     m = RECIPE_RE.fullmatch(entry)
@@ -183,7 +189,7 @@ def _index(ctx, name):
     with _LOCK:
         old = _CACHE.get("zips", {})
         _CACHE.update(sig=sig, items=items, textures=textures, models=models, icons={}, zips={}, parsed={},
-                      recipe_refs=recipe_refs, recipes=None, names=names, fluids=fluid_names, blockmodels={}, texuris={}, loot=loot_refs, entities=entity_names)
+                      recipe_refs=recipe_refs, recipes=None, names=names, fluids=fluid_names, blockmodels={}, texuris={}, loot=loot_refs, entities=entity_names, geo=geo_refs)
     for z in old.values():
         z.close()
     return items, textures, models
@@ -403,6 +409,16 @@ def mob_model(ctx, name, entity_id):
         if key in _CACHE["blockmodels"]:
             return _CACHE["blockmodels"][key]
     result = kubejs_mobs.build(entity_id, textures)
+    if result is None:                                   # no es de vanilla: se busca un modelo de datos (GeckoLib / Bedrock) por su nombre
+        with _LOCK:
+            geo = dict(_CACHE["geo"])
+        found = kubejs_geo.match(entity_id, geo, textures)
+        if found:
+            raw_geo, raw_tex = _read(geo[found[0]]), _read(textures[found[1]])
+            try:
+                result = kubejs_geo.build(json.loads(raw_geo.decode("utf-8", "replace")), found[1], kubejs_geo.png_size(raw_tex or b"")) if raw_geo else None
+            except (ValueError, RecursionError):
+                result = None
     with _LOCK:
         _CACHE["blockmodels"][key] = result
     return result

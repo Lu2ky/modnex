@@ -112,6 +112,29 @@ MOBS = {
     "minecraft:cave_spider": {"tex": _E + "spider/cave_spider", "size": (64, 32), "parts": _spider(), "scale": 0.7},
     "minecraft:ghast": {"tex": _E + "ghast/ghast", "size": (64, 32), "parts": _ghast()},
 }
+_ENDERMAN = [
+    {"b": (-4, -8, -4, 8, 8, 8), "uv": (0, 0), "p": (0, -14, 0)},
+    {"b": (-4, 0, -2, 8, 12, 4), "uv": (32, 16), "p": (0, -14, 0)},
+    {"b": (-1, -2, -1, 2, 30, 2), "uv": (56, 0), "p": (-5, -12, 0)},
+    {"b": (-1, -2, -1, 2, 30, 2), "uv": (56, 0), "p": (5, -12, 0), "m": True},
+    {"b": (-1, 0, -1, 2, 30, 2), "uv": (56, 0), "p": (-2, -5, 0)},
+    {"b": (-1, 0, -1, 2, 30, 2), "uv": (56, 0), "p": (2, -5, 0), "m": True},
+]
+# Aldeano: cabeza con nariz, túnica larga y los brazos cruzados.
+_VILLAGER = [
+    {"b": (-4, -10, -4, 8, 10, 8), "uv": (0, 0)},
+    {"b": (-1, -1, -6, 2, 4, 2), "uv": (24, 0), "p": (0, -2, 0)},
+    {"b": (-4, 0, -3, 8, 12, 6), "uv": (16, 20)},
+    {"b": (-4, 0, -3, 8, 18, 6), "uv": (0, 38), "g": 0.5},
+    {"b": (-8, -2, -2, 4, 8, 4), "uv": (44, 22), "p": (0, 3, -1), "r": (-43, 0, 0)},
+    {"b": (4, -2, -2, 4, 8, 4), "uv": (44, 22), "p": (0, 3, -1), "r": (-43, 0, 0), "m": True},
+    {"b": (-4, 2, -2, 8, 4, 4), "uv": (40, 38), "p": (0, 3, -1), "r": (-43, 0, 0)},
+    {"b": (-2, 0, -2, 4, 12, 4), "uv": (0, 22), "p": (-2, 12, 0)},
+    {"b": (-2, 0, -2, 4, 12, 4), "uv": (0, 22), "p": (2, 12, 0), "m": True},
+]
+MOBS["minecraft:enderman"] = {"tex": _E + "enderman/enderman", "size": (64, 32), "parts": _ENDERMAN}
+MOBS["minecraft:villager"] = {"tex": _E + "villager/villager", "size": (64, 64), "parts": _VILLAGER}
+MOBS["minecraft:wandering_trader"] = {"tex": _E + "wandering_trader", "size": (64, 64), "parts": _VILLAGER}
 # El cofre se dibuja con el mismo sistema (su modelo también está en código): tapa, base y cerradura, mirando al frente.
 def _chest(tex):
     return {"tex": _E + tex, "size": (64, 64), "parts": [
@@ -199,12 +222,21 @@ def build(entity_id, textures):
                     x, y, z = x * scale, 24 + (y - 24) * scale, z * scale
                     world.append((x, 24 - y, -z))                     # y hacia arriba y el frente hacia +z, sin espejar
                 quads.append({"t": tex, "p": world, "uv": [(a / W * 16, b / H * 16) for a, b in uvs]})
-    # Se encaja en el cubo de 16 de un bloque, apoyado en el suelo y centrado.
+    return finish(quads, list(dict.fromkeys(q["t"] for q in quads)))
+
+
+def finish(quads, textures, robust=False):
+    """Encaja las caras en el cubo de 16 de un bloque, apoyadas en el suelo y centradas, y calcula las normales.
+    `robust`: ignora el 2 % de puntos más alejados al calcular la escala (modelos con huesos de efectos muy lejos del cuerpo)."""
     xs, ys, zs = ([q["p"][i][k] for q in quads for i in range(4)] for k in range(3))
-    f = 14.0 / max(max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs))
+    span = max(max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs), 1e-6)
+    if robust and len(xs) >= 50:
+        cut = lambda v: sorted(v)[int(len(v) * 0.98)] - sorted(v)[int(len(v) * 0.02)]
+        span = max(span * 0.45, max(cut(xs), cut(ys), cut(zs)))
+    f = 14.0 / span
     cx, cz, y0 = (max(xs) + min(xs)) / 2, (max(zs) + min(zs)) / 2, min(ys)
     for q in quads:
         q["p"] = [[round((x - cx) * f + 8, 3), round((y - y0) * f + 1, 3), round((z - cz) * f + 8, 3)] for x, y, z in q["p"]]
         q["uv"] = [[round(a, 4), round(b, 4)] for a, b in q["uv"]]
         q["n"] = [round(c, 3) for c in _normal(q["p"])]
-    return {"quads": quads, "tex": list(dict.fromkeys(q["t"] for q in quads)), "display": {k: list(v) for k, v in DISPLAY.items()}, "ent": 1}
+    return {"quads": quads, "tex": list(textures), "display": {k: list(v) for k, v in DISPLAY.items()}, "ent": 1}
