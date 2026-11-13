@@ -45,10 +45,11 @@ class PluginAPI:
             return fn
         return deco
 
-    def tab(self, tab_id, label, admin=True, perm=None, group=None):
+    def tab(self, tab_id, label, admin=True, perm=None, group=None, addon=None):
         """perm: permiso por servidor que basta para ver la pestaña (además de ser admin); "*" = cualquiera.
-        group: sección del panel donde se agrupa (operar, contenido, distribuir, proteger); sin grupo va a «Más»."""
-        self.tabs.append({"id": tab_id, "label": label, "admin": bool(admin), "perm": perm, "group": group})
+        group: sección del panel donde se agrupa (operar, contenido, distribuir, proteger); sin grupo va a «Más».
+        addon: si se indica, la pestaña solo aparece en servidores que tengan ese complemento instalado (p. ej. «kubejs»)."""
+        self.tabs.append({"id": tab_id, "label": label, "admin": bool(admin), "perm": perm, "group": group, "addon": addon})
 
     def page(self, page_id, label, admin=False):
         """Página propia en la barra lateral (#/p/<id>); la interfaz llama a ModnexPlugins[id].renderPage."""
