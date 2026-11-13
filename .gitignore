@@ -28,3 +28,6 @@ backups/
 sandbox/
 servers/
 modconfig-auto.json
+
+# Caché de descargas (cliente de Minecraft para texturas)
+cache/

@@ -322,11 +322,24 @@ def visible_servers(user):
                 "template": templates.server_template(server_path(s["name"])),
                 "template_label": templates.TEMPLATES.get(templates.server_template(server_path(s["name"])), {}).get("label", ""),
                 "kind": templates.kind_of(templates.server_template(server_path(s["name"]))),
+                "addons": addons_of(server_path(s["name"])),
                 "status": s["status"] if user["is_admin"] else {"running": s["status"]["running"]}}
         if user["is_admin"]:
             item["memory"] = s["memory"]
         out.append(item)
     return out
+
+
+# Complementos que habilitan pestañas propias en el panel: id -> patrón del jar principal.
+ADDON_JARS = {"kubejs": re.compile(r"kubejs-(neoforge|forge|fabric)-.*\.jar"), "morejs": re.compile(r"morejs-.*\.jar", re.IGNORECASE)}
+
+
+def addons_of(path):
+    mods = Path(path) / "mods"
+    if not mods.is_dir():
+        return []
+    names = [j.name for j in mods.iterdir()]
+    return [a for a, rx in ADDON_JARS.items() if any(rx.fullmatch(n) for n in names)]
 
 
 def used_ports():

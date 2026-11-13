@@ -1,7 +1,7 @@
 """Funciones del gestor sobre la API de plugins: copias, diagnóstico, avisos, tareas, actualización segura, servidor de pruebas, sincronización, estadísticas, propuestas y seguridad."""
 from pathlib import Path
 
-from . import (account_routes, backups, backups_routes, doctor_routes, event_hooks, notify, notify_routes, proposal_routes, proposals,
+from . import (account_routes, backups, backups_routes, doctor_routes, event_hooks, notify, notify_routes, kubejs_routes, perf_routes, proposal_routes, proposals,
                remote_routes, retention, schedule_routes, scheduler, security, spark, staging, staging_routes, stats_routes, sync_routes,
                update_routes)
 
@@ -22,11 +22,14 @@ def register(api):
         api.tab(tab_id, label, group="proteger")
     api.tab("pruebas", "Servidor de pruebas", group="proteger")
     api.tab("actualizar", "Actualizar mods", group="contenido")
+    api.tab("kubejs", "KubeJS", group="contenido", addon="kubejs")
     api.tab("propuestas", "Propuestas", admin=False, perm="*", group="contenido")
     api.tab("sincronizacion", "Sincronización", group="distribuir")
+    api.tab("rendimiento", "Rendimiento", group="operar")
     api.tab("estadisticas", "Estadísticas", admin=False, perm="players", group="operar")
     api.rail("copias", "Copias")
     api.asset("panel.js", WEB / "panel.js", "application/javascript; charset=utf-8", script=True)
+    api.asset("kjs_rules.js", WEB / "kjs_rules.js", "application/javascript; charset=utf-8", script=True)
     api.asset("panel.css", WEB / "panel.css", "text/css; charset=utf-8")
 
     # --- extras al crear un servidor ---
@@ -36,5 +39,5 @@ def register(api):
                   spark.install, loaders=spark.LOADERS)
 
     for area in (backups_routes, schedule_routes, doctor_routes, update_routes, staging_routes, sync_routes, proposal_routes,
-                 stats_routes, notify_routes, account_routes, remote_routes, event_hooks):
+                 stats_routes, perf_routes, kubejs_routes, notify_routes, account_routes, remote_routes, event_hooks):
         area.register(api)

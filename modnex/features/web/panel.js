@@ -275,6 +275,484 @@
     load();
   }
 
+
+  // ---------- Rendimiento (spark) ----------
+  function rendimiento(el, s) {
+    const { api, esc, toast } = M();
+    let out = null, busy = '';
+    async function load() {
+      let d;
+      try { d = await api(url(s, 'performance')); } catch (e) { el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+      draw(d);
+    }
+    function draw(d) {
+      const can = d.installed && d.running && d.control;
+      const why = !d.installed ? 'spark no está instalado en este servidor.'
+        : !d.running ? 'El servidor está apagado.'
+        : !d.control ? 'El servidor no lo arrancó este gestor, así que no puede enviarle comandos. Reinícialo desde el panel para poder usar estos botones; mientras tanto puedes escribir /spark en la consola del juego.' : '';
+      const btn = (act, label, primary) => `<button class="btn${primary ? ' primary' : ''}" data-act="${act}" ${can && !busy ? '' : 'disabled'}>${busy === act ? 'Esperando…' : label}</button>`;
+      const lag = d.lag_count
+        ? `<p><strong>${esc(d.lag_count)}</strong> avisos de «Can't keep up» en el log actual.</p><ul class="small">${d.lag_last.map((x) => `<li>${esc(x.time)} · ${esc(x.ticks)} ticks (${esc(x.ms)} ms) de retraso</li>`).join('')}</ul>`
+        : '<p class="muted">Sin avisos de lag en el log actual.</p>';
+      const res = out ? `<div class="ft-section"><div class="ft-head"><h2>Resultado</h2></div>
+        <pre class="ft-pre">${esc(out.lines.join('\n') || 'spark no respondió a tiempo. Mira la consola.')}</pre>
+        ${out.url ? `<p><a class="btn primary" href="${esc(out.url)}" target="_blank" rel="noopener noreferrer">Abrir informe</a></p>` : ''}</div>` : '';
+      el.innerHTML = `
+        <div class="ft-head"><h2>Rendimiento</h2><button class="btn" data-act="reload">Actualizar</button></div>
+        <p class="muted small">${d.installed ? esc(d.jar) : 'spark no instalado'}${d.background === true ? ' · perfilador en segundo plano activo' : d.background === false ? ' · perfilador en segundo plano apagado' : ''}</p>
+        <div class="ft-actions">${btn('tps', 'Ver TPS', true)}${btn('health', 'Estado general')}${btn('profiler_start', 'Iniciar perfil')}${btn('profiler_stop', 'Terminar y ver informe')}</div>
+        ${why ? `<p class="muted small">${esc(why)}</p>` : ''}
+        ${res}
+        <div class="ft-section"><div class="ft-head"><h2>Lag registrado</h2></div>${lag}</div>`;
+    }
+    el.onclick = async (e) => {
+      const b = e.target.closest('[data-act]');
+      if (!b || b.disabled) return;
+      const act = b.getAttribute('data-act');
+      if (act === 'reload') return load();
+      busy = act; load();
+      try { out = await api(url(s, 'performance_run'), { method: 'POST', body: { action: act } }); }
+      catch (err) { toast(err.message, 'error'); }
+      busy = ''; load();
+    };
+    load();
+  }
+
+
+  // ---------- KubeJS: sección con recetas visuales, scripts y diagnóstico ----------
+  const KJS_MAP = [
+    ['Al abrir el juego (startup_scripts)', [
+      ['Ítems personalizados: comida, herramientas, armaduras, escudos', 'code'],
+      ['Bloques personalizados: modelos, luz, resistencia, sonidos', 'code'],
+      ['Fluidos y gases', 'code'],
+      ['Efectos de poción y encantamientos', 'code'],
+      ['Pestañas creativas', 'code'],
+      ['Propiedades de ítems existentes (pila, rareza, durabilidad, combustible)', 'visual'],
+    ]],
+    ['En el servidor (server_scripts)', [
+      ['Recetas de mesa, horno, horno alto, ahumador, fogata y cortapiedras (añadir)', 'visual'],
+      ['Eliminar recetas de fábrica y de mods', 'visual'],
+      ['Reemplazar ingredientes y resultados, y recetas de mesa de herrería', 'visual'],
+      ['Tablas de botín (bloques, mobs, cofres)', 'todo'],
+      ['Tags de ítems, bloques, fluidos y entidades', 'visual'],
+      ['Comercios de aldeanos (requiere MoreJS)', 'visual'],
+      ['Eventos: entrar, romper, colocar, usar item (mensaje, regalo, comando, cancelar)', 'visual'],
+      ['Comandos personalizados', 'visual'],
+      ['Datos persistentes (NBT / PersistentData)', 'code'],
+      ['Lectura y escritura de archivos (JsonIO)', 'code'],
+    ]],
+    ['En el cliente del jugador (client_scripts)', [
+      ['Tooltips de texto fijo', 'visual'],
+      ['JEI / EMI / REI: ocultar ítems', 'visual'],
+      ['HUD y dibujo en pantalla (Painter)', 'code'],
+      ['Sonidos y partículas', 'code'],
+    ]],
+    ['Herramientas avanzadas', [
+      ['Java.loadClass (clases de Java directas)', 'code'],
+      ['Networking cliente ↔ servidor', 'code'],
+      ['Depuración: /kubejs hand, /kubejs inventory', 'game'],
+    ]],
+  ];
+  const KJS_STATE = { visual: ['Visual', 'ok'], code: ['Código en Scripts', ''], todo: ['Editor visual pendiente', 'warn'], game: ['Comando del juego', ''] };
+  const KJS_FOLDERS = {
+    startup_scripts: 'Se ejecuta una vez al abrir el juego: hace falta reiniciar el servidor para aplicarlo.',
+    server_scripts: 'Se recarga con /reload en la consola, sin reiniciar.',
+    client_scripts: 'Corre en el cliente de cada jugador: se aplica cuando el jugador recarga o reinicia su juego.',
+  };
+
+  function kubejsSection(el, s) {
+    const VIEWS = [['recetas', 'Recetas'], ['quitar', 'Quitar recetas'], ['reglas', 'Reglas'], ['scripts', 'Scripts'], ['diag', 'Diagnóstico']];
+    let view = 'recetas';
+    el.innerHTML = `<nav class="kjs-nav" role="tablist" aria-label="KubeJS">${VIEWS.map(([k, l]) =>
+      `<button role="tab" data-view="${k}" aria-selected="${k === view}" class="${k === view ? 'on' : ''}">${l}</button>`).join('')}</nav><div class="kjs-sub"></div>`;
+    const sub = el.querySelector('.kjs-sub');
+    function show() {
+      el.querySelectorAll('.kjs-nav button').forEach((b) => { const on = b.getAttribute('data-view') === view; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+      sub.onclick = sub.oninput = sub.onkeydown = null;
+      sub.innerHTML = '';
+      ({ recetas, quitar: kjsQuitar, reglas: (e, sv) => (window.ModnexKjsRules ? window.ModnexKjsRules(e, sv) : (e.innerHTML = '<p class="muted">Recarga la página para cargar las reglas.</p>')), scripts: kjsScripts, diag: kjsDiag })[view](sub, s);
+    }
+    el.querySelector('.kjs-nav').onclick = (e) => { const b = e.target.closest('[data-view]'); if (b) { view = b.getAttribute('data-view'); show(); } };
+    show();
+  }
+
+  const RECIPE_TYPE = {
+    'minecraft:crafting_shaped': 'Mesa · con forma', 'minecraft:crafting_shapeless': 'Mesa · sin forma',
+    'minecraft:crafting_transmute': 'Mesa · transformar', 'minecraft:smelting': 'Horno', 'minecraft:blasting': 'Horno alto',
+    'minecraft:smoking': 'Ahumador', 'minecraft:campfire_cooking': 'Fogata', 'minecraft:stonecutting': 'Cortapiedras',
+    'minecraft:smithing_transform': 'Mesa de herrería', 'minecraft:smithing_trim': 'Mesa de herrería (diseño)',
+  };
+
+  function kjsQuitar(el, s) {
+    const { api, esc, toast } = M();
+    const base = `/api/servers/${encodeURIComponent(s.name)}`;
+    let removals = [], items = [], q = '', timer = null, sel = null, found = null, dirty = false, status = '';
+    const names = {};
+    const ico = (id, icon, cls = 'kjs-ico') => icon
+      ? `<img class="${cls}" src="${esc(icon)}" alt="" loading="lazy">`
+      : `<span class="${cls} kjs-ph" aria-hidden="true">${esc((id || '?').replace('#', '').split(':').pop().charAt(0).toUpperCase())}</span>`;
+    const nameOf = (id) => names[id] || id;
+    const queued = (kind, value) => removals.some((r) => r.kind === kind && r.value === value);
+    async function search() {
+      try { const d = await api(`${base}/kubejs_items?q=${encodeURIComponent(q)}&limit=120`); items = d.items; items.forEach((i) => { names[i.id] = i.name; }); } catch (e) { toast(e.message, 'error'); }
+      drawBrowser();
+    }
+    async function init() {
+      try { removals = (await api(`${base}/kubejs_state`)).removals || []; } catch (e) { el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+      await Promise.all([...new Set(removals.filter((r) => r.kind === 'output').map((r) => r.value))].slice(0, 30).map(async (id) => {
+        try { (await api(`${base}/kubejs_items?q=${encodeURIComponent(id)}&limit=120`)).items.forEach((i) => { names[i.id] = i.name; }); } catch (e) { /* sin nombre */ }
+      }));
+      draw(); search();
+    }
+    function draw() {
+      const list = removals.map((r, i) => `<li class="kjs-rm"><span>${r.kind === 'output'
+        ? `Todas las recetas de <strong>${esc(nameOf(r.value))}</strong>` : `Receta <code>${esc(r.value)}</code>`}</span>
+        <button class="btn sm" data-act="undo" data-i="${i}">Deshacer</button></li>`).join('');
+      const selHTML = !sel ? '' : `<div class="kjs-editor"><div class="ft-head"><h2>${ico(sel.id, sel.icon)} ${esc(nameOf(sel.id))}</h2>
+        <button class="btn sm danger" data-act="rm-output" ${queued('output', sel.id) ? 'disabled' : ''}>${queued('output', sel.id) ? 'Ya se quitan todas' : 'Quitar todas las recetas de este item'}</button></div>
+        ${!found ? '<p class="muted small">Buscando recetas…</p>' : !found.recipes.length ? '<p class="muted small">Ningún mod ni vanilla tiene una receta para este item.</p>'
+          : `<p class="muted small">${found.recipes.length} ${found.recipes.length === 1 ? 'receta' : 'recetas'} lo producen. Quita todas o solo las que no quieras. Las recetas agregadas desde el panel no les afecta «quitar todas»: se borran con su propio botón.</p>
+            <ul class="kjs-recipes">${found.recipes.map((r) => `<li class="kjs-recipe">
+              <div class="kjs-recipe-t"><span class="chip">${esc(RECIPE_TYPE[r.type] || r.type.replace(/^[a-z0-9_.-]+:/, ''))}</span>${r.source === 'panel' ? ' <span class="chip ok">Agregada desde el panel</span>' : ''} <code>${esc(r.id)}</code></div>
+              <div class="kjs-ing">${r.ingredients.map((i) => `<span class="kjs-ing-i" title="${esc(i.id)}">${ico(i.id, i.icon, 'kjs-ico sm')}<span class="muted small">${esc(i.tag ? i.id : i.name)}</span></span>`).join('') || '<span class="muted small">Sin ingredientes reconocibles</span>'}</div>
+              ${r.source === 'panel' ? `<button class="btn sm danger" data-act="del-panel" data-slug="${esc(r.slug)}">Borrar receta</button>`
+                : `<button class="btn sm" data-act="rm-id" data-id="${esc(r.id)}" ${queued('id', r.id) || queued('output', sel.id) ? 'disabled' : ''}>${queued('id', r.id) ? 'Se quita' : 'Quitar esta'}</button>`}</li>`).join('')}</ul>`}</div>`;
+      el.innerHTML = `
+        <div class="ft-head"><h2>Quitar recetas</h2><span class="muted small">${removals.length} ${removals.length === 1 ? 'eliminación' : 'eliminaciones'}</span></div>
+        <p class="muted small">Busca un item, mira qué recetas lo producen y quita las que no quieras, también las de vanilla y las de otros mods. Se aplica con <code>/reload</code>.</p>
+        ${removals.length ? `<ul class="kjs-rmlist">${list}</ul>` : ''}
+        ${selHTML}
+        <div class="kjs-browser-wrap"><div class="ft-head"><h2>Items</h2></div>
+          <input class="kjs-search" type="search" placeholder="Buscar el item cuyas recetas quieres quitar" value="${esc(q)}" aria-label="Buscar item">
+          <div class="kjs-browser" aria-live="polite"></div></div>
+        <div class="kjs-foot"><span class="muted small">${status ? esc(status) : dirty ? 'Hay cambios sin guardar.' : ''}</span>
+          <button class="btn primary" data-act="save" ${dirty ? '' : 'disabled'}>Guardar en el servidor</button></div>`;
+      drawBrowser();
+    }
+    function drawBrowser() {
+      const box = el.querySelector('.kjs-browser');
+      if (!box) return;
+      box.innerHTML = items.length ? items.map((it) => `<button class="kjs-item ${sel && sel.id === it.id ? 'on' : ''}" data-act="pick" data-id="${esc(it.id)}" title="${esc(it.id)}">${ico(it.id, it.icon)}<span class="kjs-item-t">${esc(it.name)}<span class="muted small block">${esc(it.id)}</span></span></button>`).join('')
+        : '<p class="muted small">Ningún item coincide.</p>';
+    }
+    el.oninput = (e) => { if (e.target.classList.contains('kjs-search')) { q = e.target.value; clearTimeout(timer); timer = setTimeout(search, 180); } };
+    el.onclick = async (e) => {
+      const b = e.target.closest('[data-act]');
+      if (!b || b.disabled) return;
+      const act = b.getAttribute('data-act');
+      if (act === 'pick') {
+        const id = b.getAttribute('data-id'); sel = items.find((x) => x.id === id) || { id }; found = null; draw();
+        try { found = await api(`${base}/kubejs_recipes_for?item=${encodeURIComponent(id)}`); } catch (err) { toast(err.message, 'error'); found = { recipes: [] }; }
+        draw();
+      }
+      if (act === 'del-panel') {
+        if (!window.confirm('¿Borrar esta receta de la lista del panel? Se aplica al guardar el script con el servidor.')) return;
+        try { await api(`${base}/kubejs_recipe_delete`, { method: 'POST', body: { slug: b.getAttribute('data-slug') } }); toast('Receta borrada', 'ok'); found = await api(`${base}/kubejs_recipes_for?item=${encodeURIComponent(sel.id)}`); status = 'Receta borrada. Aplícalo con /reload en la consola del servidor.'; draw(); }
+        catch (err) { toast(err.message, 'error'); }
+      }
+      if (act === 'rm-output') { removals.push({ kind: 'output', value: sel.id }); dirty = true; status = ''; draw(); }
+      if (act === 'rm-id') { removals.push({ kind: 'id', value: b.getAttribute('data-id') }); dirty = true; status = ''; draw(); }
+      if (act === 'undo') { removals.splice(Number(b.getAttribute('data-i')), 1); dirty = true; status = ''; draw(); }
+      if (act === 'save') {
+        b.disabled = true;
+        try { const d = await api(`${base}/kubejs_removals_save`, { method: 'POST', body: { removals } }); removals = d.removals; dirty = false; status = 'Guardado. Aplícalo con /reload en la consola del servidor.'; toast('Eliminaciones guardadas', 'ok'); draw(); }
+        catch (err) { toast(err.message, 'error'); b.disabled = false; }
+      }
+    };
+    init();
+  }
+
+  function kjsScripts(el, s) {
+    const { api, esc, toast } = M();
+    const base = `/api/servers/${encodeURIComponent(s.name)}`;
+    let list = [], cur = null, text = '', dirty = false;
+    const folderLabel = { startup_scripts: 'startup', server_scripts: 'server', client_scripts: 'client' };
+    async function load(keep) {
+      try { list = (await api(`${base}/kubejs_scripts`)).scripts; } catch (e) { el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+      if (keep && cur) { /* mantiene el script abierto */ } else if (!cur && list.length) await open(list[0].path);
+      draw();
+    }
+    async function open(path) {
+      try { const d = await api(`${base}/kubejs_script?path=${encodeURIComponent(path)}`); cur = d; text = d.text; dirty = false; } catch (e) { toast(e.message, 'error'); }
+    }
+    function draw() {
+      const groups = Object.keys(folderLabel).map((f) => {
+        const rows = list.filter((x) => x.folder === f);
+        return `<div class="kjs-files-group"><span class="muted small">${esc(f)}</span>${rows.map((x) =>
+          `<button class="kjs-file ${cur && cur.path === x.path ? 'on' : ''}" data-act="open" data-path="${esc(x.path)}">${esc(x.path.slice(f.length + 1))}${x.generated ? ' <span class="chip">generado</span>' : ''}</button>`).join('') || '<span class="muted small block">Sin scripts</span>'}</div>`;
+      }).join('');
+      const folder = cur ? cur.path.split('/')[0] : '';
+      el.innerHTML = `<div class="kjs-scripts">
+        <aside class="kjs-files">${groups}
+          <div class="kjs-newfile"><select class="kjs-nfolder" aria-label="Carpeta">${Object.keys(folderLabel).map((f) => `<option value="${f}">${esc(f)}</option>`).join('')}</select>
+            <input class="kjs-nname" placeholder="nombre.js" maxlength="64" aria-label="Nombre del script">
+            <button class="btn sm" data-act="new">Crear</button></div></aside>
+        <section class="kjs-editorpane">${cur ? `
+          <div class="ft-head"><h2>${esc(cur.path)}</h2>
+            <div class="ft-actions">${cur.generated ? '' : `<button class="btn sm danger" data-act="delete">Borrar</button><button class="btn sm primary" data-act="save" ${dirty ? '' : 'disabled'}>Guardar</button>`}</div></div>
+          <p class="muted small">${esc(KJS_FOLDERS[folder] || '')}${cur.generated ? ' Este script lo genera el panel desde la vista Recetas y no se edita aquí.' : ''}</p>
+          <textarea class="kjs-code" spellcheck="false" ${cur.generated ? 'readonly' : ''} aria-label="Código del script">${esc(text)}</textarea>`
+          : '<p class="muted">Elige un script o crea uno nuevo.</p>'}</section></div>`;
+    }
+    el.oninput = (e) => {
+      if (e.target.classList.contains('kjs-code')) { text = e.target.value; if (!dirty) { dirty = true; const b = el.querySelector('[data-act=save]'); if (b) b.disabled = false; } }
+    };
+    el.onkeydown = (e) => {
+      if (e.key === 'Tab' && e.target.classList.contains('kjs-code') && !e.target.readOnly) {
+        e.preventDefault(); const t = e.target, a = t.selectionStart;
+        t.setRangeText('  ', a, t.selectionEnd, 'end'); text = t.value; dirty = true;
+        const b = el.querySelector('[data-act=save]'); if (b) b.disabled = false;
+      }
+    };
+    el.onclick = async (e) => {
+      const b = e.target.closest('[data-act]');
+      if (!b) return;
+      const act = b.getAttribute('data-act');
+      if (act === 'open') {
+        if (dirty && !window.confirm('Hay cambios sin guardar en este script. ¿Descartarlos?')) return;
+        await open(b.getAttribute('data-path')); draw();
+      }
+      if (act === 'save') {
+        try { await api(`${base}/kubejs_script_save`, { method: 'POST', body: { path: cur.path, text } }); dirty = false; toast('Script guardado', 'ok'); draw(); }
+        catch (err) { toast(err.message, 'error'); }
+      }
+      if (act === 'new') {
+        const folder = el.querySelector('.kjs-nfolder').value, filename = el.querySelector('.kjs-nname').value.trim();
+        try { await api(`${base}/kubejs_script_new`, { method: 'POST', body: { folder, filename } }); cur = null; dirty = false; await load(); await open(`${folder}/${filename}`); draw(); toast('Script creado', 'ok'); }
+        catch (err) { toast(err.message, 'error'); }
+      }
+      if (act === 'delete') {
+        if (!window.confirm(`¿Borrar ${cur.path}? No se puede deshacer.`)) return;
+        try { await api(`${base}/kubejs_script_delete`, { method: 'POST', body: { path: cur.path } }); cur = null; dirty = false; toast('Script borrado', 'ok'); await load(); }
+        catch (err) { toast(err.message, 'error'); }
+      }
+    };
+    load();
+  }
+
+  function kjsDiag(el, s) {
+    const { api, esc } = M();
+    (async () => {
+      let d;
+      try { d = await api(`/api/servers/${encodeURIComponent(s.name)}/kubejs_diag`); } catch (e) { el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+      const map = KJS_MAP.map(([g, rows]) => `<div class="ft-section"><div class="ft-head"><h2>${esc(g)}</h2></div>
+        <table class="ft-table"><tbody>${rows.map(([name, st]) => `<tr><td>${esc(name)}</td><td><span class="chip ${esc(KJS_STATE[st][1])}">${esc(KJS_STATE[st][0])}</span></td></tr>`).join('')}</tbody></table></div>`).join('');
+      el.innerHTML = `
+        <div class="ft-head"><h2>Estado de KubeJS</h2></div>
+        <p class="muted small">${d.jars.map(esc).join(' · ') || 'Sin jars de KubeJS'}</p>
+        <p class="small">Scripts: <strong>${d.counts.startup_scripts}</strong> startup · <strong>${d.counts.server_scripts}</strong> server · <strong>${d.counts.client_scripts}</strong> client</p>
+        <div class="ft-section"><div class="ft-head"><h2>Avisos y errores en el log</h2></div>
+          ${d.log.length ? `<pre class="ft-pre">${esc(d.log.join('\n'))}</pre>` : '<p class="muted">Sin avisos ni errores de KubeJS en el log actual.</p>'}</div>
+        <div class="ft-head"><h2>Qué se gestiona desde aquí</h2></div>
+        <p class="muted small">Lo marcado como código se escribe en la vista Scripts. Lo visual se hace con formularios.</p>${map}`;
+    })();
+  }
+
+  // ---------- Recetas KubeJS (mesa de crafteo y hornos, todo visual) ----------
+  function recetas(el, s) {
+    const { api, esc, toast } = M();
+    const SLOTS = 9;
+    const TYPES = {
+      shaped: { label: 'Mesa · con forma', craft: true, hint: 'Con forma: la posición de los items importa.' },
+      shapeless: { label: 'Mesa · sin forma', craft: true, hint: 'Sin forma: el orden de las casillas no importa.' },
+      smelting: { label: 'Horno', cook: 200 },
+      blasting: { label: 'Horno alto', cook: 200 },
+      smoking: { label: 'Ahumador', cook: 200 },
+      campfire: { label: 'Fogata', cook: 600 },
+      stonecutting: { label: 'Cortapiedras', cut: true },
+    };
+    const isCraft = (t) => !!(TYPES[t] && TYPES[t].craft);
+    const isCook = (t) => !!(TYPES[t] && TYPES[t].cook);
+    const single = (t) => !isCraft(t);
+    let recipes = [], total = 0, script = false, kubejs = true, vanilla = null, fetching = false;
+    let items = [], q = '', timer = null;
+    const info = {};                 // id -> { name, icon }
+    let edit = null;                 // { index, id, type, grid[9], result, count, xp, time }
+    let target = null;               // 'g0'..'g8' | 'out' | null
+    let status = '', dirty = false;
+    const fresh = () => ({ index: -1, id: '', type: 'shaped', grid: Array(SLOTS).fill(null), result: null, count: 1, xp: 0, time: 200 });
+    const base = `/api/servers/${encodeURIComponent(s.name)}`;
+
+    const label = (id) => (info[id] ? info[id].name : id);
+    const icon = (id, cls = 'kjs-ico') => {
+      const i = info[id];
+      if (i && i.icon) return `<img class="${cls}" src="${esc(i.icon)}" alt="" loading="lazy">`;
+      const ch = (id || '?').split(':').pop().charAt(0).toUpperCase();
+      return `<span class="${cls} kjs-ph" aria-hidden="true">${esc(ch)}</span>`;
+    };
+    function remember(list) { list.forEach((it) => { info[it.id] = { name: it.name, icon: it.icon }; }); }
+    async function search() {
+      try {
+        const d = await api(`${base}/kubejs_items?q=${encodeURIComponent(q)}&limit=120`);
+        items = d.items; remember(items);
+      } catch (e) { toast(e.message, 'error'); }
+      drawBrowser();
+    }
+    async function load() {
+      let d;
+      try { d = await api(`${base}/kubejs_state`); }
+      catch (e) { el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+      recipes = d.recipes; total = d.items; script = d.script; kubejs = d.kubejs; vanilla = d.vanilla || null;
+      const need = [...new Set(recipes.flatMap((r) => [r.result.id, ...r.grid.filter(Boolean)]))].filter((id) => !info[id]);
+      await Promise.all(need.map(async (id) => {
+        try { const x = await api(`${base}/kubejs_items?q=${encodeURIComponent(id)}&limit=120`); remember(x.items); } catch (e) { /* sin icono */ }
+      }));
+      draw();
+    }
+    function draw() {
+      if (!kubejs) { el.innerHTML = `<p class="muted">Este servidor no tiene KubeJS. Instálalo y arráncalo una vez para poder crear recetas.</p>`; return; }
+      el.innerHTML = `
+        <div class="ft-head"><h2>Recetas KubeJS</h2>
+          <span class="muted small">${total} items en los mods · ${recipes.length} ${recipes.length === 1 ? 'receta' : 'recetas'}</span></div>
+        <p class="muted small">Se guardan en el servidor y se aplican con <code>/reload</code> en la consola. Las recetas de fábrica no se tocan (para quitarlas usa «Quitar recetas»).</p>
+        ${vanilla && vanilla.version && !vanilla.client ? `<div class="kjs-banner"><span>Los items de vanilla salen sin icono. Descarga el cliente oficial de Minecraft ${esc(vanilla.version)} (unos 27 MB, se guarda una vez) para ver sus texturas.</span>
+          <button class="btn sm primary" data-act="vanilla" ${fetching ? 'disabled' : ''}>${fetching ? 'Descargando…' : 'Descargar texturas'}</button></div>` : ''}
+        <div class="kjs-list">${recipes.map((r, i) => `
+          <button class="kjs-card ${edit && edit.index === i ? 'on' : ''}" data-act="open" data-i="${i}">
+            ${icon(r.result.id)}
+            <span class="kjs-card-t"><strong>${esc(label(r.result.id))}</strong>
+              <span class="muted small">${r.result.count}× · ${esc((TYPES[r.type] || {}).label || r.type)} · ${esc(r.id)}</span></span></button>`).join('')}
+          <button class="kjs-card kjs-new" data-act="new">+ Nueva receta</button></div>
+        ${recipes.length ? '' : '<p class="muted small">Todavía no hay recetas. Crea la primera con el botón de arriba.</p>'}
+        ${edit ? editorHTML() : ''}
+        <div class="kjs-browser-wrap"><div class="ft-head"><h2>Items</h2></div>
+          <input class="kjs-search" type="search" placeholder="Buscar por nombre o id (ej. «cobre», «create:»)" value="${esc(q)}" aria-label="Buscar item">
+          <div class="kjs-browser" aria-live="polite"></div></div>
+        <div class="kjs-foot">
+          <span class="muted small">${status ? esc(status) : (dirty ? 'Hay cambios sin guardar.' : (script ? 'Script generado en el servidor.' : 'Todavía no hay script generado.'))}</span>
+          <button class="btn primary" data-act="save" ${dirty ? '' : 'disabled'}>Guardar en el servidor</button>
+        </div>`;
+      drawBrowser();
+    }
+    function typeChips() {
+      return Object.entries(TYPES).map(([k, t]) => `<button class="${edit.type === k ? 'on' : ''}" data-act="type" data-type="${k}" aria-pressed="${edit.type === k}">${esc(t.label)}</button>`).join('');
+    }
+    function editorHTML() {
+      const craft = isCraft(edit.type);
+      const cell = (i) => {
+        const id = edit.grid[i];
+        return `<button class="kjs-slot ${target === 'g' + i ? 'on' : ''}" data-act="slot" data-slot="g${i}"
+          aria-label="${id ? esc(label(id)) : 'casilla vacía'}">${id ? icon(id) : '<span class="kjs-empty"></span>'}</button>`;
+      };
+      const inputs = craft
+        ? `<div class="kjs-grid">${Array.from({ length: SLOTS }, (_, i) => cell(i)).join('')}</div>`
+        : `<div class="kjs-single">${cell(0)}<span class="muted small">Ingrediente</span></div>`;
+      const outBtn = `<button class="kjs-slot big ${target === 'out' ? 'on' : ''}" data-act="slot" data-slot="out"
+          aria-label="${edit.result ? esc(label(edit.result)) : 'resultado vacío'}">${edit.result ? icon(edit.result, 'kjs-ico big') : '<span class="kjs-empty"></span>'}</button>`;
+      const timeSec = (edit.time / 20).toFixed(edit.time % 20 ? 2 : 0);
+      const extras = [];
+      if (isCook(edit.type) || edit.type === 'stonecutting') {
+        extras.push(`<label class="kjs-field small">Experiencia<input class="kjs-xp" type="number" min="0" max="100" step="0.05" value="${esc(edit.xp)}"></label>`);
+      }
+      if (isCook(edit.type)) {
+        extras.push(`<label class="kjs-field small">Tiempo (s)<input class="kjs-time" type="number" min="0.05" max="300" step="0.5" value="${esc(timeSec)}"></label>`);
+      }
+      return `<div class="kjs-editor">
+        <div class="kjs-row">
+          <label class="kjs-field">Nombre de la receta<input class="kjs-name" value="${esc(edit.id)}" maxlength="40" placeholder="ej. cobre_bloque"></label>
+        </div>
+        <div class="kjs-types" role="group" aria-label="Tipo de receta">${typeChips()}</div>
+        <div class="kjs-craft">
+          ${inputs}
+          <span class="kjs-arrow" aria-hidden="true">→</span>
+          <div class="kjs-out">${outBtn}
+            <label class="kjs-field small">Cantidad<input class="kjs-count" type="number" min="1" max="64" value="${esc(edit.count)}"></label>
+          </div>
+        </div>
+        ${extras.length ? `<div class="kjs-extras">${extras.join('')}</div>` : ''}
+        <p class="muted small">Elige una casilla y luego un item de la lista. ${esc(TYPES[edit.type].hint || '')}</p>
+        <div class="ft-actions">
+          <button class="btn" data-act="clear" ${target ? '' : 'disabled'}>Casilla vacía</button>
+          <button class="btn" data-act="cancel">Cancelar</button>
+          <button class="btn primary" data-act="keep">Añadir a la lista</button>
+        </div></div>`;
+    }
+    function drawBrowser() {
+      const box = el.querySelector('.kjs-browser');
+      if (!box) return;
+      box.innerHTML = items.length ? items.map((it) => `<button class="kjs-item" data-act="pick" data-id="${esc(it.id)}"
+          title="${esc(it.id)}">${icon(it.id)}<span class="kjs-item-t">${esc(it.name)}<span class="muted small block">${esc(it.id)}</span></span></button>`).join('')
+        : '<p class="muted small">Ningún item coincide.</p>';
+    }
+    function pick(id) {
+      if (!edit) edit = fresh();
+      if (!target) {
+        const free = single(edit.type) ? (edit.grid[0] ? -1 : 0) : edit.grid.findIndex((c) => !c);
+        target = free >= 0 ? 'g' + free : 'out';
+      }
+      if (target === 'out') edit.result = id;
+      else edit.grid[Number(target.slice(1))] = id;
+      if (!edit.id && edit.result) edit.id = edit.result.split(':').pop().replace(/[^a-z0-9_]/g, '_').slice(0, 40);
+      dirty = true; status = ''; target = null; draw();
+    }
+    function readFields() {
+      const v = (sel, d) => { const x = el.querySelector(sel); return x ? x.value : d; };
+      edit.id = v('.kjs-name', edit.id);
+      edit.count = Number(v('.kjs-count', edit.count)) || 1;
+      edit.xp = Number(v('.kjs-xp', edit.xp)) || 0;
+      const sec = Number(v('.kjs-time', edit.time / 20));
+      edit.time = Math.round((sec || 0) * 20) || 1;
+    }
+    function commit() {
+      readFields();
+      if (!edit.result) return toast('Elige el resultado', 'error');
+      const filled = isCraft(edit.type) ? edit.grid.some(Boolean) : !!edit.grid[0];
+      if (!filled) return toast(isCraft(edit.type) ? 'Pon al menos un ingrediente' : 'Pon el ingrediente', 'error');
+      const r = { id: edit.id.trim(), type: edit.type, grid: isCraft(edit.type) ? edit.grid.slice() : [edit.grid[0], ...Array(8).fill(null)],
+        result: { id: edit.result, count: edit.count } };
+      if (single(edit.type)) r.xp = edit.xp;
+      if (isCook(edit.type)) r.time = edit.time;
+      if (edit.index >= 0) recipes[edit.index] = r; else recipes.push(r);
+      edit = null; target = null; dirty = true; status = 'Receta lista. Guarda la lista en el servidor para aplicarla.'; draw();
+    }
+    el.oninput = (e) => {
+      if (e.target.classList.contains('kjs-search')) { q = e.target.value; clearTimeout(timer); timer = setTimeout(search, 180); }
+      if (edit && e.target.classList.contains('kjs-name')) { edit.id = e.target.value; dirty = true; }
+    };
+    el.onclick = async (e) => {
+      const b = e.target.closest('[data-act]');
+      if (!b) return;
+      const act = b.getAttribute('data-act');
+      if (act === 'vanilla') {
+        fetching = true; draw();
+        try { vanilla = await api(`${base}/kubejs_vanilla_fetch`, { method: 'POST', body: {} }); toast('Texturas de vanilla listas', 'ok'); await search(); } catch (err) { toast(err.message, 'error'); }
+        fetching = false; draw();
+      }
+      if (act === 'new') { edit = fresh(); target = null; status = ''; draw(); }
+      if (act === 'open') {
+        const i = Number(b.getAttribute('data-i')); const r = recipes[i];
+        edit = { index: i, id: r.id, type: r.type, grid: r.grid.slice(), result: r.result.id, count: r.result.count,
+          xp: r.xp || 0, time: r.time || (TYPES[r.type] && TYPES[r.type].cook) || 200 };
+        target = null; draw();
+      }
+      if (act === 'type') {
+        readFields();
+        const t = b.getAttribute('data-type');
+        edit.type = t;
+        if (single(t)) edit.grid = [edit.grid[0], ...Array(8).fill(null)];
+        if (TYPES[t].cook && !edit.time) edit.time = TYPES[t].cook;
+        target = null; draw();
+      }
+      if (act === 'slot') { const t = b.getAttribute('data-slot'); target = target === t ? null : t; draw(); }
+      if (act === 'pick') pick(b.getAttribute('data-id'));
+      if (act === 'clear') {
+        if (target === 'out') edit.result = null; else if (target) edit.grid[Number(target.slice(1))] = null;
+        target = null; dirty = true; draw();
+      }
+      if (act === 'cancel') { edit = null; target = null; draw(); }
+      if (act === 'keep') commit();
+      if (act === 'save') {
+        b.disabled = true;
+        try {
+          const d = await api(`${base}/kubejs_save`, { method: 'POST', body: { recipes } });
+          recipes = d.recipes; script = d.script; dirty = false; edit = null; target = null;
+          status = 'Guardado. Aplícalo con /reload en la consola del servidor.'; toast('Recetas guardadas', 'ok'); draw();
+        } catch (err) { toast(err.message, 'error'); b.disabled = false; }
+      }
+    };
+    load().then(search);
+  }
+
   // ---------- Propuestas de mods ----------
   function propuestas(el, s) {
     const { api, esc, toast } = M();
@@ -642,6 +1120,8 @@
   P.diagnostico = { render: diagnostico };
   P.avisos = { render: avisos };
   P.estadisticas = { render: estadisticas };
+  P.rendimiento = { render: rendimiento };
+  P.kubejs = { render: kubejsSection };
   P.propuestas = { render: propuestas };
   P.actualizar = { render: actualizar };
   P.pruebas = { render: pruebas };

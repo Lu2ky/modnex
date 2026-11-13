@@ -558,7 +558,7 @@ function tabsFor(s) {
   if (s.permissions.datapacks) add('datapacks', 'Datapacks', 'contenido');
   if (s.permissions.textures) add('textures', 'Texturas', 'contenido');
   if (isAdmin()) add('client', 'Cliente', 'distribuir');
-  for (const p of (state.plugins && state.plugins.tabs) || []) if (p.perm === '*' ? (isAdmin() || Object.values(s.permissions).some(Boolean)) : p.perm ? (isAdmin() || s.permissions[p.perm]) : (!p.admin || isAdmin())) add('x-' + p.id, p.label, p.group || 'mas');
+  for (const p of (state.plugins && state.plugins.tabs) || []) if ((!p.addon || (s.addons || []).includes(p.addon)) && (p.perm === '*' ? (isAdmin() || Object.values(s.permissions).some(Boolean)) : p.perm ? (isAdmin() || s.permissions[p.perm]) : (!p.admin || isAdmin()))) add('x-' + p.id, p.label, p.group || 'mas');
   const order = GROUPS.map(([g]) => g);
   t.sort((x, y) => order.indexOf(x.group) - order.indexOf(y.group));   // estable: dentro de cada grupo se conserva el orden
   if (t.length) t.unshift({ id: 'summary', label: 'Resumen', group: 'operar' });

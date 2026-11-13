@@ -68,3 +68,95 @@
 .vt-row.is-gone .vt-title strong { font-weight: 500; }
 .vt-dot.gone { fill: var(--bg); stroke-dasharray: 2 2; }
 @media (prefers-contrast: more) { .vt-row.is-gone { opacity: 1; } }
+
+.ft-pre { margin: 0; padding: 12px 14px; max-height: 320px; overflow: auto; white-space: pre-wrap; font: 12.5px/1.5 ui-monospace, monospace; background: var(--panel-2, rgba(127,127,127,.1)); border-radius: 8px; }
+
+/* Recetas KubeJS */
+.kjs-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
+.kjs-card { display: flex; align-items: center; gap: 10px; min-width: 220px; padding: 8px 12px; text-align: left; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); cursor: pointer; transition: border-color 160ms ease-out, background-color 160ms ease-out; }
+.kjs-card:hover { border-color: var(--accent); }
+.kjs-card.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.kjs-card-t { display: flex; flex-direction: column; min-width: 0; }
+.kjs-card-t strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kjs-new { justify-content: center; min-width: 160px; border-style: dashed; color: var(--muted); }
+.kjs-ico { width: 32px; height: 32px; image-rendering: pixelated; flex: none; }
+.kjs-ico.big { width: 48px; height: 48px; }
+.kjs-ph { display: inline-grid; place-items: center; border-radius: 6px; background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
+.kjs-editor { border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 0 0 16px; background: var(--surface); }
+.kjs-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+.kjs-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.kjs-field.small { font-size: 12px; }
+.kjs-field input, .kjs-name { padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
+.kjs-name { min-width: 240px; }
+.kjs-count, .kjs-xp, .kjs-time { width: 96px; }
+.kjs-types { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.kjs-types button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); cursor: pointer; transition: background-color 160ms ease-out, color 160ms ease-out; }
+.kjs-types button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.kjs-craft { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 6px 0 12px; }
+.kjs-grid { display: grid; grid-template-columns: repeat(3, 56px); gap: 4px; }
+.kjs-single { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.kjs-slot { width: 56px; height: 56px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); cursor: pointer; transition: border-color 160ms ease-out, box-shadow 160ms ease-out; }
+.kjs-slot.big { width: 72px; height: 72px; }
+.kjs-slot:hover { border-color: var(--accent); }
+.kjs-slot.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.kjs-empty { display: block; width: 28px; height: 28px; border: 1px dashed var(--line); border-radius: 6px; }
+.kjs-arrow { font-size: 22px; color: var(--muted); }
+.kjs-out { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.kjs-extras { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+.kjs-browser { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; max-height: 420px; overflow: auto; padding: 4px; }
+.kjs-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; min-width: 0; text-align: left; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text); cursor: pointer; transition: background-color 160ms ease-out, border-color 160ms ease-out; }
+.kjs-item:hover, .kjs-item:focus-visible { background: var(--accent-soft); border-color: var(--accent); outline: none; }
+.kjs-item-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.kjs-search { width: 100%; margin: 8px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
+.kjs-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+
+/* KubeJS: navegación interna y editor de scripts */
+.kjs-nav { display: flex; gap: 6px; margin: 4px 0 14px; }
+.kjs-nav button { padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); cursor: pointer; transition: background-color 160ms ease-out, color 160ms ease-out; }
+.kjs-nav button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.kjs-scripts { display: grid; grid-template-columns: 240px 1fr; gap: 16px; align-items: start; }
+.kjs-files { display: flex; flex-direction: column; gap: 12px; }
+.kjs-files-group { display: flex; flex-direction: column; gap: 2px; }
+.kjs-file { text-align: left; padding: 6px 10px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: background-color 160ms ease-out; }
+.kjs-file:hover { background: var(--accent-soft); }
+.kjs-file.on { border-color: var(--accent); background: var(--accent-soft); }
+.kjs-newfile { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+.kjs-newfile select, .kjs-newfile input { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
+.kjs-code { width: 100%; min-height: 420px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); font: 13px/1.55 ui-monospace, monospace; tab-size: 2; resize: vertical; }
+@media (max-width: 820px) { .kjs-scripts { grid-template-columns: 1fr; } }
+
+/* KubeJS: quitar recetas y aviso de vanilla */
+.kjs-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; margin: 8px 0 12px; border: 1px solid var(--line); border-left: 4px solid var(--warn); border-radius: 10px; background: var(--surface); font-size: 13px; }
+.kjs-rmlist, .kjs-recipes { list-style: none; margin: 8px 0 14px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.kjs-rm { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.kjs-recipe { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.kjs-recipe-t { grid-column: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kjs-recipe > button { grid-row: 1 / span 2; grid-column: 2; }
+.kjs-ing { grid-column: 1; display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.kjs-ing-i { display: inline-flex; align-items: center; gap: 4px; }
+.kjs-ico.sm { width: 20px; height: 20px; }
+.kjs-item.on { border-color: var(--accent); background: var(--accent-soft); }
+
+.kjs-cats { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.kjs-cats button { padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); cursor: pointer; transition: background-color 160ms ease-out, color 160ms ease-out; }
+.kjs-cats button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.kjs-n { margin-left: 4px; font-size: 11px; opacity: .8; }
+.kjs-rules { list-style: none; margin: 8px 0 14px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.kjs-rule { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.kjs-rule.off { opacity: .55; }
+.kjs-rule-b { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.kjs-rule-a { display: flex; align-items: center; gap: 8px; }
+.kjs-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.kjs-field-blk { display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; }
+.kjs-lab { font-size: 13px; color: var(--muted); }
+.kjs-pickrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.kjs-slot-n { font-size: 13px; }
+.kjs-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.kjs-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; background: var(--bg); }
+.kjs-x { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 6px; }
+.kjs-add { width: auto; height: auto; padding: 6px 12px; }
+.kjs-tagin, .kjs-wide { padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
+.kjs-wide { flex: 1; min-width: 220px; }
+.kjs-act { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.kjs-act select, .kjs-field select { padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
+.kjs-pickbox { margin-top: 8px; }
