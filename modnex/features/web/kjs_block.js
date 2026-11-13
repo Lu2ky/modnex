@@ -38,6 +38,11 @@
   // Caras del modelo: 4 vértices en el espacio del modelo (0..16), esquinas de textura, normal y textura.
   function buildFaces(model) {
     const faces = [];
+    if (model.quads) {                                // mob: caras ya calculadas en el servidor, con la textura normalizada
+      const dirOf = ([x, y, z]) => (Math.abs(y) > Math.abs(x) && Math.abs(y) > Math.abs(z) ? (y > 0 ? 'up' : 'down') : Math.abs(x) > Math.abs(z) ? (x > 0 ? 'east' : 'west') : (z > 0 ? 'south' : 'north'));
+      for (const q of model.quads) faces.push({ dir: dirOf(q.n), t: q.t, tint: false, ent: true, verts: q.p.map((p, i) => ({ p, uv: q.uv[i] })), normal: q.n });
+      return faces;
+    }
     for (const el of model.elements) {
       const quads = faceQuads(el.from, el.to);
       for (const [dir, face] of Object.entries(el.faces)) {
@@ -108,7 +113,7 @@
     const batches = new Map();
     for (const f of model.faces3d) {
       const tx = loaded[f.t]; if (!tx) continue;
-      const b = batches.get(f.t) || { tex: tx.tex, data: [] }, k = tx.w / tx.h, sh = shadeOf(f.normal);
+      const b = batches.get(f.t) || { tex: tx.tex, data: [] }, k = f.ent ? 1 : tx.w / tx.h, sh = shadeOf(f.normal);
       const v = f.verts.map((q) => [(q.p[0] - 8) / 16, (q.p[1] - 8) / 16, (q.p[2] - 8) / 16, q.uv[0] / 16, (q.uv[1] / 16) * k, sh, f.tint ? 1 : 0]);
       [0, 1, 2, 0, 2, 3].forEach((i) => b.data.push(...v[i]));
       batches.set(f.t, b);
@@ -156,17 +161,17 @@
         return { x: N * (0.5 + p[0]), y: N * (0.5 - p[1]), z: p[2], uv: q.uv };
       });
       const cross = (pts[1].x - pts[0].x) * (pts[3].y - pts[0].y) - (pts[1].y - pts[0].y) * (pts[3].x - pts[0].x);
-      if (cross > 0.01) faces.push({ pts, dir: f.dir, t: f.t, z: pts.reduce((s, q) => s + q.z, 0) / 4 });
+      if (cross > 0.01) faces.push({ pts, dir: f.dir, t: f.t, ent: f.ent, z: pts.reduce((s, q) => s + q.z, 0) / 4 });
     }
     faces.sort((a, b) => a.z - b.z);
     for (const f of faces) {
       const img = model.textures[f.t] && (await loadImg(model.textures[f.t])); if (!img) continue;
-      const k = img.width / 16, [P0, P1, , P3] = f.pts;
-      const a1 = [(P1.uv[0] - P0.uv[0]) * k, (P1.uv[1] - P0.uv[1]) * k], a3 = [(P3.uv[0] - P0.uv[0]) * k, (P3.uv[1] - P0.uv[1]) * k], det = a1[0] * a3[1] - a1[1] * a3[0];
+      const k = img.width / 16, ky = f.ent ? img.height / 16 : k, [P0, P1, , P3] = f.pts;
+      const a1 = [(P1.uv[0] - P0.uv[0]) * k, (P1.uv[1] - P0.uv[1]) * ky], a3 = [(P3.uv[0] - P0.uv[0]) * k, (P3.uv[1] - P0.uv[1]) * ky], det = a1[0] * a3[1] - a1[1] * a3[0];
       if (Math.abs(det) < 1e-6) continue;
       const p1 = [P1.x - P0.x, P1.y - P0.y], p3 = [P3.x - P0.x, P3.y - P0.y];
       const a = (p1[0] * a3[1] - p3[0] * a1[1]) / det, c = (p3[0] * a1[0] - p1[0] * a3[0]) / det, b = (p1[1] * a3[1] - p3[1] * a1[1]) / det, dd = (p3[1] * a1[0] - p1[1] * a3[0]) / det;
-      const sx = P0.uv[0] * k, sy = P0.uv[1] * k, xs = f.pts.map((q) => q.uv[0] * k), ys = f.pts.map((q) => q.uv[1] * k);
+      const sx = P0.uv[0] * k, sy = P0.uv[1] * ky, xs = f.pts.map((q) => q.uv[0] * k), ys = f.pts.map((q) => q.uv[1] * ky);
       const x0 = Math.min(...xs), y0 = Math.min(...ys), w = Math.max(...xs) - x0, h = Math.max(...ys) - y0;
       if (w <= 0 || h <= 0 || y0 < 0 || x0 < 0 || x0 + w > img.width + 0.01 || y0 + h > img.height + 0.01) continue;
       ctx.save(); ctx.setTransform(a, b, c, dd, P0.x - (a * sx + c * sy), P0.y - (b * sx + dd * sy)); ctx.drawImage(img, x0, y0, w, h, x0, y0, w, h); ctx.restore();
