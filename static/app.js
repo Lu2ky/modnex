@@ -88,6 +88,7 @@ function openDialog(html, wide = false) {
   d.addEventListener('close', () => { if (d.querySelector('[data-user]')) state.draft = null; d.inert = true; setTimeout(() => d.remove(), 160); });  // deja que acabe la salida de 120 ms
   document.body.append(d);
   d.showModal();
+  d.scrollTop = 0;     // en pantallas pequeñas el diálogo no debe abrirse desplazado hasta el campo enfocado
   return d;
 }
 
@@ -164,6 +165,7 @@ async function doLogin(form) {
 /* ---------- carcasa y navegación ---------- */
 function parseHash() {
   const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  if (parts[0] === 'servers') return { kind: 'servers' };
   if (parts[0] === 'users' && isAdmin()) return { kind: 'users' };
   if (parts[0] === 'audit' && isAdmin()) return { kind: 'audit' };
   if (parts[0] === 'p' && parts[1]) return { kind: 'plugin', id: parts[1] };
@@ -175,11 +177,40 @@ function parseHash() {
 function route() {
   let v = parseHash();
   if (v.kind === 'auto' || (v.kind === 'server' && !server(v.name))) {
-    v = state.servers.length ? { kind: 'server', name: state.servers[0].name } : { kind: 'empty' };
+    // En móvil se entra por la lista de servidores; en escritorio, por el primer servidor.
+    v = isMobileNav() ? { kind: 'servers' } : state.servers.length ? { kind: 'server', name: state.servers[0].name } : { kind: 'empty' };
   }
   state.view = v;
   renderSide();
   renderMain();
+}
+
+// Iconos del dock móvil (mismo trazo que el resto de iconos del panel).
+const DOCK_ICONS = {
+  servers: '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  audit: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  page: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+};
+const dockIcon = (name) => `<svg class="dock-ico" viewBox="0 0 24 24" aria-hidden="true">${DOCK_ICONS[name] || DOCK_ICONS.page}</svg>`;
+const isMobileNav = () => matchMedia('(max-width: 820px)').matches;
+
+// Botones de tema, contraseña y salir. En escritorio van en el pie de la barra; en móvil, arriba a la derecha.
+function accountButtonsHTML(light) {
+  return `
+        <button class="ibtn theme-btn" data-action="theme" aria-label="${light ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}" title="${light ? 'Modo oscuro' : 'Modo claro'}">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <g class="ico-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></g>
+            <g class="ico-moon"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></g>
+          </svg>
+        </button>
+        <button class="ibtn key-btn" data-action="password" aria-label="Cambiar contraseña" title="Contraseña">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg>
+        </button>
+        <button class="ibtn exit-btn" data-action="logout" aria-label="Salir" title="Salir">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path class="ico-arrow" d="M16 17l5-5-5-5M21 12H9"/></svg>
+        </button>`;
 }
 
 function sideHTML() {
@@ -196,24 +227,31 @@ function sideHTML() {
       <span class="srv-meta"><span class="srv-state">${({ on: 'en marcha', starting: 'arrancando', error: 'error', '': 'parado' })[ledClass(s)]}</span></span>
       <span class="led ${ledClass(s)}" data-led="side:${esc(s.name)}" aria-hidden="true"></span>
     </a>`).join('') || '<p class="muted pad">Sin servidores asignados.</p>';
+  // Elemento «Servidores» del dock móvil: en escritorio no se ve, porque la lista de servidores está en la barra.
+  const dockServers = `<a class="nav-item dock-only${v.kind === 'servers' || v.kind === 'server' ? ' dock-on' : ''}" href="#/servers" aria-label="Servidores">${dockIcon('servers')}<span class="lbl-short">Servidores</span></a>`;
+  const tab = (cls, on, href, icon, long, short) => `<a class="nav-item${on ? ' on' : ''}${cls}" href="${href}" aria-label="${esc(long)}">${dockIcon(icon)}<span class="lbl-long">${esc(long)}</span><span class="lbl-short">${esc(short)}</span></a>`;
   const admin = isAdmin() ? `
     <p class="side-title">Administración</p>
-    <a class="nav-item${v.kind === 'users' ? ' on' : ''}" href="#/users">Usuarios y permisos</a>
-    <a class="nav-item${v.kind === 'audit' ? ' on' : ''}" href="#/audit">Actividad</a>` : '';
+    ${tab('', v.kind === 'users', '#/users', 'users', 'Usuarios y permisos', 'Usuarios')}
+    ${tab('', v.kind === 'audit', '#/audit', 'audit', 'Actividad', 'Actividad')}` : '';
   const pages = ((state.plugins && state.plugins.pages) || []).filter((p) => !p.admin || isAdmin())
-    .map((p) => `<a class="nav-item${v.kind === 'plugin' && v.id === p.id ? ' on' : ''}" href="#/p/${esc(p.id)}">${esc(p.label)}</a>`).join('');
+    .map((p) => tab('', v.kind === 'plugin' && v.id === p.id, `#/p/${esc(p.id)}`, /seguridad/i.test(p.id + p.label) ? 'shield' : 'page', p.label, p.label)).join('');
   const light = document.documentElement.dataset.theme === 'light';
   return `
     <div class="brand"><img class="brand-img" src="/assets/brand/modnex-mark.png" alt="" width="34" height="28"><span>MODNEX</span></div>
-    <nav class="side-nav" aria-label="Servidores">
-      <p class="side-title">Servidores</p>${isAdmin() ? '<button class="btn sm new-srv" data-action="new-server">+ Nuevo servidor</button>' : ''}${items}${admin}${pages ? `<p class="side-title">Cuenta</p>${pages}` : ''}
+    <div class="top-actions">${accountButtonsHTML(light)}</div>
+    <div class="side-head"><p class="side-title">Servidores</p>${isAdmin() ? '<button class="btn sm new-srv" data-action="new-server">+ Nuevo servidor</button>' : ''}</div>
+    <nav class="side-nav${isMobileNav() ? ' has-notch' : ''}" aria-label="Navegación">
+      ${dockServers}${items}${admin}${pages ? `<p class="side-title">Cuenta</p>${pages}` : ''}
+      <svg class="dock-notch" aria-hidden="true" focusable="false"><path></path></svg>
+      <span class="dock-ball" aria-hidden="true"></span>
     </nav>
     <div class="side-foot">
-      <div class="who"><strong>${esc(state.me.username)}</strong><span class="muted">${isAdmin() ? 'Administrador' : 'Usuario'}</span></div>
-      <div class="foot-actions">
-        <button class="btn ghost sm" data-action="theme" aria-label="Cambiar tema">${light ? 'Modo oscuro' : 'Modo claro'}</button>
-        <button class="btn ghost sm" data-action="password">Contraseña</button>
-        <button class="btn ghost sm" data-action="logout">Salir</button>
+      <div class="who-card">
+        <span class="avatar" aria-hidden="true">${esc((state.me.username || '?').charAt(0).toUpperCase())}</span>
+        <div class="who"><strong>${esc(state.me.username)}</strong><span class="muted">${isAdmin() ? 'Administrador' : 'Usuario'}</span></div>
+      </div>
+      <div class="foot-icons">${accountButtonsHTML(light)}
       </div>
     </div>`;
 }
@@ -221,7 +259,227 @@ function sideHTML() {
 function renderShell() {
   $('#app').innerHTML = `<div class="shell"><aside class="side" id="side"></aside><main class="main" id="main" tabindex="-1"></main></div>`;
 }
-function renderSide() { const s = $('#side'); if (s) setHTMLKeepLeds(s, sideHTML()); }
+function renderSide() {
+  const s = $('#side');
+  if (!s) return;
+  // Si la barra se repinta a mitad de un salto, el indicador y la burbuja nuevos deben seguir desde donde estaban.
+  const live = isMobileNav() ? liveDockBall() : null;
+  const old = $('.side-nav .side-ink', s), nav = $('.side-nav', s);
+  if (old && nav) {
+    const r = old.getBoundingClientRect(), n = nav.getBoundingClientRect();
+    if (r.height > 0) state.sideInk = { y: r.top - n.top, h: r.height };
+  }
+  setHTMLKeepLeds(s, sideHTML());
+  placeSideInk();
+  placeDock(live);          // síncrono: la barra ya nace con la muesca, así no parpadea
+}
+
+/* Selección de la barra lateral: un indicador que se desliza hasta el elemento activo (como en las pestañas),
+   y la lista se construye por etapas cuando cambia la selección. */
+// Cambio de tema circular (copiado de Nexo): el tema nuevo se revela con un círculo que crece desde el botón.
+// Usa la API de transiciones de vista; si no existe o hay «reducir movimiento», el cambio es inmediato.
+let themeTransition = null;
+function circularThemeChange(btn, apply) {
+  const doc = document.documentElement;
+  const r = btn.getBoundingClientRect();
+  const x = r.left + r.width / 2, y = r.top + r.height / 2;
+  // Radio que llega a la esquina más lejana, para que el círculo cubra toda la pantalla
+  const endRadius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+  doc.classList.add('theme-switching');
+  const transition = document.startViewTransition(apply);
+  themeTransition = transition;
+  transition.ready
+    .then(() => {
+      doc.animate(
+        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`] },
+        { duration: 700, easing: 'cubic-bezier(0.65, 0, 0.35, 1)', pseudoElement: '::view-transition-new(root)' },
+      );
+    })
+    .catch(() => undefined);
+  // Solo quita la clase la última transición: si se pulsa dos veces, la primera se salta y no debe reactivar las transiciones.
+  transition.finished.finally(() => { if (themeTransition === transition) doc.classList.remove('theme-switching'); });
+}
+
+/* Dock de navegación móvil (copiado de Nexo): barra inferior con una muesca bajo la selección y una burbuja
+   que salta hasta el elemento activo siguiendo un resorte críticamente amortiguado. Mismos valores que Nexo. */
+const DOCK_TRAVEL_MS = 300;
+const DOCK_SPRING_RESPONSE = 0.25;   // s
+const DOCK_ARC_HEIGHT = 16;
+const DOCK_HOP_HEIGHT = 7;
+const DOCK_HOPS = 3;
+const DOCK_SQUASH = 0.08;
+const DOCK_KEYFRAMES = 48;
+const DOCK_SIZE = 40;
+const DOCK_NOTCH_RADIUS = 25;
+const DOCK_NOTCH_SHOULDER = 8;
+const DOCK_NOTCH_FLATTEN = 0.4;
+const DOCK_BAR_RADIUS = 20;
+const DOCK_LIFT_AT = 0.9;           // progreso a partir del cual el icono nuevo sube a la burbuja
+const DOCK_SPRING_W = (2 * Math.PI) / DOCK_SPRING_RESPONSE;
+const dockSpringRaw = (sec) => 1 - (1 + DOCK_SPRING_W * sec) * Math.exp(-DOCK_SPRING_W * sec);
+const DOCK_SPRING_END = dockSpringRaw(DOCK_TRAVEL_MS / 1000);
+function dockSpringProgress(t) {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  return dockSpringRaw((t * DOCK_TRAVEL_MS) / 1000) / DOCK_SPRING_END;
+}
+function dockSmoothstep(e0, e1, x) {
+  const k = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+  return k * k * (3 - 2 * k);
+}
+function dockClampX(x, width) {
+  const min = DOCK_BAR_RADIUS + DOCK_NOTCH_RADIUS + DOCK_NOTCH_SHOULDER;
+  return Math.min(width - min, Math.max(min, x));
+}
+// Contorno de la barra: rectángulo redondeado cuyo borde superior se hunde en una muesca centrada en cx.
+function dockNotchPath(width, height, cx, depthScale = 1) {
+  const r = DOCK_BAR_RADIUS, R = DOCK_NOTCH_RADIUS, depth = R * depthScale;
+  let top = '';
+  if (cx !== null) {
+    const a = cx - R - DOCK_NOTCH_SHOULDER, b = cx + R + DOCK_NOTCH_SHOULDER;
+    top = `L${a.toFixed(2)},0 ` +
+      `C${(cx - R).toFixed(2)},0 ${(cx - R + 1).toFixed(2)},${(depth * 0.96).toFixed(2)} ${cx.toFixed(2)},${depth.toFixed(2)} ` +
+      `C${(cx + R - 1).toFixed(2)},${(depth * 0.96).toFixed(2)} ${(cx + R).toFixed(2)},0 ${b.toFixed(2)},0 `;
+  }
+  return `M${r},0 ${top}L${width - r},0 A${r},${r} 0 0 1 ${width},${r} L${width},${height - r} ` +
+    `A${r},${r} 0 0 1 ${width - r},${height} L${r},${height} A${r},${r} 0 0 1 0,${height - r} L0,${r} A${r},${r} 0 0 1 ${r},0 Z`;
+}
+// Altura de la burbuja para el progreso p: un arco con saltos. sin² da aterrizajes tangentes.
+function dockBubbleY(p, startY = 0) {
+  const arc = DOCK_ARC_HEIGHT * Math.sin(Math.PI * p);
+  const hop = DOCK_HOP_HEIGHT * Math.sin(Math.PI * DOCK_HOPS * p) ** 2;
+  return -arc - hop + startY * (1 - dockSmoothstep(0, 0.35, p));
+}
+function dockBubbleTransform(x, y, p) {
+  const contact = 1 - Math.sin(Math.PI * DOCK_HOPS * p) ** 2;
+  const squash = DOCK_SQUASH * contact * dockSmoothstep(0, 0.08, p) * (1 - dockSmoothstep(0.88, 1, p));
+  const half = DOCK_SIZE / 2;
+  return `translate3d(${(x - half).toFixed(2)}px, ${(y - half).toFixed(2)}px, 0) scale(${(1 + squash).toFixed(4)}, ${(1 - squash).toFixed(4)})`;
+}
+
+// ---- Motor del dock móvil ----
+state.dock = null;          // { x, key }: destino de la burbuja y a qué elemento corresponde
+state.dockAnim = null;
+state.dockPath = '';
+// Elemento activo que se ve en pantalla (en móvil los servidores están ocultos y manda «Servidores»).
+function activeNavItem(nav) {
+  return [...nav.querySelectorAll('.on, .dock-on')].find((el) => el.getClientRects().length > 0) || null;
+}
+// Posición actual de la burbuja en pantalla, también a mitad de un salto.
+function liveDockBall() {
+  const ball = $('#side .dock-ball');
+  if (!ball) return null;
+  const tr = getComputedStyle(ball).transform;
+  if (!tr || tr === 'none') return null;
+  const m = new DOMMatrixReadOnly(tr);
+  return { x: m.m41 + DOCK_SIZE / 2, y: m.m42 + DOCK_SIZE / 2, moving: !!state.dockAnim };
+}
+function setDockLifted(nav, dest) {
+  nav.querySelectorAll('.is-lifted').forEach((el) => el.classList.toggle('is-lifted', el === dest));
+  if (dest) dest.classList.add('is-lifted');
+}
+function placeDock(live) {
+  const nav = $('#side .side-nav'), path = $('#side .dock-notch path'), ball = $('#side .dock-ball');
+  if (!nav || !path || !ball) return;
+  if (!isMobileNav()) { state.dock = null; state.dockAnim = null; return; }
+  const dest = activeNavItem(nav);
+  const width = nav.clientWidth, height = nav.clientHeight;
+  if (!dest) {
+    path.setAttribute('d', dockNotchPath(width, height, null));
+    ball.style.opacity = '0';
+    state.dock = null;
+    return;
+  }
+  ball.style.opacity = '1';
+  const navBox = nav.getBoundingClientRect(), box = dest.getBoundingClientRect();
+  const target = dockClampX(box.left - navBox.left - nav.clientLeft + box.width / 2, width);
+  const key = dest.getAttribute('href');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const sameDest = state.dock && state.dock.key === key;
+  // Misma selección y sin viaje en curso (p. ej. una actualización de estado): se coloca sin animar.
+  if (reduce || !state.dock || (sameDest && !(live && live.moving))) {
+    ball.style.transform = dockBubbleTransform(target, 0, 1);
+    path.setAttribute('d', dockNotchPath(width, height, target));
+    state.dockPath = path.getAttribute('d');
+    setDockLifted(nav, dest);
+    state.dock = { x: target, key };
+    state.dockAnim = null;
+    return;
+  }
+  // Viaje: arranca desde donde está la burbuja ahora (también si se repintó la barra a mitad de salto).
+  const fromX = live ? live.x : state.dock.x;
+  const fromY = live ? live.y : 0;
+  setDockLifted(nav, null);                       // el icono baja de la burbuja al salir
+  // Mientras se mueve, la barra repintada empieza con la muesca donde estaba
+  path.setAttribute('d', dockNotchPath(width, height, fromX));
+  ball.style.transform = dockBubbleTransform(fromX, fromY, 0);
+  const frames = [];
+  for (let i = 0; i <= DOCK_KEYFRAMES; i++) {
+    const p = dockSpringProgress(i / DOCK_KEYFRAMES);
+    frames.push({ transform: dockBubbleTransform(fromX + (target - fromX) * p, dockBubbleY(p, fromY), p) });
+  }
+  ball.style.transform = dockBubbleTransform(target, 0, 1);          // valor en reposo al terminar
+  const anim = ball.animate(frames, { duration: DOCK_TRAVEL_MS, easing: 'linear' });
+  state.dockAnim = anim;
+  state.dock = { x: target, key };
+  let lifted = false;
+  const tick = () => {
+    if (state.dockAnim !== anim) return;
+    const t = Math.min(1, Number(anim.currentTime ?? 0) / DOCK_TRAVEL_MS);
+    const p = dockSpringProgress(t);
+    const d = dockNotchPath(width, height, fromX + (target - fromX) * p, 1 - DOCK_NOTCH_FLATTEN * Math.sin(Math.PI * p));
+    path.setAttribute('d', d);
+    state.dockPath = d;
+    if (!lifted && p >= DOCK_LIFT_AT) { setDockLifted(nav, dest); lifted = true; }   // el icono nuevo sube a la burbuja al llegar
+    if (t < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  anim.onfinish = () => {
+    if (state.dockAnim !== anim) return;
+    path.setAttribute('d', dockNotchPath(width, height, target));
+    state.dockPath = path.getAttribute('d');
+    setDockLifted(nav, dest);
+    state.dockAnim = null;
+  };
+}
+// Al pasar de móvil a escritorio (o al revés) se pinta de nuevo la barra; si no, solo se recoloca.
+let lastMobileNav = isMobileNav();
+window.addEventListener('resize', () => {
+  const now = isMobileNav();
+  if (now !== lastMobileNav) { lastMobileNav = now; state.dock = null; if (state.me) renderSide(); return; }
+  if (now) { state.dock = null; placeDock(null); }
+});
+
+state.sideInk = null;
+state.sideKey = null;
+function placeSideInk() {
+  const nav = $('#side .side-nav');
+  if (!nav) return;
+  const active = activeNavItem(nav);
+  const key = active ? active.getAttribute('href') : null;
+  const fresh = key !== state.sideKey;
+  state.sideKey = key;
+  if (fresh && key !== null) {
+    nav.dataset.build = '';
+    clearTimeout(state.sideBuildTimer);
+    state.sideBuildTimer = setTimeout(() => delete nav.dataset.build, 1300);
+  }
+  if (!active) return;
+  const ink = document.createElement('span');
+  ink.className = 'side-ink'; ink.setAttribute('aria-hidden', 'true');
+  nav.append(ink);          // al final: no cambia el orden de los elementos de la lista
+  const set = (y, h) => { ink.style.setProperty('--y', `${y}px`); ink.style.setProperty('--h', `${h}px`); };
+  // Medidas relativas a la propia barra (con coordenadas de pantalla), no con offsetTop: así no depende de
+  // qué ancestro esté posicionado ni del desplazamiento de la columna lateral.
+  const navBox = nav.getBoundingClientRect(), box = active.getBoundingClientRect();
+  const y = box.top - navBox.top, h = box.height, prev = state.sideInk;
+  ink.classList.add('no-anim');
+  set(prev ? prev.y : y, prev ? prev.h : h);     // parte de donde estaba la selección anterior
+  void ink.offsetWidth;
+  ink.classList.remove('no-anim');
+  set(y, h);
+  state.sideInk = { y, h };
+}
 
 function renderMain() {
   clearTimers();
@@ -229,6 +487,7 @@ function renderMain() {
   $('#main').classList.toggle('wide', v.kind === 'mod');  // la ficha usa todo el ancho
   $('#main').classList.remove('srv');
   if (v.kind === 'server') return renderServer();
+  if (v.kind === 'servers') return renderServersHome();
   if (v.kind === 'users') return renderUsers();
   if (v.kind === 'audit') return renderAudit();
   if (v.kind === 'mod') return renderModPage();
@@ -250,11 +509,38 @@ function renderMain() {
     </div>`;
 }
 
+/* ---------- lista de servidores (pantalla «Servidores», sobre todo para móvil) ---------- */
+function serversHomeHTML() {
+  const names = new Set(state.servers.map((s) => s.name));
+  const isChild = (s) => s.parent && names.has(s.parent);
+  const ordered = [];
+  state.servers.filter((s) => !isChild(s)).forEach((s) => { ordered.push(s); state.servers.filter((c) => c.parent === s.name).forEach((c) => ordered.push(c)); });
+  const label = { on: 'En marcha', starting: 'Arrancando', error: 'Con error', '': 'Parado' };
+  const cards = ordered.map((s) => `
+    <a class="srv-card${isChild(s) ? ' child' : ''}" href="#/s/${encodeURIComponent(s.name)}">
+      <span class="tile">${srvIcon(s.icon, 44)}</span>
+      <span class="srv-card-body"><strong>${esc(s.display_name)}</strong><span class="muted small">${label[ledClass(s)]}${s.status && s.status.running && s.status.players != null ? ` · ${s.status.players} jugadores` : ''}</span></span>
+      <span class="led ${ledClass(s)}" data-led="home:${esc(s.name)}" aria-hidden="true"></span>
+      <svg class="srv-card-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </a>`).join('');
+  return `
+    <header class="page-head"><h1>Servidores</h1>${isAdmin() ? '<button class="btn primary" data-action="new-server">+ Añadir servidor</button>' : ''}</header>
+    ${cards ? `<div class="srv-cards">${cards}</div>` : `<div class="empty"><h2>No tienes servidores</h2><p class="muted">${isAdmin() ? 'Añade el primero para empezar.' : 'Pide a un administrador que te dé acceso a uno o más servidores.'}</p></div>`}`;
+}
+function renderServersHome() {
+  $('#main').innerHTML = `<section id="serversHome" class="servers-home" data-build>${serversHomeHTML()}</section>`;
+  // La entrada por etapas ocurre una vez; las actualizaciones de estado no la repiten.
+  const box = $('#serversHome');
+  clearTimeout(state.homeBuildTimer);
+  state.homeBuildTimer = setTimeout(() => { if (box) delete box.dataset.build; }, 1200);
+}
+
 async function refreshServers() {
   try {
     state.servers = await api('/api/servers');
     state.servers.forEach((s) => { if (s.status.running) { delete state.starting[s.name]; delete state.ledError[s.name]; } });
     renderSide();
+    if (state.view.kind === 'servers' && $('#serversHome')) setHTMLKeepLeds($('#serversHome'), serversHomeHTML());
     const s = current();
     if (s && $('#srvHead')) setHTMLKeepLeds($('#srvHead'), headHTML(s));
   } catch (e) { fail(e); }
@@ -329,8 +615,16 @@ function renderServer() {
   placeInk($('.groups'), 'groups', 'all');
   placeInk($('.srv-layout > .tabs'), 'tabs', activeGroup);
   const core = { summary: tabSummary, logs: tabLogs, mods: tabMods, datapacks: tabDatapacks, textures: tabTextures, players: tabPlayers, client: tabClient, props: tabProps, settings: tabSettings };
+  // Solo al cambiar de sección se construye el contenido por etapas; las actualizaciones automáticas no lo repiten.
+  const key = `${s.name}/${tab}`;
+  const fresh = state.builtKey !== key;
+  state.builtKey = key;
   if (core[tab]) core[tab](s);
   else renderPluginTab(tab.replace(/^x-/, ''), s);
+  if (fresh) {
+    const body = $('#tabBody');
+    if (body) { body.dataset.build = ''; clearTimeout(state.buildTimer); state.buildTimer = setTimeout(() => delete body.dataset.build, 1500); }
+  }
   mountRail(s);
 }
 
@@ -539,7 +833,7 @@ function tabMods(s) {
   if (isAdmin()) panes.push(['upload', 'Subir el mío']);
   $('#tabBody').innerHTML = `${segHTML('mods', panes, pane, plugins ? 'Plugins' : 'Mods')}<div id="modsBody"></div>`;
   if (pane === 'upload' && isAdmin()) return mountUploadMod(s, plugins);
-  pane === 'installed' ? loadInstalled(s) : mountFinder(s.kind === 'plugin' ? 'plugin' : 'mod', $('#modsBody'));
+  pane === 'installed' ? loadInstalled(s, true) : mountFinder(s.kind === 'plugin' ? 'plugin' : 'mod', $('#modsBody'));
 }
 
 // Subir un mod o plugin propio (.jar). Solo administradores: un .jar es código que corre con los permisos del servidor.
@@ -593,6 +887,7 @@ function modDetailHTML(mods) {
       ${m.latest && m.source === 'modrinth' ? `<button class="btn primary" data-action="mod-update" data-file="${esc(m.file)}">Actualizar a ${esc(m.latest)}</button>` : ''}
       ${m.project_id && m.source ? `<a class="btn" href="#/m/${esc(m.source)}/${esc(m.project_id)}">Ver ficha</a>` : ''}
       ${m.source === 'curseforge' && m.slug ? `<a class="btn" target="_blank" rel="noopener" href="https://www.curseforge.com/minecraft/mc-mods/${esc(m.slug)}">Ver en CurseForge</a>` : ''}
+      ${(state.cfgPrompts || []).some((p) => p.jar === m.file) ? `<button class="btn" data-action="mod-config" data-modid="${esc((state.cfgPrompts || []).find((p) => p.jar === m.file).modid)}">Configurar</button>` : ''}
       <button class="btn" data-action="mod-toggle" data-file="${esc(m.file)}">${m.enabled ? 'Desactivar' : 'Activar'}</button>
       <button class="btn danger" data-action="mod-delete" data-file="${esc(m.file)}">Borrar</button>
     </div>`;
@@ -620,7 +915,7 @@ function paintMods() {
     </button>`).join('') || `<p class="muted pad pad-in">${mods.length ? 'Ningún mod coincide con el filtro.' : 'Este servidor no tiene mods.'}</p>`;
   $('#modDetail').innerHTML = modDetailHTML(mods);
 }
-async function loadInstalled(s) {
+async function loadInstalled(s, auto = false) {
   const body = $('#modsBody');
   const seq = ++state.modsSeq;
   // Identificar los mods puede tardar varios segundos. Si mientras tanto se cambió de panel («Añadir mods»),
@@ -629,11 +924,18 @@ async function loadInstalled(s) {
   body.innerHTML = '<p class="muted pad">Identificando mods…</p>';
   try {
     const q = new URLSearchParams({ loader: state.loader, version: state.version });
-    const mods = await api(`/api/servers/${encodeURIComponent(s.name)}/mods?${q}`);
+    const [mods, prompts] = await Promise.all([
+      api(`/api/servers/${encodeURIComponent(s.name)}/mods?${q}`),
+      api(`/api/servers/${encodeURIComponent(s.name)}/mod_config_prompts`).catch(() => []),
+    ]);
     if (stale()) return;
     state.modsData = mods;
+    state.cfgPrompts = prompts;
     if (!mods.some((m) => m.file === state.modSel)) state.modSel = null;
     paintMods();
+    // Cada vez que se entra en «Instalados», los mods con configuración abren su panel.
+    const solos = prompts.filter((p) => p.auto);
+    if (auto && solos.length) openConfigPanel(solos);
   } catch (e) { if (!stale()) body.innerHTML = ''; fail(e); }
 }
 
@@ -1584,9 +1886,19 @@ const actions = {
   'log-level'(el) { state.logLevel = el.dataset.level; $$('[data-action=log-level]').forEach((b) => b.classList.toggle('on', b === el)); paintLog(); },
   theme() {
     const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
-    document.documentElement.dataset.theme = next;
-    localStorage.setItem('theme', next);
-    renderSide();
+    const buttons = [...document.querySelectorAll('.theme-btn')];
+    const btn = buttons.find((b) => b.getClientRects().length > 0) || buttons[0];   // el botón que se ve (hay uno arriba y otro en el pie)
+    const apply = () => {
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem('theme', next);
+      const light = next === 'light';
+      buttons.forEach((b) => {
+        b.setAttribute('aria-label', light ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro');
+        b.title = light ? 'Modo oscuro' : 'Modo claro';
+      });
+    };
+    if (!btn || !document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return apply();
+    circularThemeChange(btn, apply);
   },
   async logout() { try { await api('/api/logout', { method: 'POST', body: {} }); } catch { /* ya cerrada */ } state.me = null; renderLogin(); },
   password() {
@@ -1623,6 +1935,8 @@ const actions = {
     state[`${el.dataset.scope}Pane`] = el.dataset.pane;
     ({ mods: tabMods, dp: tabDatapacks, tex: tabTextures })[el.dataset.scope](current());
   },
+  'mod-config'(el) { openConfigPanel(state.cfgPrompts || [], el.dataset.modid); },
+  'cfg-save'(el) { saveConfig(el); },
   async 'mod-toggle'(el) {
     state.installed.at = 0;
     try { await api(sPath('mod_toggle'), { method: 'POST', body: { file: el.dataset.file } }); loadInstalled(current()); } catch (e) { fail(e); }

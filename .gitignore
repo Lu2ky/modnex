@@ -27,3 +27,4 @@ bin/
 backups/
 sandbox/
 servers/
+modconfig-auto.json
