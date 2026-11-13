@@ -265,6 +265,17 @@ button.cr-slot:hover, button.cr-slot:focus-visible, .cr-slot.on { background-ima
 .kjs-ico.iso, .cr-machine, .cr-machine.spin, canvas.spin { image-rendering: auto; }
 canvas.spin { cursor: grab; }
 
+/* Vista previa de tooltips: el recuadro de Minecraft */
+.cr-tip { display: flex; align-items: flex-start; gap: 10px; margin: 6px 0; }
+.cr-tipicon .kjs-ico { width: 40px; height: 40px; }
+.mc-tip { display: inline-block; min-width: 140px; max-width: 100%; padding: 6px 9px; background: rgba(16, 0, 16, .94); border: 2px solid #3a0a8a; border-radius: 2px; box-shadow: inset 0 0 0 1px #28007f; font: 13px/1.45 ui-monospace, 'Cascadia Mono', monospace; text-shadow: 1px 1px 0 rgba(0, 0, 0, .6); overflow-wrap: anywhere; }
+.tc-blanco { color: #fff; } .tc-gris { color: #aaa; } .tc-rojo { color: #f55; } .tc-dorado { color: #fa0; } .tc-amarillo { color: #ff5; }
+.tc-verde { color: #5f5; } .tc-aqua { color: #5ff; } .tc-azul { color: #55f; } .tc-rosa { color: #f5f; } .tc-morado { color: #a0a; }
+.cr-tipbar { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
+.cr-tipbar button { padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
+.cr-tipbar button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.kjs-preview { margin: 0 0 12px; }
+.kjs-rule-b .cr-scene { margin: 0; }
 /* Botín */
 .cr-tagline { position: absolute; left: calc(1 * var(--u)); bottom: 0; font-size: calc(5 * var(--u)); line-height: 1.1; color: #1d1d1d; pointer-events: none; }
 .cr-drops { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }

@@ -25,6 +25,11 @@
   const RAR = [['', 'Sin cambio'], ['COMMON', 'Común'], ['UNCOMMON', 'Poco común'], ['RARE', 'Rara'], ['EPIC', 'Épica']];
   const ACT = [['tell', 'Enviar mensaje'], ['give', 'Dar item'], ['command', 'Ejecutar comando'], ['cancel', 'Cancelar la acción']];
   const stack = () => ({ id: '', count: 1 });
+  // Bloque de trabajo de cada profesión (el que usa el aldeano) y nombres de los niveles, para la vista previa de los comercios.
+  const JOB = { armorer: 'minecraft:blast_furnace', butcher: 'minecraft:smoker', cartographer: 'minecraft:cartography_table', cleric: 'minecraft:brewing_stand', farmer: 'minecraft:composter',
+    fisherman: 'minecraft:barrel', fletcher: 'minecraft:fletching_table', leatherworker: 'minecraft:cauldron', librarian: 'minecraft:lectern', mason: 'minecraft:stonecutter',
+    shepherd: 'minecraft:loom', toolsmith: 'minecraft:smithing_table', weaponsmith: 'minecraft:grindstone' };
+  const LEVELS = ['Novato', 'Aprendiz', 'Oficial', 'Experto', 'Maestro'];
 
   // make: borrador nuevo. show: cuándo se enseña el campo. Tipos de campo: select, text, num, bool, item, stack, list, lines, actions.
   const FORMS = {
@@ -74,6 +79,9 @@
       try { d = await api(`${base}/kubejs_rules`); } catch (e) { el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
       if (window.ModnexKjsGui) window.ModnexKjsGui.setTextures(await window.ModnexKjsGui.load(base));
       rules = d.rules; T = d.types; morejs = d.morejs;
+      await Promise.all([...Object.values(JOB), 'minecraft:villager_spawn_egg'].filter((id) => !info[id]).map(async (id) => {
+        try { remember((await api(`${base}/kubejs_items?q=${encodeURIComponent(id)}&limit=20`)).items); } catch (e) { /* sin icono */ }
+      }));
       await Promise.all([...new Set(rules.flatMap(idsOf))].filter((id) => !info[id]).slice(0, 40).map(async (id) => {
         try { remember((await api(`${base}/kubejs_items?q=${encodeURIComponent(id)}&limit=20`)).items); } catch (e) { /* sin icono */ }
       }));
@@ -93,14 +101,34 @@
     // ----- resumen de una regla -----
     const chip = (id) => `<span class="kjs-ing-i" title="${esc(id)}">${ico(id)}<span class="small">${esc(id.startsWith('#') ? id : nameOf(id))}</span></span>`;
     const stk = (x) => `${chip(x.id)}<span class="muted small">×${x.count}</span>`;
+    // Comercio: el bloque de trabajo de la profesión, lo que paga el jugador y lo que recibe.
+    const crSlot = (x, big) => `<span class="cr-slot${big ? ' big' : ''}" role="img" aria-label="${esc(x && x.id ? `${nameOf(x.id)} ×${x.count}` : 'vacío')}" title="${esc(x && x.id ? nameOf(x.id) : 'vacío')}">${x && x.id ? ico(x.id, 'kjs-ico') : ''}${x && x.count > 1 ? `<span class="cr-badge">${x.count}</span>` : ''}</span>`;
+    function tradeScene(r, small) {
+      const job = JOB[r.profession], pays = (r.inputs || []).filter(Boolean);
+      const jobImg = info[job] && info[job].icon ? `<img class="cr-machine" data-iid="${esc(job)}" src="${esc(info[job].icon)}" alt="" title="${esc(nameOf(job))}">` : '<span class="cr-machine kjs-ph" aria-hidden="true">?</span>';
+      return `<div class="cr-scene${small ? ' sm' : ''}"><div class="cr-panel"><span class="cr-title">Comercio de ${esc(PROF[r.profession] || r.profession)}</span>
+        <div class="cr-body"><div class="cr-col">${(pays.length ? pays : [null]).map((x) => crSlot(x)).join('')}</div><span class="cr-arrow" aria-hidden="true"></span>
+        <div class="cr-mid">${jobImg}<div class="cr-meta"><span>Nivel ${r.level} · ${LEVELS[(r.level || 1) - 1]}</span><span>${r.max_uses || 12} usos</span><span>${r.xp == null || r.xp === '' ? 5 : r.xp} xp</span></div></div>
+        <span class="cr-arrow" aria-hidden="true"></span>${crSlot(r.output, true)}</div></div></div>`;
+    }
+    // Tooltip: el recuadro de Minecraft con el nombre del item y las líneas añadidas, con el color elegido.
+    let tipShift = false;
+    function tooltipPreview(r, forceShift) {
+      const shift = forceShift != null ? forceShift : tipShift, shown = r.when === 'shift' ? shift : r.when === 'sin_shift' ? !shift : true;
+      const lines = shown ? (r.lines || []).filter(Boolean) : [];
+      return `<div class="cr-tip"><span class="cr-tipicon">${r.item ? ico(r.item, 'kjs-ico') : ''}</span><div class="mc-tip"><div class="tc-blanco">${esc(r.item ? (r.item.startsWith('#') ? r.item : nameOf(r.item)) : 'Elige un item')}</div>
+        ${lines.map((l) => `<div class="tc-${esc(r.color || 'gris')}">${esc(l)}</div>`).join('')}</div></div>`;
+    }
+    const previewHTML = (r) => (r.type === 'trade' ? tradeScene(r) : r.type === 'tooltip'
+      ? `<div class="cr-tipbar"><span class="muted small">Vista:</span><button type="button" class="${tipShift ? '' : 'on'}" data-tip="0">Normal</button><button type="button" class="${tipShift ? 'on' : ''}" data-tip="1">Con Shift</button></div>${tooltipPreview(r)}${r.when === 'shift' && !tipShift ? '<p class="muted small">Estas líneas solo se ven con Shift pulsado.</p>' : ''}` : '');
     function summary(r) {
       switch (r.type) {
         case 'tag': return `${r.action === 'add' ? 'Añade a' : 'Quita de'} <code>#${esc(r.tag)}</code> (${esc((REG.find((x) => x[0] === r.registry) || [])[1] || r.registry)}): ${r.entries.slice(0, 6).map(chip).join('')}${r.entries.length > 6 ? `<span class="muted small">y ${r.entries.length - 6} más</span>` : ''}`;
         case 'replace': return `${r.mode === 'input' ? 'Ingrediente' : 'Resultado'}: ${chip(r.source)} → ${chip(r.target)}${r.only ? ` <span class="muted small">solo en recetas de</span> ${chip(r.only)}` : ''}`;
         case 'smithing': return `${chip(r.template)} + ${chip(r.base)} + ${chip(r.addition)} → ${chip(r.result)}`;
-        case 'trade': return `${esc(PROF[r.profession])} (nivel ${r.level}): ${r.inputs.map(stk).join(' + ')} → ${stk(r.output)}`;
+        case 'trade': return tradeScene(r, true);
         case 'trade_clear': return r.which === 'vanilla' ? 'Quita todos los comercios de vanilla' : 'Quita todos los comercios de mods';
-        case 'tooltip': return `${chip(r.item)} <span class="muted small">${esc(r.lines.join(' / '))}</span>`;
+        case 'tooltip': return tooltipPreview(r, r.when === 'shift');
         case 'hide': return `${r.items.slice(0, 8).map(chip).join('')}${r.items.length > 8 ? `<span class="muted small">y ${r.items.length - 8} más</span>` : ''}`;
         case 'item_prop': return `${chip(r.item)} <span class="muted small">${[r.stack && `pila ${r.stack}`, r.rarity && r.rarity.toLowerCase(), r.max_damage && `durabilidad ${r.max_damage}`, r.burn_time != null && r.burn_time !== '' && `combustible ${r.burn_time}`, r.fire_resistant && 'resiste fuego'].filter(Boolean).join(' · ')}</span>`;
         case 'event': return `${esc((T.events[r.event] || {}).label || r.event)}${r.filter ? ` (${chip(r.filter)})` : ''} → <span class="muted small">${r.actions.map(actText).join(', ')}</span>`;
@@ -186,6 +214,7 @@
           <div class="kjs-rule-a"><label class="kjs-check"><input type="checkbox" data-toggle="${i}" ${r.on ? 'checked' : ''}> Activa</label>
           <button class="btn sm" data-edit="${i}">Editar</button><button class="btn sm danger" data-del="${i}">Borrar</button></div></li>`).join('') || '<li class="muted small">Aún no hay reglas de este tipo.</li>'}</ul>
         ${draft ? `<div class="kjs-editor"><div class="ft-head"><h2>${editing < 0 ? 'Nueva regla' : 'Editar regla'} · ${esc(TYPE_LABEL[draft.type])}</h2></div>
+          ${['trade', 'tooltip'].includes(draft.type) ? `<div class="kjs-preview" aria-live="polite">${previewHTML(draft)}</div>` : ''}
           ${FORMS[draft.type].fields.map(field).join('')}
           <div class="kjs-pickbox" ${pick ? '' : 'hidden'}><input class="kjs-search" data-search placeholder="Buscar item (nombre o id)…" value="${esc(q)}" autocomplete="off"><div class="kjs-browser"></div></div>
           <div class="kjs-foot"><span></span><span><button class="btn" data-cancel>Cancelar</button> <button class="btn primary" data-save ${busy ? 'disabled' : ''}>Guardar regla</button></span></div></div>`
@@ -207,6 +236,7 @@
       if (t.matches('[data-search]')) { q = t.value; clearTimeout(timer); timer = setTimeout(search, 160); return; }
       if (t.dataset.tag) { const v = t.value.trim(); put(draft, t.dataset.tag, v); return; }
       if (t.dataset.f && !t.dataset.redraw) put(draft, t.dataset.f, t.type === 'number' ? num(t.value) : t.value);
+      const pv = el.querySelector('.kjs-preview'); if (pv && draft) pv.innerHTML = previewHTML(draft);
     };
     el.onchange = (e) => {
       const t = e.target;
@@ -225,6 +255,7 @@
     el.onclick = async (e) => {
       const b = e.target.closest('button'); if (!b) return;
       const d = b.dataset;
+      if (d.tip != null) { tipShift = d.tip === '1'; const pv = el.querySelector('.kjs-preview'); if (pv) pv.innerHTML = previewHTML(draft); return; }
       if (d.cat) { cat = d.cat; draft = null; pick = null; return draw(); }
       if (d.new) { draft = FORMS[d.new].make(); editing = -1; pick = null; return draw(); }
       if (d.edit != null) { editing = +d.edit; draft = JSON.parse(JSON.stringify(rules[editing])); pick = null; return draw(); }
