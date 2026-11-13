@@ -362,6 +362,22 @@
     client_scripts: 'Corre en el cliente de cada jugador: se aplica cuando el jugador recarga o reinicia su juego.',
   };
 
+  // Aviso en KubeJS: si AutoModpack envía a los jugadores archivos que solo usa el servidor, cada cambio del panel les pide actualizar.
+  async function ampNotice(box, s) {
+    const { api, esc, toast, askConfirm } = M();
+    let a;
+    try { a = await api(url(s, 'automodpack')); } catch (e) { return; }
+    if (!box.isConnected || !a.configured || !a.missing.length) { box.innerHTML = ''; return; }
+    box.innerHTML = `<div class="kjs-result warn"><strong>Los jugadores recibirán estos cambios como actualización</strong>
+      <p class="small">AutoModpack publica ${a.leak_count} ${a.leak_count === 1 ? 'archivo' : 'archivos'} de KubeJS que solo usa el servidor (${esc(a.missing.map((m) => m.why).join(', '))}), así que cada vez que guardas algo el cliente pide actualizar.</p>
+      <button class="btn sm" data-act="amp-fix">Dejarlos fuera de la sincronización</button></div>`;
+    box.querySelector('[data-act=amp-fix]').onclick = async () => {
+      if (!(await askConfirm('¿Dejar fuera de AutoModpack lo que solo usa el servidor?', 'Se añaden tres rutas a la lista «exclude» de automodpack/server.conf y se guarda una copia del archivo. AutoModpack lo lee al arrancar el servidor: hasta entonces no cambia nada.', { confirmLabel: 'Excluir' }))) return;
+      try { const r = await api(url(s, 'automodpack_fix'), { method: 'POST', body: {} }); toast(r.changed ? 'Listo. Reinicia el servidor para que AutoModpack lo lea.' : 'Ya estaba configurado', 'ok'); } catch (err) { toast(err.message, 'error'); }
+      ampNotice(box, s);
+    };
+  }
+
   function kubejsSection(el, s) {
     const VIEWS = [['recetas', 'Recetas'], ...((s.addons || []).includes('create') ? [['create', 'Create']] : []), ['quitar', 'Quitar recetas'], ['reglas', 'Reglas'], ['botin', 'Botín'], ['historial', 'Historial'], ['scripts', 'Scripts'], ['diag', 'Diagnóstico']];
     let view = 'recetas';
@@ -369,8 +385,9 @@
       `<button role="tab" data-view="${k}" aria-selected="${k === view}" class="${k === view ? 'on' : ''}">${l}</button>`).join('')}</nav>
       <div class="kjs-testbar"><button class="btn sm" data-act="kjs-test">Probar en el servidor</button>
         <span class="muted small">Envía <code>/reload</code> al servidor en marcha y comprueba si los scripts cargan sin errores.</span></div>
-      <div class="kjs-test-out" aria-live="polite"></div><div class="kjs-sub"></div>`;
+      <div class="kjs-amp" aria-live="polite"></div><div class="kjs-test-out" aria-live="polite"></div><div class="kjs-sub"></div>`;
     const sub = el.querySelector('.kjs-sub');
+    ampNotice(el.querySelector('.kjs-amp'), s);
     if (window.ModnexKjsBlock) window.ModnexKjsBlock.watch(sub, `/api/servers/${encodeURIComponent(s.name)}`);   // los items que son bloques se ven con su modelo
     function show() {
       el.querySelectorAll('.kjs-nav button').forEach((b) => { const on = b.getAttribute('data-view') === view; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
@@ -1016,6 +1033,7 @@
     async function load() {
       let d;
       try { d = await api(url(s, 'sync')); } catch (e) { el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+      try { d.amp = await api(url(s, 'automodpack')); } catch (e) { d.amp = null; }
       draw(d);
       if (d.state === 'running') pollTimer = setTimeout(() => { if (el.isConnected) load(); }, 2500);
     }
@@ -1026,6 +1044,15 @@
         body += `<div class="ft-card info"><h3>Instalado en el servidor</h3><p>${esc(inst.join(', '))}</p>
           ${d.fingerprint ? `<p>Huella del certificado que deben aceptar los jugadores la primera vez:</p><p><code class="ft-secret">${esc(d.fingerprint)}</code></p>`
             : '<p class="muted small">La huella aparece aquí cuando el servidor arranque con el mod.</p>'}</div>`;
+      }
+      const a = d.amp;
+      if (a && a.configured && a.publishes_kubejs) {
+        body += `<div class="ft-card ${a.missing.length ? 'warn' : 'info'}"><h3>Archivos de KubeJS que reciben los jugadores</h3>
+          <p class="small">AutoModpack publica <strong>${a.published_count}</strong> ${a.published_count === 1 ? 'archivo' : 'archivos'} de <code>kubejs/</code>. Solo los scripts de cliente, los de inicio y los recursos (<code>assets</code>) los usa el juego del jugador; cada vez que uno cambia, a los jugadores les pide actualizar.</p>
+          ${a.missing.length ? `<p class="small"><strong>${a.leak_count} ${a.leak_count === 1 ? 'archivo es' : 'archivos son'} solo del servidor</strong> y se envían igualmente (${esc(a.missing.map((m) => m.why).join(', '))}). Cada cambio del panel en KubeJS provoca una actualización que los jugadores no necesitan.</p>
+            <button class="btn primary" data-act="amp-fix">Dejarlos fuera de la sincronización</button>`
+            : '<p class="small">Lo que solo usa el servidor ya está excluido: los cambios de recetas, botín y scripts del servidor no piden actualizar.</p>'}
+          ${a.published.length ? `<details><summary>Ver los archivos que se publican</summary><ul class="ft-checks">${a.published.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></details>` : ''}</div>`;
       }
       if (d.state === 'running') {
         body += `<div class="ft-card info"><h3>Probando…</h3><p>${esc(d.step || '')}</p><p class="muted small">Puede tardar un par de minutos. No afecta a tu mundo.</p></div>`;
@@ -1053,6 +1080,11 @@
       if (!b) return;
       try {
         if (b.getAttribute('data-act') === 'test') { await api(url(s, 'sync_test_start'), { method: 'POST', body: {} }); toast('Prueba iniciada', 'ok'); }
+        else if (b.getAttribute('data-act') === 'amp-fix') {
+          if (!(await askConfirm('¿Dejar fuera de AutoModpack lo que solo usa el servidor?', 'Se añaden tres rutas a la lista «exclude» de automodpack/server.conf y se guarda una copia del archivo. AutoModpack lo lee al arrancar el servidor: hasta entonces no cambia nada.', { confirmLabel: 'Excluir' }))) return;
+          const r = await api(url(s, 'automodpack_fix'), { method: 'POST', body: {} });
+          toast(r.changed ? 'Listo. Reinicia el servidor para que AutoModpack lo lea.' : 'Ya estaba configurado', 'ok');
+        }
         else if (b.getAttribute('data-act') === 'install') {
           if (!(await askConfirm('¿Instalar AutoModpack en el servidor?', 'Se guarda una copia de seguridad antes. Los jugadores necesitarán AutoModpack en su cliente.', { confirmLabel: 'Instalar' }))) return;
           const r = await api(url(s, 'sync_install'), { method: 'POST', body: {} }); toast(`Instalado ${r.installed}`, 'ok');
