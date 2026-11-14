@@ -177,8 +177,8 @@ function parseHash() {
 function route() {
   let v = parseHash();
   if (v.kind === 'auto' || (v.kind === 'server' && !server(v.name))) {
-    // En móvil se entra por la lista de servidores; en escritorio, por el primer servidor.
-    v = isMobileNav() ? { kind: 'servers' } : state.servers.length ? { kind: 'server', name: state.servers[0].name } : { kind: 'empty' };
+    // Se entra por la lista de servidores, con su estado en vivo.
+    v = { kind: 'servers' };
   }
   state.view = v;
   renderSide();
@@ -192,9 +192,19 @@ const DOCK_ICONS = {
   audit: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
   shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
   page: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  // secciones de un servidor
+  inicio: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>',
+  consola: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/>',
+  jugadores: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>',
+  contenido: '<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+  recetas: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15h9"/>',
+  distribuir: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/>',
+  proteger: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+  config: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
 };
 const dockIcon = (name) => `<svg class="dock-ico" viewBox="0 0 24 24" aria-hidden="true">${DOCK_ICONS[name] || DOCK_ICONS.page}</svg>`;
-const isMobileNav = () => matchMedia('(max-width: 820px)').matches;
+// El dock flotante se usa en todas las pantallas (antes solo en móvil); el nombre se conserva porque lo usan muchas funciones.
+const isMobileNav = () => true;
 
 // Botones de tema, contraseña y salir. En escritorio van en el pie de la barra; en móvil, arriba a la derecha.
 function accountButtonsHTML(light) {
@@ -227,33 +237,43 @@ function sideHTML() {
       <span class="srv-meta"><span class="srv-state">${({ on: 'en marcha', starting: 'arrancando', error: 'error', '': 'parado' })[ledClass(s)]}</span></span>
       <span class="led ${ledClass(s)}" data-led="side:${esc(s.name)}" aria-hidden="true"></span>
     </a>`).join('') || '<p class="muted pad">Sin servidores asignados.</p>';
-  // Elemento «Servidores» del dock móvil: en escritorio no se ve, porque la lista de servidores está en la barra.
-  const dockServers = `<a class="nav-item dock-only${v.kind === 'servers' || v.kind === 'server' ? ' dock-on' : ''}" href="#/servers" aria-label="Servidores">${dockIcon('servers')}<span class="lbl-short">Servidores</span></a>`;
-  const tab = (cls, on, href, icon, long, short) => `<a class="nav-item${on ? ' on' : ''}${cls}" href="${href}" aria-label="${esc(long)}">${dockIcon(icon)}<span class="lbl-long">${esc(long)}</span><span class="lbl-short">${esc(short)}</span></a>`;
-  const admin = isAdmin() ? `
-    <p class="side-title">Administración</p>
-    ${tab('', v.kind === 'users', '#/users', 'users', 'Usuarios y permisos', 'Usuarios')}
-    ${tab('', v.kind === 'audit', '#/audit', 'audit', 'Actividad', 'Actividad')}` : '';
-  const pages = ((state.plugins && state.plugins.pages) || []).filter((p) => !p.admin || isAdmin())
-    .map((p) => tab('', v.kind === 'plugin' && v.id === p.id, `#/p/${esc(p.id)}`, /seguridad/i.test(p.id + p.label) ? 'shield' : 'page', p.label, p.label)).join('');
+  const tab = (on, href, icon, long, short) => `<a class="nav-item${on ? ' on' : ''}" href="${href}" aria-label="${esc(long)}" title="${esc(long)}">${dockIcon(icon)}<span class="lbl-short">${esc(short)}</span></a>`;
+  const pagesList = ((state.plugins && state.plugins.pages) || []).filter((p) => !p.admin || isAdmin());
+  const pageIcon = (p) => (/seguridad/i.test(p.id + p.label) ? 'shield' : 'page');
+  // El dock cambia con el contexto: dentro de un servidor muestra sus secciones; fuera, las páginas del panel.
+  const cur = v.kind === 'server' ? server(v.name) : null;
+  let dock;
+  if (cur) {
+    const tabs = tabsFor(cur), active = tabs.find((t) => t.id === v.tab) || tabs[0];
+    dock = GROUPS.filter(([g]) => tabs.some((t) => t.group === g))
+      .map(([g, label]) => tab(active && active.group === g, `#/s/${encodeURIComponent(cur.name)}/${tabs.find((t) => t.group === g).id}`, g, label, label)).join('');
+  } else {
+    dock = tab(v.kind === 'servers', '#/servers', 'servers', 'Servidores', 'Servidores')
+      + (isAdmin() ? tab(v.kind === 'users', '#/users', 'users', 'Usuarios y permisos', 'Usuarios') + tab(v.kind === 'audit', '#/audit', 'audit', 'Actividad', 'Actividad') : '')
+      + pagesList.map((p) => tab(v.kind === 'plugin' && v.id === p.id, `#/p/${esc(p.id)}`, pageIcon(p), p.label, p.label)).join('');
+  }
+  // Enlaces del panel en la barra superior (en pantallas anchas): siempre a mano aunque el dock muestre las secciones del servidor.
+  const link = (on, href, icon, label) => `<a class="ibtn top-link${on ? ' on' : ''}" href="${href}" aria-label="${esc(label)}" title="${esc(label)}">${dockIcon(icon)}</a>`;
+  const links = link(v.kind === 'servers', '#/servers', 'servers', 'Servidores')
+    + (isAdmin() ? link(v.kind === 'users', '#/users', 'users', 'Usuarios y permisos') + link(v.kind === 'audit', '#/audit', 'audit', 'Actividad') : '')
+    + pagesList.map((p) => link(v.kind === 'plugin' && v.id === p.id, `#/p/${esc(p.id)}`, pageIcon(p), p.label)).join('');
+  const switcher = `<details class="switch"><summary class="switch-btn" aria-label="Cambiar de servidor">
+      ${cur ? `<span class="tile sm">${srvIcon(cur.icon, 28)}</span><span class="switch-name">${esc(cur.display_name)}</span><span class="led ${ledClass(cur)}" data-led="switch:${esc(cur.name)}" aria-hidden="true"></span>`
+        : '<span class="switch-name">Servidores</span>'}
+      <svg class="switch-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+    <div class="switch-pop"><div class="switch-list">${items}</div>
+      ${isAdmin() ? '<button class="btn sm new-srv" data-action="new-server">+ Nuevo servidor</button>' : ''}</div></details>`;
   const light = document.documentElement.dataset.theme === 'light';
   return `
-    <div class="brand"><img class="brand-img" src="/assets/brand/modnex-mark.png" alt="" width="34" height="28"><span>MODNEX</span></div>
-    <div class="top-actions">${accountButtonsHTML(light)}</div>
-    <div class="side-head"><p class="side-title">Servidores</p>${isAdmin() ? '<button class="btn sm new-srv" data-action="new-server">+ Nuevo servidor</button>' : ''}</div>
-    <nav class="side-nav${isMobileNav() ? ' has-notch' : ''}" aria-label="Navegación">
-      ${dockServers}${items}${admin}${pages ? `<p class="side-title">Cuenta</p>${pages}` : ''}
+    <a class="brand" href="#/servers" aria-label="Modnex: lista de servidores"><img class="brand-img" src="/assets/brand/modnex-mark.png" alt="" width="34" height="28"><span>MODNEX</span></a>
+    ${switcher}
+    <div class="top-links">${links}</div>
+    <div class="top-actions"><span class="who-chip" title="${isAdmin() ? 'Administrador' : 'Usuario'}"><span class="avatar" aria-hidden="true">${esc((state.me.username || '?').charAt(0).toUpperCase())}</span><span class="who-name">${esc(state.me.username)}</span></span>${accountButtonsHTML(light)}</div>
+    <nav class="side-nav has-notch${(dock.match(/class="nav-item/g) || []).length >= 7 ? ' dense' : ''}" aria-label="${cur ? 'Secciones del servidor' : 'Navegación'}">
+      ${dock}
       <svg class="dock-notch" aria-hidden="true" focusable="false"><path></path></svg>
       <span class="dock-ball" aria-hidden="true"></span>
-    </nav>
-    <div class="side-foot">
-      <div class="who-card">
-        <span class="avatar" aria-hidden="true">${esc((state.me.username || '?').charAt(0).toUpperCase())}</span>
-        <div class="who"><strong>${esc(state.me.username)}</strong><span class="muted">${isAdmin() ? 'Administrador' : 'Usuario'}</span></div>
-      </div>
-      <div class="foot-icons">${accountButtonsHTML(light)}
-      </div>
-    </div>`;
+    </nav>`;
 }
 
 function renderShell() {
@@ -269,7 +289,10 @@ function renderSide() {
     const r = old.getBoundingClientRect(), n = nav.getBoundingClientRect();
     if (r.height > 0) state.sideInk = { y: r.top - n.top, h: r.height };
   }
+  const wasOpen = !!($('.switch', s) && $('.switch', s).open), sameView = state.switchView === location.hash;
   setHTMLKeepLeds(s, sideHTML());
+  if (wasOpen && sameView && $('.switch', s)) $('.switch', s).open = true;     // un repintado de estado no cierra el selector; navegar sí
+  state.switchView = location.hash;
   placeSideInk();
   placeDock(live);          // síncrono: la barra ya nace con la muesca, así no parpadea
 }
@@ -547,22 +570,27 @@ async function refreshServers() {
 }
 
 /* ---------- vista de servidor ---------- */
-const GROUPS = [['operar', 'Operar'], ['contenido', 'Contenido'], ['distribuir', 'Distribuir'], ['proteger', 'Proteger'], ['mas', 'Más']];
+// Secciones de un servidor: son los elementos del dock. Cada pestaña pertenece a una; las de una sola pestaña no muestran fila de pestañas.
+const GROUPS = [['inicio', 'Inicio'], ['consola', 'Consola'], ['jugadores', 'Jugadores'], ['contenido', 'Contenido'], ['recetas', 'Recetas'],
+  ['distribuir', 'Distribuir'], ['proteger', 'Proteger'], ['config', 'Ajustes']];
+const GROUP_ALIAS = { operar: 'consola', mas: 'config' };      // grupos de versiones anteriores (plugins que aún los usen)
+const groupName = (g) => (GROUPS.some(([k]) => k === g) ? g : GROUP_ALIAS[g] || 'config');
 function tabsFor(s) {
   const t = [];
   const add = (id, label, group) => t.push({ id, label, group });
-  if (s.permissions.logs) add('logs', 'Consola', 'operar');
-  if (s.permissions.players) add('players', 'Jugadores', 'operar');
-  if (s.permissions.properties) add('props', 'Propiedades', 'operar');
-  if (isAdmin()) add('settings', 'Ajustes', 'operar');
+  if (s.permissions.logs) add('logs', 'Consola', 'consola');
+  if (s.permissions.players) add('players', 'Jugadores', 'jugadores');
+  if (s.permissions.properties) add('props', 'Propiedades', 'config');
+  if (isAdmin()) add('settings', 'Ajustes del servidor', 'config');
   if (s.permissions.mods && s.kind !== 'none') add('mods', s.kind === 'plugin' ? 'Plugins' : 'Mods', 'contenido');
   if (s.permissions.datapacks) add('datapacks', 'Datapacks', 'contenido');
   if (s.permissions.textures) add('textures', 'Texturas', 'contenido');
   if (s.permissions.distribution) add('client', 'Cliente', 'distribuir');
   for (const p of (state.plugins && state.plugins.tabs) || []) if ((!p.addon || (s.addons || []).includes(p.addon)) && (p.perm === '*' ? (isAdmin() || Object.values(s.permissions).some(Boolean)) : p.perm ? (isAdmin() || s.permissions[p.perm]) : (!p.admin || isAdmin()))) add('x-' + p.id, p.label, p.group || 'mas');
+  t.forEach((x) => { x.group = groupName(x.group); });
   const order = GROUPS.map(([g]) => g);
   t.sort((x, y) => order.indexOf(x.group) - order.indexOf(y.group));   // estable: dentro de cada grupo se conserva el orden
-  if (t.length) t.unshift({ id: 'summary', label: 'Resumen', group: 'operar' });
+  if (t.length) t.unshift({ id: 'summary', label: 'Resumen', group: 'inicio' });
   return t;
 }
 
@@ -602,18 +630,14 @@ function renderServer() {
   const href = (id) => `#/s/${encodeURIComponent(s.name)}/${id}`;
   $('#main').classList.add('srv');
   $('#main').innerHTML = `
-    <div class="srv-layout">
+    <div class="srv-layout" data-group="${activeGroup}">
       <header class="srv-head" id="srvHead">${headHTML(s)}</header>
       <aside class="rail" id="rail" aria-label="Estado del servidor"><div id="railCore"></div><div id="railPlug"></div></aside>
-      <nav class="groups" aria-label="Secciones del servidor">
-        ${groups.map(([g, label]) => `<a class="group${g === activeGroup ? ' on' : ''}" href="${href(tabs.find((t) => groupOf(t) === g).id)}" ${g === activeGroup ? 'aria-current="true"' : ''}>${label}</a>`).join('')}
-      </nav>
       ${sub.length > 1 ? `<nav class="tabs" aria-label="${esc(groups.find(([g]) => g === activeGroup)[1])}">
         ${sub.map((t) => `<a class="tab${t.id === tab ? ' on' : ''}" href="${href(t.id)}" ${t.id === tab ? 'aria-current="page"' : ''}>${t.label}</a>`).join('')}
       </nav>` : ''}
       <section class="tab-body" id="tabBody"></section>
     </div>`;
-  placeInk($('.groups'), 'groups', 'all');
   placeInk($('.srv-layout > .tabs'), 'tabs', activeGroup);
   const core = { summary: tabSummary, logs: tabLogs, mods: tabMods, datapacks: tabDatapacks, textures: tabTextures, players: tabPlayers, client: tabClient, props: tabProps, settings: tabSettings };
   // Solo al cambiar de sección se construye el contenido por etapas; las actualizaciones automáticas no lo repiten.
@@ -2358,3 +2382,7 @@ async function boot() {
 
 window.addEventListener('hashchange', () => { if (state.me) route(); });
 boot().then(() => { if (!state.me) renderLogin(); });
+
+// El selector de servidor se cierra al pulsar fuera o con Escape.
+document.addEventListener('click', (e) => { const d = $('.switch[open]'); if (d && !d.contains(e.target)) d.open = false; });
+document.addEventListener('keydown', (e) => { const d = $('.switch[open]'); if (d && e.key === 'Escape') { d.open = false; $('.switch-btn', d).focus(); } });

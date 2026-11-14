@@ -46,11 +46,14 @@ async def main():
             await pg.goto("http://127.0.0.1:8823/app"); await pg.fill("input[name=username]", "admin"); await pg.fill("input[name=password]", TOKEN)
             await pg.click("button[type=submit]"); await pg.wait_for_selector(".shell", timeout=10000)
             await pg.evaluate("location.hash='#/s/fake/logs'"); await pg.wait_for_timeout(700)
-            groups = await pg.eval_on_selector_all("a.group", "els=>els.map(e=>e.textContent.trim())")
-            check("secciones del servidor agrupadas", groups[:2] == ["Operar", "Contenido"] and "Proteger" in groups, groups)
+            groups = await pg.eval_on_selector_all(".side-nav .nav-item", "els=>els.map(e=>e.getAttribute('aria-label'))")
+            check("el dock muestra las secciones del servidor", groups[:2] == ["Inicio", "Consola"] and "Proteger" in groups and "Ajustes" in groups, groups)
+            check("la sección activa del dock es la de la pestaña abierta", await pg.eval_on_selector(".side-nav .nav-item.on", "e=>e.getAttribute('aria-label')") == "Consola")
             await go_tab(pg, "copias"); tabs = await pg.eval_on_selector_all("a.tab", "els=>els.map(e=>e.textContent.trim())")
             check("las pestañas de copias, diagnóstico y avisos están", all(t in tabs for t in ("Copias", "Diagnóstico", "Avisos")), tabs)
-            check("el riel de estado se muestra", await pg.locator("#rail .rail-block").count() >= 4)
+            check("fuera de Inicio el riel de estado no ocupa sitio", not await pg.locator("#rail").is_visible())
+            await pg.evaluate("location.hash='#/s/fake/summary'"); await pg.wait_for_selector("#rail .rail-block", timeout=10000)
+            check("el riel de estado se muestra en Inicio", await pg.locator("#rail .rail-block").count() >= 4)
             await pg.wait_for_selector("#rail .rail-block:has-text('Copias')", timeout=10000)   # el bloque se pinta tras pedir sus datos
             check("el bloque de copias está en el riel", await pg.locator("#rail .rail-title:text-is('Copias')").count() == 1)   # por el título: el aviso de disco bajo también nombra las copias
             # Respuesta, resortes y materiales del panel
@@ -59,7 +62,7 @@ async def main():
               return {spring: root.getPropertyValue('--spring').trim().startsWith('linear('), touch: t.touchAction,
                       release: t.transitionDuration.split(',').pop().trim(), ink: getComputedStyle(document.querySelector('.ink') || b).transitionTimingFunction.slice(0, 7)} }""")
             check("el panel define el resorte y quita la espera del toque", st["spring"] and st["touch"] == "manipulation", st)
-            bx = await pg.locator(".btn").first.bounding_box()
+            bx = await pg.locator(".btn:visible").first.bounding_box()
             await pg.mouse.move(bx["x"] + 5, bx["y"] + 5); await pg.mouse.down(); await pg.wait_for_timeout(100)
             act = await pg.evaluate("() => { const s = getComputedStyle(document.querySelector('.btn:active') || document.body); return s.transform + '|' + s.transitionDuration }")
             await pg.mouse.move(2, 2); await pg.mouse.up()   # se suelta fuera: no cuenta como clic
@@ -100,7 +103,7 @@ async def main():
                 await pg.screenshot(path=os.environ["MODNEX_SHOT_EMPTY"], clip={"x": 0, "y": 0, "width": 1280, "height": 900})
             await pg.evaluate("location.hash='#/s/fake/logs'"); await pg.wait_for_timeout(300)
             # Asistente de creación: extras opcionales según el tipo de servidor
-            await pg.click("button[data-action=new-server]"); await pg.wait_for_selector("#wizardForm")
+            await pg.click(".switch-btn"); await pg.click(".switch-pop button[data-action=new-server]"); await pg.wait_for_selector("#wizardForm")
             vis = lambda: pg.eval_on_selector_all("#wizExtras [data-extra]:not([hidden])", "e=>e.map(x=>x.dataset.extra)")
             await pg.check("input[name=template][value=neoforge]")
             check("NeoForge ofrece AutoModpack y spark", await vis() == ["automodpack", "spark"], await vis())
@@ -179,12 +182,15 @@ async def main():
             check("pestaña Sincronización ofrece probar en copia aislada", "Probar en una copia aislada" in await pg.inner_text("#tabBody"))
             # Servidor de pruebas
             await go_tab(pg, "pruebas"); await pg.wait_for_selector("button[data-act=create]")
-            await pg.click("button[data-act=create]"); await pg.wait_for_selector("a.srv-item.child", timeout=15000)
-            check("el servidor de pruebas aparece como hijo en la barra lateral", "fake-prueba" in await pg.inner_text("a.srv-item.child"))
+            await pg.click("button[data-act=create]"); await pg.wait_for_selector("a.srv-item.child", state="attached", timeout=15000)
+            await pg.click(".switch-btn")
+            check("el servidor de pruebas aparece como hijo en el selector de servidores", "fake-prueba" in await pg.inner_text("a.srv-item.child"))
+            await pg.keyboard.press("Escape")
+            check("Escape cierra el selector", not await pg.locator(".switch-pop").is_visible())
             await pg.wait_for_selector("text=La configuración es igual")
-            await pg.click("a.srv-item.child"); await pg.wait_for_selector(".groups")
+            await pg.click(".switch-btn"); await pg.click("a.srv-item.child"); await pg.wait_for_selector(".srv-head")
             check("el hijo se administra como cualquier servidor (abre su panel)", "fake-prueba" in await pg.inner_text("#main"))
-            await pg.click("a.srv-item:not(.child) >> nth=0"); await pg.wait_for_selector(".groups")
+            await pg.click(".switch-btn"); await pg.click("a.srv-item:not(.child) >> nth=0"); await pg.wait_for_selector(".srv-head")
             # Propuestas
             op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
             op.open(urllib.request.Request("http://127.0.0.1:8823/api/login", data=json.dumps({"username": "admin", "password": TOKEN}).encode(), headers={"Content-Type": "application/json"}))
