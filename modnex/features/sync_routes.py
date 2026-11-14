@@ -7,7 +7,7 @@ def register(api):
     ctx = api.ctx
 
     @api.route("GET", "sync")
-    @_guard
+    @_guard(perm="distribution")
     def r_sync(ctx, user, name, q, b):
         return 200, sync.public(ctx, name)
 
@@ -26,7 +26,7 @@ def register(api):
         return 200, r
 
     @api.route("GET", "automodpack")
-    @_guard
+    @_guard(perm="distribution")
     def r_amp(ctx, user, name, q, b):
         return 200, automodpack.analyze(ctx, name)
 

@@ -7,6 +7,6 @@ def register(api):
     ctx = api.ctx
 
     @api.route("GET", "doctor")
-    @_guard
+    @_guard(perm="diagnostics")
     def r_doctor(ctx, user, name, q, b):
         return 200, doctor.diagnose(ctx, name)

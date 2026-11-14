@@ -87,18 +87,18 @@ def datapacks(req, name):
     return list_datapacks(name)
 
 
-@server_action("GET", "releases")
+@server_action("GET", "releases", perm="distribution")
 def releases(req, name):
     return release.list_releases(name)
 
 
-@server_action("GET", "properties")
+@server_action("GET", "properties", perm="properties")
 def properties(req, name):
     server_path(name)
     return properties_view(name)
 
 
-@server_action("GET", "client_plan")
+@server_action("GET", "client_plan", perm="distribution")
 def plan(req, name):
     return client_plan(name)
 
@@ -182,7 +182,7 @@ def meta(req, name, b):
     db.set_server_meta(name, b.get("display_name"), b.get("icon"))
 
 
-@server_action("POST", "properties")
+@server_action("POST", "properties", perm="properties")
 def save_properties(req, name, b):
     clean = set_properties(name, b.get("values"))
     db.audit(req.user, name, "propiedades del servidor", ", ".join(sorted(clean)))
@@ -304,7 +304,7 @@ def player(req, name, b):
 
 # ---- cliente y releases ----
 
-@server_action("POST", "client_build")
+@server_action("POST", "client_build", perm="distribution")
 def client_build(req, name, b):
     res = build_client(name, b.get("files"), b.get("format"), b.get("version"), bool(b.get("include_config")), b.get("pack_name"),
                        req.user["username"], bool(b.get("reference_cf")), bool(b.get("presets")))

@@ -23,13 +23,13 @@ def _snap(ctx, user, name, label):
 
 def register(api):
     @api.route("GET", "kubejs_state")
-    @_guard
+    @_guard(perm="recipes")
     def r_state(ctx, user, name, q, b):
         _need(ctx, name)
         return 200, kubejs.load(ctx, name)
 
     @api.route("GET", "kubejs_items")
-    @_guard
+    @_guard(perm="recipes")
     def r_items(ctx, user, name, q, b):
         _need(ctx, name)
         try:
@@ -39,7 +39,7 @@ def register(api):
         return 200, {"items": kubejs.search(ctx, name, str((q or {}).get("q", "")), limit)}
 
     @api.route("POST", "kubejs_save")
-    @_guard
+    @_guard(perm="recipes")
     def r_save(ctx, user, name, q, b):
         _need(ctx, name)
         _snap(ctx, user, name, "Antes de guardar recetas")
@@ -81,18 +81,18 @@ def register(api):
         return 200, {"ok": True}
 
     @api.route("GET", "kubejs_diag")
-    @_guard
+    @_guard(perm="recipes")
     def r_diag(ctx, user, name, q, b):
         return 200, kubejs.diagnostics(ctx, name)
 
     @api.route("GET", "kubejs_recipes_for")
-    @_guard
+    @_guard(perm="recipes")
     def r_recipes_for(ctx, user, name, q, b):
         _need(ctx, name)
         return 200, kubejs.recipes_for(ctx, name, str((q or {}).get("item", "")))
 
     @api.route("POST", "kubejs_removals_save")
-    @_guard
+    @_guard(perm="recipes")
     def r_removals_save(ctx, user, name, q, b):
         _need(ctx, name)
         _snap(ctx, user, name, "Antes de cambiar las recetas quitadas")
@@ -109,7 +109,7 @@ def register(api):
         return 200, out
 
     @api.route("POST", "kubejs_recipe_delete")
-    @_guard
+    @_guard(perm="recipes")
     def r_recipe_delete(ctx, user, name, q, b):
         _need(ctx, name)
         slug = str(b.get("slug") or "")
@@ -123,7 +123,7 @@ def register(api):
         return 200, kubejs.load(ctx, name)
 
     @api.route("GET", "kubejs_rules")
-    @_guard
+    @_guard(perm="recipes")
     def r_rules(ctx, user, name, q, b):
         _need(ctx, name)
         out = kubejs_rules.load(ctx, name)
@@ -131,7 +131,7 @@ def register(api):
         return 200, out
 
     @api.route("POST", "kubejs_rules_save")
-    @_guard
+    @_guard(perm="recipes")
     def r_rules_save(ctx, user, name, q, b):
         _need(ctx, name)
         _snap(ctx, user, name, "Antes de guardar reglas")
@@ -142,13 +142,13 @@ def register(api):
         return 200, out
 
     @api.route("GET", "kubejs_gui")
-    @_guard
+    @_guard(perm="recipes")
     def r_gui(ctx, user, name, q, b):
         _need(ctx, name)
         return 200, {"textures": kubejs.gui_textures(ctx, name), "vanilla": kubejs.vanilla_status(ctx, name)}
 
     @api.route("GET", "kubejs_blocks")
-    @_guard
+    @_guard(perm="recipes")
     def r_blocks(ctx, user, name, q, b):
         _need(ctx, name)
         ids = [i for i in str((q or {}).get("ids", "")).split(",") if i][:60]
@@ -156,7 +156,7 @@ def register(api):
         return 200, {"models": models, "textures": textures}
 
     @api.route("GET", "kubejs_create")
-    @_guard
+    @_guard(perm="recipes")
     def r_create(ctx, user, name, q, b):
         _need(ctx, name)
         out = kubejs_create.load(ctx, name)
@@ -164,7 +164,7 @@ def register(api):
         return 200, out
 
     @api.route("POST", "kubejs_create_save")
-    @_guard
+    @_guard(perm="recipes")
     def r_create_save(ctx, user, name, q, b):
         _need(ctx, name)
         _snap(ctx, user, name, "Antes de guardar recetas de Create")
@@ -175,26 +175,26 @@ def register(api):
         return 200, out
 
     @api.route("GET", "kubejs_fluids")
-    @_guard
+    @_guard(perm="recipes")
     def r_fluids(ctx, user, name, q, b):
         _need(ctx, name)
         return 200, {"fluids": kubejs.fluids(ctx, name)}
 
     @api.route("GET", "kubejs_loot")
-    @_guard
+    @_guard(perm="recipes")
     def r_loot(ctx, user, name, q, b):
         _need(ctx, name)
         return 200, kubejs_loot.load(ctx, name)
 
     @api.route("GET", "kubejs_loot_targets")
-    @_guard
+    @_guard(perm="recipes")
     def r_loot_targets(ctx, user, name, q, b):
         _need(ctx, name)
         q = q or {}
         return 200, {"targets": kubejs_loot.targets(ctx, name, str(q.get("kind", "block")), str(q.get("q", "")))}
 
     @api.route("GET", "kubejs_loot_current")
-    @_guard
+    @_guard(perm="recipes")
     def r_loot_current(ctx, user, name, q, b):
         _need(ctx, name)
         q = q or {}
@@ -204,7 +204,7 @@ def register(api):
         return 200, kubejs_loot.current(ctx, name, kind, str(q.get("target", "")))
 
     @api.route("POST", "kubejs_loot_save")
-    @_guard
+    @_guard(perm="recipes")
     def r_loot_save(ctx, user, name, q, b):
         _need(ctx, name)
         _snap(ctx, user, name, "Antes de guardar tablas de botín")
@@ -212,7 +212,7 @@ def register(api):
         ctx.audit(user, name, "tablas de botín de KubeJS guardadas", f"{len(rules)} reglas")
         return 200, kubejs_loot.load(ctx, name)
     @api.route("POST", "kubejs_test")
-    @_guard
+    @_guard(perm="recipes")
     def r_test(ctx, user, name, q, b):
         _need(ctx, name)
         out = kubejs_check.run(ctx, name)
@@ -220,13 +220,13 @@ def register(api):
         return 200, out
 
     @api.route("GET", "kubejs_history")
-    @_guard
+    @_guard(perm="recipes")
     def r_history(ctx, user, name, q, b):
         _need(ctx, name)
         return 200, {"versions": kubejs_history.versions(ctx, name)}
 
     @api.route("POST", "kubejs_history_restore")
-    @_guard
+    @_guard(perm="recipes")
     def r_history_restore(ctx, user, name, q, b):
         _need(ctx, name)
         out = kubejs_history.restore(ctx, name, b.get("id"), (user or {}).get("username", ""))
@@ -234,13 +234,13 @@ def register(api):
         return 200, {**out, "versions": kubejs_history.versions(ctx, name)}
 
     @api.route("GET", "kubejs_appeng")
-    @_guard
+    @_guard(perm="recipes")
     def r_ae2(ctx, user, name, q, b):
         _need(ctx, name)
         return 200, kubejs_ae2.load(ctx, name)
 
     @api.route("POST", "kubejs_appeng_save")
-    @_guard
+    @_guard(perm="recipes")
     def r_ae2_save(ctx, user, name, q, b):
         _need(ctx, name)
         _snap(ctx, user, name, "Antes de guardar recetas de AE2")

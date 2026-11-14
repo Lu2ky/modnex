@@ -9,7 +9,7 @@ def register(api):
     ctx = api.ctx
 
     @api.route("GET", "backups")
-    @_guard
+    @_guard(perm="backups")
     def r_backups(ctx, user, name, q, b):
         d = backups.backup_dir(ctx, name)
         return 200, {"backups": backups.list_backups(ctx, name), "graph": backups.graph(ctx, name), "job": backups.JOBS.get(name),
@@ -18,7 +18,7 @@ def register(api):
                      "retention": {"policy": retention.get(ctx, name), "plan": retention.plan(ctx, name)}}
 
     @api.route("POST", "backup_pin")
-    @_guard
+    @_guard(perm="backups")
     def r_backup_pin(ctx, user, name, q, b):
         pinned = b.get("pinned")
         if not isinstance(pinned, bool):
@@ -47,7 +47,7 @@ def register(api):
         return 200, r
 
     @api.route("POST", "backup_create")
-    @_guard
+    @_guard(perm="backups")
     def r_backup_create(ctx, user, name, q, b):
         label = str(b.get("label") or "")[:80]
         note = str(b.get("note") or "")[:500]
@@ -63,7 +63,7 @@ def register(api):
         return 202, {"started": True}
 
     @api.route("POST", "backup_restore")
-    @_guard
+    @_guard(perm="backups")
     def r_backup_restore(ctx, user, name, q, b):
         if b.get("confirm") != name:
             raise ValueError("falta la confirmación: escribe el nombre del servidor")
@@ -86,6 +86,6 @@ def register(api):
         return 200, {"ok": True}
 
     @api.route("GET", "backup_diff")
-    @_guard
+    @_guard(perm="backups")
     def r_backup_diff(ctx, user, name, q, b):
         return 200, backups.diff(ctx, name, q.get("a", ""), q.get("b", "current"))
