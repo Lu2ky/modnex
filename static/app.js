@@ -553,11 +553,12 @@ function tabsFor(s) {
   const add = (id, label, group) => t.push({ id, label, group });
   if (s.permissions.logs) add('logs', 'Consola', 'operar');
   if (s.permissions.players) add('players', 'Jugadores', 'operar');
-  if (isAdmin()) add('props', 'Propiedades', 'operar'), add('settings', 'Ajustes', 'operar');
+  if (s.permissions.properties) add('props', 'Propiedades', 'operar');
+  if (isAdmin()) add('settings', 'Ajustes', 'operar');
   if (s.permissions.mods && s.kind !== 'none') add('mods', s.kind === 'plugin' ? 'Plugins' : 'Mods', 'contenido');
   if (s.permissions.datapacks) add('datapacks', 'Datapacks', 'contenido');
   if (s.permissions.textures) add('textures', 'Texturas', 'contenido');
-  if (isAdmin()) add('client', 'Cliente', 'distribuir');
+  if (s.permissions.distribution) add('client', 'Cliente', 'distribuir');
   for (const p of (state.plugins && state.plugins.tabs) || []) if ((!p.addon || (s.addons || []).includes(p.addon)) && (p.perm === '*' ? (isAdmin() || Object.values(s.permissions).some(Boolean)) : p.perm ? (isAdmin() || s.permissions[p.perm]) : (!p.admin || isAdmin()))) add('x-' + p.id, p.label, p.group || 'mas');
   const order = GROUPS.map(([g]) => g);
   t.sort((x, y) => order.indexOf(x.group) - order.indexOf(y.group));   // estable: dentro de cada grupo se conserva el orden
@@ -1778,7 +1779,8 @@ async function renderUsers(selectId) {
   } catch (e) { fail(e); }
 }
 
-const PERM_LABELS = { logs: 'Ver logs', mods: 'Instalar mods', datapacks: 'Datapacks', textures: 'Texturas', players: 'Jugadores', control: 'Encender y apagar' };
+const PERM_LABELS = { logs: 'Ver logs', mods: 'Instalar mods', datapacks: 'Datapacks', textures: 'Texturas', players: 'Jugadores', control: 'Encender y apagar',
+  backups: 'Copias', recipes: 'Recetas (KubeJS)', properties: 'Propiedades', perf: 'Rendimiento', distribution: 'Cliente y sincronización', diagnostics: 'Diagnóstico' };
 const PERM_KEYS = Object.keys(PERM_LABELS);
 const clone = (o) => JSON.parse(JSON.stringify(o));
 // Forma canónica para comparar: solo servidores con algún permiso y todas las claves como booleanos.

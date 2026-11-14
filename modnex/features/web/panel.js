@@ -379,7 +379,7 @@
   }
 
   function kubejsSection(el, s) {
-    const VIEWS = [['recetas', 'Recetas'], ...((s.addons || []).includes('create') ? [['create', 'Create']] : []), ...((s.addons || []).includes('ae2') ? [['ae2', 'AE2']] : []), ['quitar', 'Quitar recetas'], ['reglas', 'Reglas'], ['botin', 'Botín'], ['historial', 'Historial'], ['scripts', 'Scripts'], ['diag', 'Diagnóstico']];
+    const VIEWS = [['recetas', 'Recetas'], ...((s.addons || []).includes('create') ? [['create', 'Create']] : []), ...((s.addons || []).includes('ae2') ? [['ae2', 'AE2']] : []), ['quitar', 'Quitar recetas'], ['reglas', 'Reglas'], ['botin', 'Botín'], ['historial', 'Historial'], ...(M().isAdmin() ? [['scripts', 'Scripts']] : []), ['diag', 'Diagnóstico']];   // los scripts a mano son código: solo administradores
     let view = 'recetas';
     el.innerHTML = `<nav class="kjs-nav" role="tablist" aria-label="KubeJS">${VIEWS.map(([k, l]) =>
       `<button role="tab" data-view="${k}" aria-selected="${k === view}" class="${k === view ? 'on' : ''}">${l}</button>`).join('')}</nav>

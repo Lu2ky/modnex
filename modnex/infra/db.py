@@ -16,7 +16,10 @@ from modnex import config
 DB_FILE = Path(os.environ.get("MANAGER_DB") or config.HERE / "manager.db")
 SESSION_TTL = 30 * 24 * 3600
 PBKDF2_ITERS = 200_000
-PERMS = ("logs", "mods", "datapacks", "textures", "players", "control")
+# Los seis primeros son los originales. Los demás delegan secciones que antes eran solo de administradores; lo que ejecuta código
+# arbitrario (subir un .jar, editar scripts a mano) o cambia el panel entero sigue siendo solo de administradores.
+PERMS = ("logs", "mods", "datapacks", "textures", "players", "control",
+         "backups", "recipes", "properties", "perf", "distribution", "diagnostics")
 # Nombres de iconos asignables a un servidor; el dibujo vive en static/icons.js.
 ICONS = ["vanilla", "forge", "neoforge", "fabric", "quilt", "paper", "bukkit", "spigot", "purpur",
          "velocity", "sponge", "mohist", "catserver", "arclight", "thermos", "modded", "liteloader", "custom",
