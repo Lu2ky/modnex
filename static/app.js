@@ -267,6 +267,7 @@ function sideHTML() {
   return `
     <a class="brand" href="#/servers" aria-label="Modnex: lista de servidores"><img class="brand-img" src="/assets/brand/modnex-mark.png" alt="" width="34" height="28"><span>MODNEX</span></a>
     ${switcher}
+    <button class="ibtn palette-btn" data-action="palette" aria-label="Buscar (Ctrl+K)" title="Buscar · Ctrl+K"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
     <div class="top-links">${links}</div>
     <div class="top-actions"><span class="who-chip" title="${isAdmin() ? 'Administrador' : 'Usuario'}"><span class="avatar" aria-hidden="true">${esc((state.me.username || '?').charAt(0).toUpperCase())}</span><span class="who-name">${esc(state.me.username)}</span></span>${accountButtonsHTML(light)}</div>
     <nav class="side-nav has-notch${(dock.match(/class="nav-item/g) || []).length >= 7 ? ' dense' : ''}" aria-label="${cur ? 'Secciones del servidor' : 'Navegación'}">
@@ -1806,6 +1807,15 @@ async function renderUsers(selectId) {
 const PERM_LABELS = { logs: 'Ver logs', mods: 'Instalar mods', datapacks: 'Datapacks', textures: 'Texturas', players: 'Jugadores', control: 'Encender y apagar',
   backups: 'Copias', recipes: 'Recetas (KubeJS)', properties: 'Propiedades', perf: 'Rendimiento', distribution: 'Cliente y sincronización', diagnostics: 'Diagnóstico' };
 const PERM_KEYS = Object.keys(PERM_LABELS);
+// Los permisos se muestran agrupados como las secciones del dock, con una frase que dice qué abre cada uno.
+const PERM_GROUPS = [['Operar', ['control', 'logs', 'perf']], ['Jugadores', ['players']], ['Contenido', ['mods', 'datapacks', 'textures', 'recipes']],
+  ['Distribuir', ['distribution']], ['Proteger', ['backups', 'diagnostics']], ['Ajustes', ['properties']]];
+const PERM_HINT = { control: 'Arrancar y parar el servidor', logs: 'Leer la consola', perf: 'Ver el rendimiento y lanzar perfiles', players: 'Expulsar, banear, whitelist y estadísticas',
+  mods: 'Instalar, actualizar y configurar mods del catálogo', datapacks: 'Subir y borrar datapacks', textures: 'Packs de texturas del servidor', recipes: 'Recetas, reglas y botín con formularios',
+  distribution: 'Paquete del cliente y sincronización', backups: 'Ver, crear y restaurar copias', diagnostics: 'Ver el diagnóstico', properties: 'Editar server.properties' };
+const PERM_PRESETS = [['Nada', []], ['Solo ver', ['logs', 'perf', 'diagnostics']], ['Moderador', ['control', 'logs', 'perf', 'players']],
+  ['Constructor', ['logs', 'mods', 'datapacks', 'textures', 'recipes', 'backups']], ['Todo', PERM_KEYS]];
+const permCount = (p) => PERM_KEYS.filter((k) => p && p[k]).length;
 const clone = (o) => JSON.parse(JSON.stringify(o));
 // Forma canónica para comparar: solo servidores con algún permiso y todas las claves como booleanos.
 const norm = (d) => ({
@@ -1823,18 +1833,23 @@ function refreshDirty() {
 
 function userEditorHTML(u, embedded) {
   const self = u.id === state.me.id;
-  const rows = state.servers.map((s) => {
+  const cards = state.servers.map((s) => {
     const p = u.permissions[s.name] || {};
-    return `<tr><th scope="row"><span class="tile sm">${srvIcon(s.icon, 22)}</span>${esc(s.display_name)}</th>${PERM_KEYS.map((k) =>
-      `<td><input type="checkbox" data-perm="${k}" data-server="${esc(s.name)}" aria-label="${PERM_LABELS[k]} en ${esc(s.display_name)}" ${p[k] ? 'checked' : ''} ${u.is_admin ? 'disabled' : ''}></td>`).join('')}</tr>`;
+    return `<section class="perm-card" data-perm-card="${esc(s.name)}">
+      <header><span class="tile sm">${srvIcon(s.icon, 22)}</span><strong>${esc(s.display_name)}</strong><span class="muted small" data-perm-count>${permCount(p)} de ${PERM_KEYS.length}</span>
+        <span class="perm-presets" role="group" aria-label="Conjuntos de permisos para ${esc(s.display_name)}">${PERM_PRESETS.map(([label], i) =>
+          `<button type="button" class="btn ghost sm" data-action="perm-preset" data-server="${esc(s.name)}" data-preset="${i}" ${u.is_admin ? 'disabled' : ''}>${label}</button>`).join('')}</span></header>
+      <div class="perm-groups">${PERM_GROUPS.map(([g, keys]) => `<div class="perm-group"><span class="perm-group-t">${g}</span>${keys.map((k) =>
+        `<label class="perm-chip" title="${esc(PERM_HINT[k])}"><input type="checkbox" data-perm="${k}" data-server="${esc(s.name)}" ${p[k] ? 'checked' : ''} ${u.is_admin ? 'disabled' : ''}><span>${PERM_LABELS[k]}</span></label>`).join('')}</div>`).join('')}</div>
+    </section>`;
   }).join('');
   return `
     <div class="dlg${embedded ? ' embedded' : ''}" data-user="${u.id}">
       <header><h2>${esc(u.username)}</h2>${embedded ? '' : '<button class="btn ghost sm" data-action="user-close">Cerrar</button>'}</header>
       ${u.is_admin ? '<p class="notice">Los administradores tienen acceso total; los permisos por servidor no aplican.</p>' : ''}
       <h3>Permisos por servidor</h3>
-      <div class="table-wrap"><table class="perm-table"><thead><tr><th>Servidor</th>${PERM_KEYS.map((k) => `<th>${PERM_LABELS[k]}</th>`).join('')}</tr></thead>
-        <tbody>${rows || '<tr><td colspan="7" class="muted">No hay servidores.</td></tr>'}</tbody></table></div>
+      <p class="muted small">Pasa el puntero por un permiso para ver qué abre. Subir mods a mano, editar scripts, borrar copias y el servidor de pruebas son siempre solo de administradores.</p>
+      <div class="perm-cards">${cards || '<p class="muted">No hay servidores.</p>'}</div>
       <h3>Cuenta</h3>
       <div class="row">
         <label class="check"><input type="checkbox" data-acct="active" ${u.active ? 'checked' : ''} ${self ? 'disabled' : ''}> Cuenta activa</label>
@@ -2035,6 +2050,16 @@ const actions = {
     } catch (e) { fail(e); }
     busy(el, false);
   },
+  'perm-preset'(el) {
+    const d = state.draft, srv = el.dataset.server, keys = PERM_PRESETS[Number(el.dataset.preset)][1];
+    if (!d) return;
+    d.cur.permissions[srv] = Object.fromEntries(PERM_KEYS.map((k) => [k, keys.includes(k)]));
+    const card = el.closest('.perm-card');
+    $$('[data-perm]', card).forEach((c) => { c.checked = keys.includes(c.dataset.perm); });
+    $('[data-perm-count]', card).textContent = `${keys.length} de ${PERM_KEYS.length}`;
+    refreshDirty();
+  },
+  palette() { openPalette(); },
   async 'tex-use-local'(el) {
     const base = $('#packBase').value.trim(), c = state.tex.current;
     try {
@@ -2323,6 +2348,8 @@ document.addEventListener('change', (e) => {
   if (t.dataset.perm) {
     const srv = t.dataset.server;
     d.cur.permissions[srv] = { ...(d.cur.permissions[srv] || {}), [t.dataset.perm]: t.checked };
+    const cnt = t.closest('.perm-card') && $('[data-perm-count]', t.closest('.perm-card'));
+    if (cnt) cnt.textContent = `${permCount(d.cur.permissions[srv])} de ${PERM_KEYS.length}`;
   } else if (t.dataset.acct) {
     d.cur[t.dataset.acct] = t.checked;
     if (t.dataset.acct === 'is_admin') $$('[data-perm]').forEach((c) => { c.disabled = t.checked; });
@@ -2386,3 +2413,49 @@ boot().then(() => { if (!state.me) renderLogin(); });
 // El selector de servidor se cierra al pulsar fuera o con Escape.
 document.addEventListener('click', (e) => { const d = $('.switch[open]'); if (d && !d.contains(e.target)) d.open = false; });
 document.addEventListener('keydown', (e) => { const d = $('.switch[open]'); if (d && e.key === 'Escape') { d.open = false; $('.switch-btn', d).focus(); } });
+
+/* ---------- Buscador global (Ctrl+K): salta a cualquier servidor, sección o página ---------- */
+function paletteEntries() {
+  const out = [], cur = state.view.kind === 'server' ? server(state.view.name) : null;
+  const sectionOf = (g) => (GROUPS.find(([k]) => k === g) || [null, ''])[1];
+  const tabsOf = (sv) => tabsFor(sv).map((t) => ({ label: t.label, hint: `${sv.display_name} › ${sectionOf(t.group)}`, href: `#/s/${encodeURIComponent(sv.name)}/${t.id}`, icon: t.group }));
+  if (cur) out.push(...tabsOf(cur));                                      // primero, lo del servidor abierto
+  state.servers.forEach((sv) => out.push({ label: sv.display_name, hint: sv.status.running ? 'Servidor · en marcha' : 'Servidor · parado', href: `#/s/${encodeURIComponent(sv.name)}`, icon: 'servers' }));
+  out.push({ label: 'Servidores', hint: 'Panel', href: '#/servers', icon: 'servers' });
+  if (isAdmin()) out.push({ label: 'Usuarios y permisos', hint: 'Panel', href: '#/users', icon: 'users' }, { label: 'Actividad', hint: 'Panel', href: '#/audit', icon: 'audit' });
+  ((state.plugins && state.plugins.pages) || []).filter((pg) => !pg.admin || isAdmin()).forEach((pg) => out.push({ label: pg.label, hint: 'Cuenta', href: `#/p/${pg.id}`, icon: 'shield' }));
+  state.servers.filter((sv) => !cur || sv.name !== cur.name).forEach((sv) => out.push(...tabsOf(sv)));
+  return out;
+}
+const paletteNorm = (t) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+function openPalette() {
+  if ($('#palette')) return;
+  const all = paletteEntries();
+  const dlg = document.createElement('dialog');
+  dlg.id = 'palette'; dlg.className = 'palette'; dlg.setAttribute('aria-label', 'Buscar en el panel');
+  dlg.innerHTML = `<input class="palette-q" type="search" placeholder="Ir a un servidor, una sección o una página" aria-label="Buscar" autocomplete="off" spellcheck="false">
+    <ul class="palette-list" role="listbox"></ul><p class="palette-foot muted small">↑ ↓ para moverte · Enter para abrir · Esc para cerrar</p>`;
+  document.body.append(dlg);
+  const q = $('.palette-q', dlg), list = $('.palette-list', dlg);
+  let shown = [], sel = 0;
+  const draw = () => {
+    const words = paletteNorm(q.value).split(/\s+/).filter(Boolean);
+    shown = all.filter((e) => words.every((w) => paletteNorm(`${e.label} ${e.hint}`).includes(w))).slice(0, 12);
+    sel = Math.min(sel, Math.max(0, shown.length - 1));
+    list.innerHTML = shown.length ? shown.map((e, i) => `<li role="option" class="palette-item${i === sel ? ' on' : ''}" data-i="${i}" aria-selected="${i === sel}">${dockIcon(e.icon)}<span class="palette-label">${esc(e.label)}</span><span class="muted small">${esc(e.hint)}</span></li>`).join('')
+      : '<li class="palette-empty muted">Nada coincide.</li>';
+  };
+  const go = (i) => { const e = shown[i]; if (!e) return; dlg.close(); location.hash = e.href; };
+  q.addEventListener('input', () => { sel = 0; draw(); });
+  dlg.addEventListener('keydown', (ev) => {
+    if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); sel = (sel + (ev.key === 'ArrowDown' ? 1 : -1) + shown.length) % Math.max(1, shown.length); draw(); const on = $('.palette-item.on', list); if (on) on.scrollIntoView({ block: 'nearest' }); }
+    else if (ev.key === 'Enter') { ev.preventDefault(); go(sel); }
+  });
+  list.addEventListener('click', (ev) => { const li = ev.target.closest('.palette-item'); if (li) go(Number(li.dataset.i)); });
+  dlg.addEventListener('click', (ev) => { if (ev.target === dlg) dlg.close(); });       // clic en el fondo
+  dlg.addEventListener('close', () => dlg.remove());
+  draw(); dlg.showModal(); q.focus();
+}
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && state.me) { e.preventDefault(); openPalette(); }
+});
