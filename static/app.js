@@ -2440,7 +2440,10 @@ function openPalette() {
   let shown = [], sel = 0;
   const draw = () => {
     const words = paletteNorm(q.value).split(/\s+/).filter(Boolean);
-    shown = all.filter((e) => words.every((w) => paletteNorm(`${e.label} ${e.hint}`).includes(w))).slice(0, 12);
+    // Primero lo que coincide en el nombre; después lo que solo coincide en la pista (el servidor o la sección a la que pertenece).
+    const inLabel = (e) => words.every((w) => paletteNorm(e.label).includes(w));
+    const hits = all.filter((e) => words.every((w) => paletteNorm(`${e.label} ${e.hint}`).includes(w)));
+    shown = [...hits.filter(inLabel), ...hits.filter((e) => !inLabel(e))].slice(0, 12);
     sel = Math.min(sel, Math.max(0, shown.length - 1));
     list.innerHTML = shown.length ? shown.map((e, i) => `<li role="option" class="palette-item${i === sel ? ' on' : ''}" data-i="${i}" aria-selected="${i === sel}">${dockIcon(e.icon)}<span class="palette-label">${esc(e.label)}</span><span class="muted small">${esc(e.hint)}</span></li>`).join('')
       : '<li class="palette-empty muted">Nada coincide.</li>';
