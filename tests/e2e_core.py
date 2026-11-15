@@ -44,7 +44,7 @@ class Client:
 def start_core(port, tmp):
     cfg = tmp / "config.json"
     cfg.write_text(json.dumps({"access_token": TOKEN, "bind": "127.0.0.1"}))
-    env = dict(os.environ, MANAGER_PORT=str(port), MANAGER_DB=str(tmp / f"db{port}.db"), SERVERS_DIR=str(tmp / "srv"),
+    env = dict(os.environ, MODNEX_PLAYIT_SECRET="/nonexistent/playit.toml", MANAGER_PORT=str(port), MANAGER_DB=str(tmp / f"db{port}.db"), SERVERS_DIR=str(tmp / "srv"),
                MODNEX_CONFIG=str(cfg), MODNEX_BACKUP_DIR=str(tmp / "bk"))
     p = subprocess.Popen([sys.executable, "app.py"], cwd=CORE, env=env, stdout=open(tmp / f"core{port}.log", "w"), stderr=subprocess.STDOUT)
     for _ in range(40):

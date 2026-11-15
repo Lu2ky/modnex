@@ -64,6 +64,27 @@ class PlayitTest(unittest.TestCase):
         with mock.patch.object(P, "_post", side_effect=P.PlayitError("x")):
             self.assertIsNone(P.address(self.srv, key_path=self.toml))
 
+    def test_direccion_para_jugadores_por_registro_o_por_puerto(self):
+        tun = [{"id": "t-1", "tunnel_type": "minecraft-java", "local_port": 25565, "assigned_domain": "uno.tun.ply.gg", "port": {"from": 40001, "to": 40002}},
+               {"id": "t-2", "tunnel_type": "minecraft-java", "local_port": 25570, "assigned_domain": "dos.tun.ply.gg", "port": {"from": 40005, "to": 40006}},
+               {"id": "t-3", "tunnel_type": "minecraft-java", "local_port": 25580, "assigned_domain": "off.tun.ply.gg", "port": {"from": 40009, "to": 40010}, "disabled": {"x": 1}}]
+        calls = []
+        def fake(path, body, key, timeout=20): calls.append(path); return {"agent_id": "a", "tunnels": tun}
+        with mock.patch.object(P, "_post", fake):
+            P._ADDR_CACHE.clear()
+            self.assertEqual(P.public_address(self.srv, 25570, key_path=self.toml), "dos.tun.ply.gg:40005")      # sin registro: por el puerto local
+            self.assertEqual(P.public_address(self.srv, 25570, key_path=self.toml), "dos.tun.ply.gg:40005"); self.assertEqual(len(calls), 1)   # se recuerda
+            other = self.tmp / "otro"; other.mkdir(); (other / P.RECORD).write_text(json.dumps({"tunnel_id": "t-1", "local_port": 1}))
+            self.assertEqual(P.public_address(other, 9999, key_path=self.toml), "uno.tun.ply.gg:40001")          # con registro: por su id
+            off = self.tmp / "off"; off.mkdir()
+            self.assertIsNone(P.public_address(off, 25580, key_path=self.toml))                                # desactivado: no se ofrece
+            none = self.tmp / "nada"; none.mkdir()
+            self.assertIsNone(P.public_address(none, 1234, key_path=self.toml))
+        P._ADDR_CACHE.clear()
+        self.assertIsNone(P.public_address(self.srv, 25570, key_path=self.tmp / "no.toml"))                    # sin clave
+        with mock.patch.object(P, "_post", side_effect=P.PlayitError("x")):
+            self.assertIsNone(P.public_address(self.srv, 25570, key_path=self.toml)); self.assertNotIn(str(self.srv), P._ADDR_CACHE)   # un fallo no se recuerda
+
 
 if __name__ == "__main__":
     unittest.main()
