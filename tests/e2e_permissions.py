@@ -42,7 +42,7 @@ def main():
     s = tmp / "srv" / "cobble"; (s / "mods").mkdir(parents=True); (s / "kubejs/server_scripts").mkdir(parents=True)
     (s / "mods/kubejs-neoforge-2101.7.2-build.381.jar").write_bytes(b"x"); (s / "start.sh").write_text("#!/bin/sh\nsleep 1\n"); (s / "server.properties").write_text("server-port=25570\n")
     (tmp / "c.json").write_text(json.dumps({"access_token": TOKEN, "bind": "127.0.0.1"}))
-    env = dict(os.environ, MANAGER_PORT=str(PORT), MANAGER_DB=str(tmp / "db.db"), SERVERS_DIR=str(tmp / "srv"), MODNEX_CONFIG=str(tmp / "c.json"), MODNEX_BACKUP_DIR=str(tmp / "bk"))
+    env = dict(os.environ, MODNEX_PLAYIT_SECRET="/nonexistent/playit.toml", MANAGER_PORT=str(PORT), MANAGER_DB=str(tmp / "db.db"), SERVERS_DIR=str(tmp / "srv"), MODNEX_CONFIG=str(tmp / "c.json"), MODNEX_BACKUP_DIR=str(tmp / "bk"))
     p = subprocess.Popen([sys.executable, "app.py"], cwd=CORE, env=env, stdout=open(tmp / "core.log", "w"), stderr=subprocess.STDOUT)
     try:
         for _ in range(60):
@@ -56,6 +56,7 @@ def main():
         base = "/api/servers/cobble/"
         every = [r for rs in OPENS.values() for r in rs]
         check("sin permisos no entra a nada", all(u.req("GET", base + r)[0] in (403, 404) for r in every), [(r, u.req("GET", base + r)[0]) for r in every])
+        check("sin permisos tampoco ve la dirección pública", u.req("GET", base + "address")[0] in (403, 404))
         for perm, routes in OPENS.items():
             st, _ = a.req("POST", f"/api/users/{uid}/permissions", {"permissions": {"cobble": {perm: True}}})
             got = {r: u.req("GET", base + r)[0] for r in every}
@@ -64,6 +65,8 @@ def main():
             check(f"«{perm}» no da acceso a lo de administradores", all(u.req("GET", base + r)[0] == 403 for r in ADMIN_ONLY_GET) and all(u.req("POST", base + r, {})[0] == 403 for r in ADMIN_ONLY_POST))
         a.req("POST", f"/api/users/{uid}/permissions", {"permissions": {"cobble": {k: True for k in OPENS}}})
         check("con los seis nuevos sigue sin poder lo de administradores", all(u.req("POST", base + r, {})[0] == 403 for r in ADMIN_ONLY_POST))
+        st, d = u.req("GET", base + "address")
+        check("con algún permiso puede ver la dirección para jugadores (vacía si no hay túnel)", st == 200 and "address" in d, (st, d))
         st, d = u.req("GET", "/api/servers"); me = next((x for x in d if x["name"] == "cobble"), None) if isinstance(d, list) else None
         check("la lista de servidores le dice sus permisos", bool(me) and all(me["permissions"].get(k) for k in OPENS) and not me["permissions"].get("control"), d if not me else me["permissions"])
         st, d = a.req("GET", "/api/servers"); me = next((x for x in d if x["name"] == "cobble"), None) if isinstance(d, list) else None

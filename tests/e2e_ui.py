@@ -31,7 +31,7 @@ async def main():
         "[09nov2026 10:00:00.100] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]: Ana joined the game\n"
         "[09nov2026 11:30:00.100] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]: Ana left the game\n")
     (srv / "manager-console.log").write_text("[main/WARN]: You need to agree to the EULA in order to run the server.\n")
-    env = dict(os.environ, MANAGER_PORT="8823", MANAGER_DB=str(tmp / "db.db"), SERVERS_DIR=str(tmp / "srv"), MODNEX_CONFIG=str(CFG), MODNEX_BACKUP_DIR=str(tmp / "bk"))
+    env = dict(os.environ, MODNEX_PLAYIT_SECRET="/nonexistent/playit.toml", MANAGER_PORT="8823", MANAGER_DB=str(tmp / "db.db"), SERVERS_DIR=str(tmp / "srv"), MODNEX_CONFIG=str(CFG), MODNEX_BACKUP_DIR=str(tmp / "bk"))
     p = subprocess.Popen([sys.executable, "app.py"], cwd=CORE, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
     try:
         for _ in range(40):
@@ -52,8 +52,23 @@ async def main():
             await go_tab(pg, "copias"); tabs = await pg.eval_on_selector_all("a.tab", "els=>els.map(e=>e.textContent.trim())")
             check("las pestañas de copias, diagnóstico y avisos están", all(t in tabs for t in ("Copias", "Diagnóstico", "Avisos")), tabs)
             check("fuera de Inicio el riel de estado no ocupa sitio", not await pg.locator("#rail").is_visible())
-            await pg.evaluate("location.hash='#/s/fake/summary'"); await pg.wait_for_selector("#rail .rail-block", timeout=10000)
+            await pg.evaluate("location.hash='#/s/fake/summary'"); await pg.wait_for_function("() => document.querySelectorAll('#rail .rail-block').length >= 4", timeout=10000)   # los bloques llegan de uno en uno
             check("el riel de estado se muestra en Inicio", await pg.locator("#rail .rail-block").count() >= 4)
+            check("sin túnel de playit, Inicio no muestra un bloque de dirección vacío", not await pg.locator("#sumAddr").is_visible())
+            # Con túnel (respuesta simulada: las pruebas no tocan playit): la dirección se ve y se puede copiar
+            async def fake_addr(route): await route.fulfill(json={"address": "prueba.tun.ply.gg:40001"})
+            await pg.route("**/api/servers/fake/address", fake_addr)
+            await pg.evaluate("location.hash='#/s/fake/logs'"); await pg.wait_for_timeout(200)
+            await pg.evaluate("location.hash='#/s/fake/summary'"); await pg.wait_for_selector("#sumAddr .addr", timeout=8000)
+            check("con túnel, Inicio muestra la dirección para los jugadores", "prueba.tun.ply.gg:40001" in await pg.inner_text("#sumAddr"))
+            await pg.context.grant_permissions(["clipboard-read", "clipboard-write"]); await pg.click("button[data-action=copy-addr]"); await pg.wait_for_timeout(300)
+            check("el botón copia la dirección", await pg.evaluate("navigator.clipboard.readText()") == "prueba.tun.ply.gg:40001")
+            await pg.unroute("**/api/servers/fake/address")
+            await pg.evaluate("location.hash='#/s/fake/logs'"); await pg.wait_for_timeout(200)          # se deja Inicio como estaba, sin el bloque simulado
+            await pg.evaluate("location.hash='#/s/fake/summary'"); await pg.wait_for_function("() => document.querySelectorAll('#rail .rail-block').length >= 4", timeout=10000)
+            await pg.wait_for_function("() => !document.querySelector('.toast')", timeout=8000)
+            quick = await pg.eval_on_selector_all(".quick-item strong", "els=>els.map(e=>e.textContent.trim())")
+            check("los accesos rápidos de Inicio incluyen las copias", "Copias" in quick, quick)
             await pg.wait_for_selector("#rail .rail-block:has-text('Copias')", timeout=10000)   # el bloque se pinta tras pedir sus datos
             check("el bloque de copias está en el riel", await pg.locator("#rail .rail-title:text-is('Copias')").count() == 1)   # por el título: el aviso de disco bajo también nombra las copias
             # Respuesta, resortes y materiales del panel
@@ -62,6 +77,7 @@ async def main():
               return {spring: root.getPropertyValue('--spring').trim().startsWith('linear('), touch: t.touchAction,
                       release: t.transitionDuration.split(',').pop().trim(), ink: getComputedStyle(document.querySelector('.ink') || b).transitionTimingFunction.slice(0, 7)} }""")
             check("el panel define el resorte y quita la espera del toque", st["spring"] and st["touch"] == "manipulation", st)
+            await pg.evaluate("scrollTo(0, 0)"); await pg.wait_for_timeout(100)          # el botón no debe quedar bajo la barra superior fija
             bx = await pg.locator(".btn:visible").first.bounding_box()
             await pg.mouse.move(bx["x"] + 5, bx["y"] + 5); await pg.mouse.down(); await pg.wait_for_timeout(100)
             act = await pg.evaluate("() => { const s = getComputedStyle(document.querySelector('.btn:active') || document.body); return s.transform + '|' + s.transitionDuration }")

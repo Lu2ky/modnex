@@ -762,19 +762,30 @@ function tabSummary(s) {
     ['logs', 'Abrir la consola', 'Registro completo y comandos', can('logs')],
     ['players', 'Jugadores', 'Quién está dentro y quién puede entrar', can('players')],
     ['mods', s.kind === 'plugin' ? 'Plugins' : 'Mods', 'Instalar, actualizar y quitar', can('mods') && s.kind !== 'none'],
-    ['client', 'Generar el cliente', 'Lo que necesitan tus jugadores', isAdmin()],
+    ['x-kubejs', 'Recetas y reglas', 'Recetas, botín y reglas con formularios', can('recipes') && (s.addons || []).includes('kubejs')],
+    ['x-copias', 'Copias', 'Crear una copia o volver a una anterior', can('backups')],
+    ['client', 'Generar el cliente', 'Lo que necesitan tus jugadores', can('distribution')],
   ].filter((q) => q[3]);
   $('#tabBody').innerHTML = `
     <div class="summary${isAdmin() ? '' : ' solo'}">
       <div class="summary-main">
         ${can('logs') ? `<section class="block"><div class="block-head"><h2>Últimas líneas del registro</h2><a href="#/s/${enc}/logs">Abrir la consola</a></div>
           <pre class="log mini" id="sumLog" aria-label="Últimas líneas del registro">Cargando…</pre></section>` : ''}
+        <section class="block" id="sumAddr" hidden></section>
         <section class="block"><h2>Accesos rápidos</h2>
           <div class="quick">${quick.map(([id, t, d]) => `<a class="quick-item" href="#/s/${enc}/${id}"><strong>${t}</strong><span class="muted small">${d}</span></a>`).join('')}</div></section>
       </div>
       ${isAdmin() ? `<div class="summary-side"><section class="block"><h2>Actividad reciente</h2><div id="sumAudit"><p class="muted small">Cargando…</p></div></section>
         <section class="block"><h2>Quién tiene acceso</h2><div id="sumUsers"><p class="muted small">Cargando…</p></div></section></div>` : ''}
     </div>`;
+  // Dirección pública (túnel de playit): lo que hay que pasar a los jugadores. Si no hay túnel, el bloque no aparece.
+  api(`/api/servers/${enc}/address`).then((r) => {
+    const box = $('#sumAddr'); if (!box || !r.address) return;
+    box.hidden = false;
+    box.innerHTML = `<h2>Dirección para tus jugadores</h2><div class="row addr-row"><code class="addr" id="sumAddrText">${esc(r.address)}</code>
+      <button class="btn" data-action="copy-addr" data-text="${esc(r.address)}">${motionIcon('copy', 16)}Copiar</button></div>
+      <p class="muted small">Es el túnel de playit de este servidor: funciona desde fuera de tu red sin abrir puertos.</p>`;
+  }).catch(() => {});
   if (can('logs')) {
     const load = async () => {
       try {
@@ -1221,11 +1232,13 @@ async function tabClient(s) {
       <div id="clientInfo"><p class="muted">Analizando los mods del servidor…</p></div></section></div>
     <div class="two-side"><p class="lead">Los clientes generados y los archivos que subas aparecen aquí. Desde ahí puedes compartirlos con un enlace público que se cierra solo; ese enlace da acceso únicamente a ese archivo, nunca al panel.</p>
     <div id="shareBox"></div>
-    ${dropzoneHTML('relDrop', 'Subir un cliente ya hecho (.zip o .mrpack)', 'Hasta 2 GB. Queda guardado en el gestor; aún no es público.')}
+    ${isAdmin() ? dropzoneHTML('relDrop', 'Subir un cliente ya hecho (.zip o .mrpack)', 'Hasta 2 GB. Queda guardado en el gestor; aún no es público.')
+      : '<p class="muted small">Subir archivos, compartirlos con un enlace público y borrarlos lo hace un administrador.</p>'}
     <div id="relList"></div></div></div>`;
   loadClientPlan(s);
-  wireDrop('relDrop', `/api/servers/${encodeURIComponent(s.name)}/release_upload`, () => loadReleases(s));
   loadReleases(s);
+  if (!isAdmin()) return;          // subir, compartir y borrar son de administradores: a los demás no se les ofrecen
+  wireDrop('relDrop', `/api/servers/${encodeURIComponent(s.name)}/release_upload`, () => loadReleases(s));
   loadShare();
   every(5000, loadShare);
 }
@@ -1261,10 +1274,10 @@ async function loadReleases(s) {
     $('#relList').innerHTML = list.length ? `<div class="rows">${list.map((r) => `
       <div class="row-item"><div class="grow"><strong>${esc(r.file)}</strong>
         <div class="muted small">${fmtSize(r.size)} · ${fmtTime(r.mtime)}</div></div>
-        <div class="acts">
+        ${isAdmin() ? `<div class="acts">
           <button class="btn primary sm" data-action="share" data-file="${esc(r.file)}">Compartir con enlace temporal…</button>
           <button class="btn danger sm" data-action="rel-delete" data-file="${esc(r.file)}">Borrar</button>
-        </div></div>`).join('')}</div>` : emptyState('box', 'Todavía no hay releases para este servidor.', 'Genera un cliente o sube uno ya hecho.');
+        </div>` : ''}</div>`).join('')}</div>` : emptyState('box', 'Todavía no hay releases para este servidor.', 'Genera un cliente o sube uno ya hecho.');
   } catch (e) { fail(e); }
 }
 
@@ -2060,6 +2073,10 @@ const actions = {
     refreshDirty();
   },
   palette() { openPalette(); },
+  async 'copy-addr'(el) {
+    try { await navigator.clipboard.writeText(el.dataset.text); toast('Dirección copiada', 'ok'); }
+    catch (e) { toast('No se pudo copiar: selecciónala y cópiala a mano', 'error'); }
+  },
   async 'tex-use-local'(el) {
     const base = $('#packBase').value.trim(), c = state.tex.current;
     try {

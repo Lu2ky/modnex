@@ -9,6 +9,7 @@ Cada servidor guarda el id de su túnel en `.modnex-playit.json` dentro de su ca
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -103,3 +104,34 @@ def address(server_dir, key_path=None):
     except PlayitError:
         return None
     return None
+
+
+_ADDR_CACHE = {}          # carpeta del servidor -> (caduca, dirección)
+ADDR_TTL = 60
+
+
+def public_address(server_dir, local_port=None, key_path=None):
+    """Dirección pública para los jugadores (dominio:puerto) o None. Busca el túnel que creó el panel para este servidor y, si no
+    hay registro (túneles hechos a mano en playit), el que apunta a su puerto local. Se recuerda un minuto para no llamar a playit
+    en cada refresco de la pantalla."""
+    k = str(server_dir)
+    hit = _ADDR_CACHE.get(k)
+    if hit and hit[0] > time.time():
+        return hit[1]
+    key = read_key(key_path)
+    if not key:
+        return None
+    rec = _record(server_dir) or {}
+    found = None
+    try:
+        tunnels = rundata(key).get("tunnels", [])
+    except PlayitError:
+        return None                       # un fallo de red no se recuerda: se reintenta en el siguiente refresco
+    for t in tunnels:
+        mine = (rec.get("tunnel_id") and t.get("id") == rec["tunnel_id"]) or (
+            not rec.get("tunnel_id") and local_port and str(t.get("local_port")) == str(local_port) and t.get("tunnel_type") == TUNNEL_TYPE)
+        if mine and not t.get("disabled") and t.get("assigned_domain") and isinstance(t.get("port"), dict):
+            found = f"{t['assigned_domain']}:{t['port']['from']}"
+            break
+    _ADDR_CACHE[k] = (time.time() + ADDR_TTL, found)
+    return found

@@ -16,6 +16,7 @@ from modnex.services.mods import delete_mod, installed_index, toggle_mod
 from modnex.services.modconfig import mods_with_config, read_config, save_config, set_auto
 from modnex.services.players import player_action, players_info
 from modnex.services.properties import properties_view, set_properties
+from modnex.services.properties import read_properties
 from modnex.services.resourcepacks import (UNIFIED, add_remote_pack, delete_local_pack, finish_pack_upload, get_resourcepack, list_local_packs, packs_dir,
                                            set_resourcepack, use_local_pack)
 from modnex.services.servers import (delete_server, live_metrics, read_log, send_command, server_path, set_memory, start, stop,
@@ -106,6 +107,14 @@ def plan(req, name):
 @server_action("GET", "resourcepack", perm="textures")
 def resourcepack(req, name):
     return {"current": get_resourcepack(name), "local": list_local_packs(name)}
+
+
+@server_action("GET", "address", perm="*")
+def address(req, name):
+    """Dirección pública de playit para pasar a los jugadores (None si no hay túnel o playit no está configurado)."""
+    from modnex.services import playit
+    port = read_properties(name).get("server-port")
+    return {"address": playit.public_address(server_path(name), port)}
 
 
 @server_action("GET", "players", perm="players")

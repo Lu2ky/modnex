@@ -37,7 +37,7 @@ def main():
     fake.write_text('#!/usr/bin/env bash\necho "https://e2e-test.trycloudflare.com"\nsleep 300\n'); fake.chmod(0o755)
     fake_ngrok = tmp / "ngrok"
     fake_ngrok.write_text('#!/usr/bin/env bash\necho "t=2026 lvl=info msg=\\"started tunnel\\" obj=tunnels name=command_line addr=http://127.0.0.1:8824 url=https://e2e-test.ngrok-free.app"\nsleep 300\n'); fake_ngrok.chmod(0o755)
-    env = dict(os.environ, MANAGER_PORT=str(PORT), MANAGER_DB=str(tmp / "db.db"), SERVERS_DIR=str(tmp / "srv"),
+    env = dict(os.environ, MODNEX_PLAYIT_SECRET="/nonexistent/playit.toml", MANAGER_PORT=str(PORT), MANAGER_DB=str(tmp / "db.db"), SERVERS_DIR=str(tmp / "srv"),
                MODNEX_CONFIG=str(CFG), MODNEX_BACKUP_DIR=str(tmp / "bk"), MODNEX_CLOUDFLARED=str(fake), MODNEX_NGROK=str(fake_ngrok))
     p = subprocess.Popen([sys.executable, "app.py"], cwd=CORE, env=env, stdout=open(tmp / "core.log", "w"), stderr=subprocess.STDOUT)
     try:
